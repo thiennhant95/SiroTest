@@ -9,6 +9,7 @@ import { requireAuth, requireProjectAccess } from '../auth.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, runCreate } from '../schemas.js';
 import { checkAllowedHttpUrl, stripServerPaths } from '../security.js';
+import { loadProjectActions } from '../actions.js';
 import { db } from '../db.js';
 import { runEvent } from '../ws/events.js';
 import {
@@ -22,6 +23,49 @@ import {
 function broadcast(type: Parameters<typeof runEvent>[1], runId: string, extra: Record<string, unknown> = {}): void {
   const send = (globalThis as { __vvWsBroadcast?: (e: string, p: unknown) => void }).__vvWsBroadcast;
   send?.(type, { runId, at: Date.now(), ...extra });
+}
+
+interface EmbeddedDataSet {
+  id: string;
+  name: string;
+  rows: Record<string, string>[];
+}
+
+/**
+ * Validate a P1 data-driven run selection against the stored definition.
+ * Returns the normalized selection. Unknown datasetId / out-of-range
+ * rowIndex / rowIndex-without-datasetId all fail with 400 (never silently
+ * ignored, never silently widened to the full table).
+ */
+function validateRunDataset(
+  definition: TestDefinition,
+  datasetId?: string,
+  rowIndex?: number,
+): { datasetId?: string; rowIndex?: number } {
+  if (datasetId === undefined) {
+    if (rowIndex !== undefined) {
+      throw new ApiError('VALIDATION_ERROR', 'rowIndex requires datasetId', 400);
+    }
+    return {};
+  }
+  const raw = (definition as unknown as Record<string, unknown>)['datasets'];
+  const datasets = (Array.isArray(raw) ? raw : []) as EmbeddedDataSet[];
+  const found = datasets.find((d) => d.id === datasetId);
+  if (!found) {
+    throw new ApiError(
+      'VALIDATION_ERROR',
+      `datasetId '${datasetId}' does not exist in this test definition (${datasets.length} dataset(s))`,
+      400,
+    );
+  }
+  if (rowIndex !== undefined && (!Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= found.rows.length)) {
+    throw new ApiError(
+      'VALIDATION_ERROR',
+      `rowIndex ${String(rowIndex)} out of range for dataset '${datasetId}' (${found.rows.length} row(s))`,
+      400,
+    );
+  }
+  return rowIndex !== undefined ? { datasetId, rowIndex } : { datasetId };
 }
 
 export async function runRoutes(app: FastifyInstance): Promise<void> {
@@ -44,11 +88,18 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
     if (!urlCheck.ok) {
       throw new ApiError('VALIDATION_ERROR', `run target rejected: ${urlCheck.reason}`, 400);
     }
+    // P1 data-driven: the selected dataset/row must exist in the stored
+    // definition — validated BEFORE the run row is created (fail fast, no
+    // orphan queued runs for bad selections).
+    const definitionPre = JSON.parse(test.definitionJson) as TestDefinition;
+    const validatedDataset = validateRunDataset(definitionPre, body.datasetId, body.rowIndex);
     const run = await db().run.create({
       data: {
         projectId: test.projectId, testId: id,
         environmentId: body.environmentId, browser: body.browser,
         status: 'queued', trigger: 'manual',
+        ...(validatedDataset.datasetId !== undefined ? { datasetId: validatedDataset.datasetId } : {}),
+        ...(validatedDataset.rowIndex !== undefined ? { rowIndex: validatedDataset.rowIndex } : {}),
       },
     });
     broadcast('run.queued', run.id, { testId: id });
@@ -62,6 +113,10 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
       test.projectId,
       body.environmentId,
     );
+    // P1 actions: resolve the project's callees so the runner can inline
+    // `callAction` steps at compile time (definition already carries the
+    // callAction steps; no RunRequest shape change beyond this optional field).
+    const actions = await loadProjectActions(test.projectId);
     const request: RunRequest = {
       runId: run.id,
       test: definition,
@@ -69,6 +124,9 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
       environmentId: body.environmentId,
       browser: body.browser,
       headed: body.headed,
+      ...(validatedDataset.datasetId !== undefined ? { datasetId: validatedDataset.datasetId } : {}),
+      ...(validatedDataset.rowIndex !== undefined ? { rowIndex: validatedDataset.rowIndex } : {}),
+      ...(actions.length > 0 ? { actions } : {}),
       projectVariables,
       environmentVariables,
       trigger: 'manual',

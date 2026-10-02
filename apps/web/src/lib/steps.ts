@@ -44,6 +44,36 @@ export interface BuilderDefinition {
   browser: "chromium" | "firefox" | "webkit";
   baseUrl?: string;
   variables?: Record<string, string>;
+  /** P1 — embedded data tables for data-driven runs (CSV/JSON import). */
+  datasets?: BuilderDataSet[];
+  steps: BuilderStep[];
+}
+
+/** P1 — one named table of plaintext rows (never secrets — see Datasets tab hint). */
+export interface BuilderDataSet {
+  id: string;
+  name: string;
+  rows: Record<string, string>[];
+}
+
+/** P1 — a named parameter of a reusable action. */
+export interface BuilderActionParameter {
+  name: string;
+  description?: string;
+  /** Used when the caller omits the argument. */
+  default?: string;
+  /** Secret params resolve at run time and are redacted like variables. */
+  secret?: boolean;
+}
+
+/** P1 — reusable business action (project-scoped; body is P0 steps only). */
+export interface BuilderAction {
+  schemaVersion: "1.0";
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  parameters: BuilderActionParameter[];
   steps: BuilderStep[];
 }
 
@@ -124,6 +154,8 @@ export const STEP_CATALOG: StepMeta[] = [
   { type: "assertChecked", label: "Assert checked", icon: "☑✓", group: "Assertion", description: "Checkbox đã tick", keywords: ["assert", "checked", "tick"], hasTarget: true, make: () => ({ target: target() }) },
   // -- Utility --
   { type: "screenshot", label: "Take screenshot", icon: "📷", group: "Utility", description: "Chụp ảnh màn hình", keywords: ["screenshot", "chụp", "ảnh", "capture", "photo"], hasTarget: false, make: () => ({ fullPage: false }) },
+  // -- P1 reusable action invocation (business keyword; body inlines at compile time) --
+  { type: "callAction", label: "Call action", icon: "🔁", group: "Utility", description: "Gọi reusable action (business keyword)", keywords: ["call", "action", "reusable", "gọi", "keyword", "business", "tái sử dụng"], hasTarget: false, make: () => ({ actionId: "", arguments: {} }) },
 ];
 
 export const STEP_META: Record<string, StepMeta> = Object.fromEntries(
@@ -224,6 +256,12 @@ export function businessName(step: BuilderStep): string {
       return `Assert ${t} checked`;
     case "screenshot":
       return `Screenshot${step.name ? "" : String(step.fullPage ? " (full page)" : "")}`;
+    case "callAction": {
+      const aid = typeof step.actionId === "string" ? step.actionId : "";
+      const args = step.arguments as Record<string, string> | undefined;
+      const n = args ? Object.keys(args).length : 0;
+      return `Call action ${aid ? `“${aid.slice(0, 24)}”` : "(chưa chọn)"}${n > 0 ? ` (${n} arg${n > 1 ? "s" : ""})` : ""}`;
+    }
     default:
       return STEP_META[step.type]?.label ?? step.type;
   }
@@ -399,6 +437,9 @@ export function toPlaywrightPreview(def: BuilderDefinition): string {
         break;
       case "screenshot":
         lines.push(`  await page.screenshot({ fullPage: ${s.fullPage ? "true" : "false"} });`);
+        break;
+      case "callAction":
+        lines.push(`  // call action '${String(s.actionId ?? "")}' (inlined at compile time);`);
         break;
       default:
         lines.push(`  // unknown step: ${s.type}`);

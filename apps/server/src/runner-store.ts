@@ -58,6 +58,8 @@ type DbRun = {
   browser: string;
   status: string;
   trigger: string | null;
+  datasetId: string | null;
+  rowIndex: number | null;
   startedAt: Date | null;
   finishedAt: Date | null;
   durationMs: number | null;
@@ -74,6 +76,8 @@ function toRunRecord(r: DbRun): RunRecord {
     browser: (r.browser === 'firefox' || r.browser === 'webkit' ? r.browser : 'chromium') as RunRecord['browser'],
     status: asRunStatus(r.status),
     ...(r.trigger ? { trigger: r.trigger } : {}),
+    ...(r.datasetId ? { datasetId: r.datasetId } : {}),
+    ...(r.rowIndex !== null ? { rowIndex: r.rowIndex } : {}),
     ...(toMs(r.startedAt) !== undefined ? { startedAt: toMs(r.startedAt) } : {}),
     ...(toMs(r.finishedAt) !== undefined ? { finishedAt: toMs(r.finishedAt) } : {}),
     ...(r.durationMs !== null ? { durationMs: r.durationMs } : {}),
@@ -102,6 +106,8 @@ export class PrismaRunStore implements RunStore {
         browser: run.browser,
         status: run.status,
         trigger: run.trigger ?? 'manual',
+        ...(run.datasetId ? { datasetId: run.datasetId } : {}),
+        ...(run.rowIndex !== undefined ? { rowIndex: run.rowIndex } : {}),
         ...(toDate(run.startedAt) ? { startedAt: toDate(run.startedAt) } : {}),
         ...(toDate(run.finishedAt) ? { finishedAt: toDate(run.finishedAt) } : {}),
         ...(run.durationMs !== undefined ? { durationMs: run.durationMs } : {}),

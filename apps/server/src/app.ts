@@ -9,6 +9,9 @@ import { environmentRoutes } from './routes/environments.js';
 import { variableRoutes } from './routes/variables.js';
 import { recorderRoutes, recorderManager } from './routes/recorder.js';
 import { runRoutes } from './routes/runs.js';
+import { datasetRoutes } from './routes/datasets.js';
+import { suiteRoutes } from './routes/suites.js';
+import { actionRoutes } from './routes/actions.js';
 import { compilerRoutes } from './routes/compiler.js';
 import { fixtureRoutes } from './routes/fixture.js';
 
@@ -35,6 +38,9 @@ export async function buildApp() {
       await v1.register(variableRoutes);
       await v1.register(recorderRoutes);
       await v1.register(runRoutes);
+      await v1.register(datasetRoutes);
+      await v1.register(suiteRoutes);
+      await v1.register(actionRoutes);
       await v1.register(compilerRoutes);
     },
     { prefix: '/api/v1' },

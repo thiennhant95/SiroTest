@@ -1,20 +1,27 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Button, EmptyState, ErrorState, Input, Skeleton, useToast } from "../components/ui";
+import { Badge, Button, EmptyState, ErrorState, Input, Select, Skeleton, useToast } from "../components/ui";
 import { ApiError, api, type TestRecord } from "../lib/api";
 
 export function ProjectTestsPage() {
   const { id: projectId } = useParams();
   const [tests, setTests] = useState<TestRecord[] | null>(null);
+  const [tags, setTags] = useState<Array<{ tag: string; count: number }>>([]);
+  const [tag, setTag] = useState("");
   const [error, setError] = useState("");
   const [name, setName] = useState("");
   const toast = useToast();
 
-  const load = async () => {
+  const load = async (activeTag = tag) => {
     if (!projectId) return;
     setError("");
     try {
-      setTests(await api.listTests(projectId));
+      const [list, tagList] = await Promise.all([
+        api.listTests(projectId, activeTag || undefined),
+        api.listTags(projectId),
+      ]);
+      setTests(list);
+      setTags(tagList);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Không tải được tests");
       setTests([]);
@@ -22,7 +29,7 @@ export function ProjectTestsPage() {
   };
 
   useEffect(() => {
-    void load();
+    void load("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
@@ -33,6 +40,23 @@ export function ProjectTestsPage() {
       </Link>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Tests</h1>
+        <span className="flex gap-3">
+          <Link to={`/projects/${projectId}/actions`} className="text-sm text-indigo-700 hover:underline">
+            🔁 Actions
+          </Link>
+          <Link to={`/projects/${projectId}/suites`} className="text-sm text-indigo-700 hover:underline">
+            Suites →
+          </Link>
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Select value={tag} onChange={(e) => { setTag(e.target.value); void load(e.target.value); }} aria-label="Filter by tag" className="max-w-xs">
+          <option value="">All tags</option>
+          {tags.map((t) => (
+            <option key={t.tag} value={t.tag}>{t.tag} ({t.count})</option>
+          ))}
+        </Select>
+        {tag ? <Badge>{tag}</Badge> : null}
       </div>
       <form
         className="flex gap-2"

@@ -57,14 +57,16 @@ export const api = {
     }),
   listRuns: (testId: string) => req<RunDetail[]>(`/tests/${testId}/runs`),
 
-  /** POST compile -> { code } */
-  compile: (testId: string) =>
+  /** POST compile -> { code } (P1: datasetId previews the data-driven loop). */
+  compile: (testId: string, datasetId?: string) =>
     req<{ code: string; testId: string }>(`/tests/${testId}/compile`, {
       method: "POST",
+      body: JSON.stringify(datasetId ? { datasetId } : {}),
     }),
-  /** GET export?format=spec -> raw .spec.ts text */
-  exportSpec: async (testId: string): Promise<string> => {
-    const res = await fetch(`${BASE}/tests/${testId}/export?format=spec`, {
+  /** GET export?format=spec -> raw .spec.ts text (P1: &datasetId= previews loop). */
+  exportSpec: async (testId: string, datasetId?: string): Promise<string> => {
+    const qs = datasetId ? `?format=spec&datasetId=${encodeURIComponent(datasetId)}` : "?format=spec";
+    const res = await fetch(`${BASE}/tests/${testId}/export${qs}`, {
       headers: authHeaders(),
     });
     if (!res.ok) throw new Error(`Export failed: ${res.status}`);

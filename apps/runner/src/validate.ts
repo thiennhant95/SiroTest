@@ -38,6 +38,8 @@ export const SUPPORTED_STEP_TYPES: ReadonlySet<string> = new Set([
   'assertChecked',
   // utility
   'screenshot',
+  // P1 reusable-action invocation (callee body inlines at compile time)
+  'callAction',
 ]);
 
 const SUPPORTED_LOCATOR_STRATEGIES: ReadonlySet<string> = new Set([
@@ -150,6 +152,20 @@ function validateStep(step: TestStep, index: number, issues: ValidationIssue[]):
   }
   if (step.type === 'fill' && typeof step.value !== 'string') {
     issues.push({ code: 'STEP_VALUE_MISSING', message: `${where} of type 'fill' requires value`, stepId: step.id });
+  }
+  if (step.type === 'callAction') {
+    if (typeof step.actionId !== 'string' || step.actionId.length === 0) {
+      issues.push({ code: 'STEP_ACTION_MISSING', message: `${where} of type 'callAction' requires actionId`, stepId: step.id });
+    }
+    if (step.arguments !== undefined) {
+      const args = step.arguments as unknown;
+      if (
+        !isRecord(args) ||
+        !Object.values(args).every((v) => typeof v === 'string')
+      ) {
+        issues.push({ code: 'STEP_ARGS_INVALID', message: `${where} of type 'callAction' requires arguments to be a record of strings`, stepId: step.id });
+      }
+    }
   }
   if (step.type === 'waitForTimeout' && !(Number.isFinite(step.milliseconds) && (step.milliseconds as number) >= 0)) {
     issues.push({

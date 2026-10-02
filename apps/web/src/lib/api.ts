@@ -244,6 +244,47 @@ export interface TestRecord {
   name: string;
 }
 
+export interface SuiteRecord {
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string | null;
+  tests?: SuiteMember[];
+}
+export interface SuiteMember {
+  suiteId: string;
+  testId: string;
+  sortOrder: number;
+  test?: { id: string; name: string };
+}
+export interface SuiteExecution {
+  suiteRunId: string;
+  suiteId: string;
+  status: string;
+  counts: { total: number; passed: number; failed: number; running: number; cancelled: number };
+  lastActivityAt: number;
+}
+export interface SuiteRunDetail {
+  suiteRunId: string;
+  suite: SuiteRecord | null;
+  status: string;
+  tests: Array<{
+    testId: string;
+    testName: string;
+    retryCount: number;
+    finalStatus: string;
+    attempts: Array<{
+      runId: string;
+      attempt: number;
+      status: string;
+      browser: string;
+      trigger: string;
+      errorSummary?: string | null;
+      durationMs?: number | null;
+    }>;
+  }>;
+}
+
 export const api = {
   get: <T>(path: string) => day6req<T>(path),
   post: <T>(path: string, data?: unknown) =>
@@ -254,8 +295,8 @@ export const api = {
 
   /* Compat helpers used by pages/Projects + ProjectTests (Day 5/7 shell). */
   listProjects: () => day6req<ProjectRecord[]>("/projects"),
-  listTests: (projectId: string) =>
-    day6req<TestRecord[]>(`/projects/${projectId}/tests`),
+  listTests: (projectId: string, tag?: string) =>
+    day6req<TestRecord[]>(`/projects/${projectId}/tests${tag ? `?tag=${encodeURIComponent(tag)}` : ""}`),
   createTest: (projectId: string, name: string) =>
     day6req<TestRecord>(`/projects/${projectId}/tests`, {
       method: "POST",
@@ -274,10 +315,20 @@ export const api = {
     day6req<Environment[]>(`/projects/${projectId}/environments`),
   listVariables: (projectId: string) =>
     day6req<Variable[]>(`/projects/${projectId}/variables`),
-  createRun: (testId: string, opts: { environmentId: string; browser?: string; headed?: boolean }) =>
+  createRun: (testId: string, opts: { environmentId: string; browser?: string; headed?: boolean; datasetId?: string; rowIndex?: number }) =>
     day6req<{ id: string; status: string }>(`/tests/${testId}/runs`, {
       method: "POST",
-      body: JSON.stringify({ environmentId: opts.environmentId, browser: opts.browser ?? "chromium", headed: opts.headed ?? false }),
+      body: JSON.stringify({ environmentId: opts.environmentId, browser: opts.browser ?? "chromium", headed: opts.headed ?? false, ...(opts.datasetId ? { datasetId: opts.datasetId } : {}), ...(opts.rowIndex !== undefined ? { rowIndex: opts.rowIndex } : {}) }),
+    }),
+  /* P1 datasets (definition-embedded): import CSV/JSON text, delete a table. */
+  importDataset: (testId: string, payload: { format: "csv" | "json"; name?: string; content: string }) =>
+    day6req<{ dataset: DataSet; definitionJson: unknown }>(`/tests/${testId}/datasets/import`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  deleteDataset: (testId: string, datasetId: string) =>
+    day6req<{ deleted: string; definitionJson: unknown }>(`/tests/${testId}/datasets/${datasetId}`, {
+      method: "DELETE",
     }),
   getRun: (runId: string) => day6req<Run & { steps?: RunStep[] }>(`/runs/${runId}`),
   listRuns: (testId: string) => day6req<{ id: string; status: string; browser: string }[]>(`/tests/${testId}/runs`),
@@ -294,6 +345,97 @@ export const api = {
     day6req<void>(`/recorder/${sessionId}/resume`, { method: "POST" }),
   recorderStop: (sessionId: string) =>
     day6req<unknown>(`/recorder/${sessionId}/stop`, { method: "POST" }),
+
+  /* P1 — Reusable actions/business keywords + parameters. */
+  listActions: (projectId: string) =>
+    day6req<ActionRecord[]>(`/projects/${projectId}/actions`),
+  createAction: (projectId: string, payload: ActionCreate) =>
+    day6req<ActionRecord>(`/projects/${projectId}/actions`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  getAction: (actionId: string) =>
+    day6req<ActionRecord>(`/actions/${actionId}`),
+  updateAction: (actionId: string, payload: ActionUpdate) =>
+    day6req<ActionRecord>(`/actions/${actionId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deleteAction: (actionId: string) =>
+    day6req<void>(`/actions/${actionId}`, { method: "DELETE" }),
+
+  /* P1 — Suites/tags + suite runs + JUnit export. */
+  listSuites: (projectId: string) =>
+    day6req<SuiteRecord[]>(`/projects/${projectId}/suites`),
+  createSuite: (projectId: string, name: string, description?: string) =>
+    day6req<SuiteRecord>(`/projects/${projectId}/suites`, {
+      method: "POST",
+      body: JSON.stringify({ name, ...(description ? { description } : {}) }),
+    }),
+  getSuite: (suiteId: string) => day6req<SuiteRecord>(`/suites/${suiteId}`),
+  deleteSuite: (suiteId: string) =>
+    day6req<void>(`/suites/${suiteId}`, { method: "DELETE" }),
+  listSuiteMembers: (suiteId: string) =>
+    day6req<SuiteMember[]>(`/suites/${suiteId}/tests`),
+  addSuiteMember: (suiteId: string, testId: string) =>
+    day6req<SuiteMember>(`/suites/${suiteId}/tests`, {
+      method: "POST",
+      body: JSON.stringify({ testId }),
+    }),
+  reorderSuiteMembers: (suiteId: string, testIds: string[]) =>
+    day6req<SuiteMember[]>(`/suites/${suiteId}/tests`, {
+      method: "PUT",
+      body: JSON.stringify({ testIds }),
+    }),
+  removeSuiteMember: (suiteId: string, testId: string) =>
+    day6req<void>(`/suites/${suiteId}/tests/${testId}`, { method: "DELETE" }),
+  listTags: (projectId: string) =>
+    day6req<Array<{ tag: string; count: number }>>(`/projects/${projectId}/tags`),
+  runSuite: (
+    suiteId: string,
+    opts: { environmentId: string; browser?: string; headed?: boolean; retries?: number; parallel?: number },
+  ) =>
+    day6req<{ suiteRunId: string; runs?: Array<{ id: string; testId: string }> }>(
+      `/suites/${suiteId}/runs`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          environmentId: opts.environmentId,
+          browser: opts.browser ?? "chromium",
+          headed: opts.headed ?? false,
+          retries: opts.retries ?? 0,
+          parallel: opts.parallel ?? 2,
+        }),
+      },
+    ),
+  listSuiteRuns: (suiteId: string) =>
+    day6req<SuiteExecution[]>(`/suites/${suiteId}/runs`),
+  getSuiteRun: (suiteRunId: string) =>
+    day6req<SuiteRunDetail>(`/suite-runs/${suiteRunId}`),
+  cancelSuiteRun: (suiteRunId: string) =>
+    day6req<{ suiteRunId: string; cancelled: string[]; alreadyTerminal: string[] }>(
+      `/suite-runs/${suiteRunId}/cancel`,
+      { method: "POST" },
+    ),
+  /** Download JUnit XML (suite run or single run) via blob anchor. */
+  downloadJUnit: async (kind: "suite-run" | "run", id: string): Promise<void> => {
+    const path =
+      kind === "suite-run" ? `/suite-runs/${id}/export?format=junit` : `/runs/${id}/export?format=junit`;
+    const res = await fetch(`${API_BASE}${path}`, { headers: day6Headers() });
+    if (!res.ok) throw new ApiError("REQUEST_FAILED", `JUnit export failed: HTTP ${res.status}`, res.status);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    try {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${id}.junit.xml`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+  },
 };
 
 /* ---------- Day 6 domain types ---------- */
@@ -310,6 +452,35 @@ export interface Environment {
   name: string;
   isDefault: boolean;
   baseUrl?: string | null;
+}
+/** P1 — reusable action parameter (secret params resolve at run time). */
+export interface ActionParameter {
+  name: string;
+  description?: string;
+  default?: string;
+  secret?: boolean;
+}
+/** P1 — reusable business action (project-scoped; body is P0 steps only). */
+export interface ActionRecord {
+  schemaVersion: "1.0";
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  parameters: ActionParameter[];
+  steps: Array<Record<string, unknown> & { id: string; type: string; enabled: boolean }>;
+}
+export interface ActionCreate {
+  name: string;
+  description?: string;
+  parameters?: ActionParameter[];
+  steps: Array<Record<string, unknown>>;
+}
+export interface ActionUpdate {
+  name?: string;
+  description?: string | null;
+  parameters?: ActionParameter[];
+  steps?: Array<Record<string, unknown>>;
 }
 /** Secret values are NEVER returned as plaintext (server masks them as null). */
 export interface Variable {
@@ -330,6 +501,12 @@ export interface RunStep {
   status: string;
   errorMessage?: string | null;
   durationMs?: number | null;
+}
+/** P1 — embedded dataset table (rows are plaintext; secrets stay in variables). */
+export interface DataSet {
+  id: string;
+  name: string;
+  rows: Record<string, string>[];
 }
 export interface Run {
   id: string;

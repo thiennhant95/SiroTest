@@ -6,15 +6,25 @@ import { EmptyState, ErrorState, Skeleton } from "../../components/ui";
 import { useToast } from "../../components/Toast";
 import { buildZip, downloadBlob, specZipFiles } from "../../lib/exportZip";
 
+interface DataSetInfo {
+  id: string;
+  name: string;
+  rows: Record<string, string>[];
+}
+
 /**
  * Code tab (Advanced): GET export?format=spec hoặc POST compile.
  * Tester không cần hiểu page.locator() — mọi thứ nằm trong tab riêng này.
+ * P1: khi test có datasets, dropdown chọn dataset để preview vòng lặp
+ * data-driven (`for (... VV_DATASET_ROWS ...)`); mặc định xem bản P0.
  */
 export function CodeTab({ testId, testName }: { testId: string; testName: string }) {
   const { notify } = useToast();
   const [code, setCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [datasets, setDatasets] = useState<DataSetInfo[]>([]);
+  const [datasetId, setDatasetId] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -22,10 +32,19 @@ export function CodeTab({ testId, testName }: { testId: string; testName: string
     try {
       try {
         // Prefer raw export file; fall back to compile JSON.
-        setCode(await api.exportSpec(testId));
+        setCode(await api.exportSpec(testId, datasetId || undefined));
       } catch {
-        const res = await api.compile(testId);
+        const res = await api.compile(testId, datasetId || undefined);
         setCode(res.code);
+      }
+      try {
+        const test = await api.getTest(testId);
+        const def = (typeof test.definitionJson === "string"
+          ? JSON.parse(test.definitionJson)
+          : test.definitionJson) as { datasets?: DataSetInfo[] };
+        setDatasets(Array.isArray(def.datasets) ? def.datasets : []);
+      } catch {
+        /* dataset list optional — preview still works */
       }
     } catch {
       // Offline demo so the tab is still verifiable without backend.
@@ -34,7 +53,7 @@ export function CodeTab({ testId, testName }: { testId: string; testName: string
     } finally {
       setLoading(false);
     }
-  }, [testId]);
+  }, [testId, datasetId]);
 
   useEffect(() => {
     void load();
@@ -76,6 +95,23 @@ export function CodeTab({ testId, testName }: { testId: string; testName: string
         đọc hiểu <code>page.locator()</code>. Mã dưới đây chạy được bằng{" "}
         <code>@playwright/test</code> gốc, không cần Studio.
       </div>
+      {datasets.length > 0 ? (
+        <label className="row" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          Preview dataset
+          <select
+            aria-label="Preview dataset"
+            value={datasetId}
+            onChange={(e) => setDatasetId(e.target.value)}
+          >
+            <option value="">Không (bản đơn)</option>
+            {datasets.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name} ({d.rows.length} dòng)
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <div className="row">
         <button type="button" className="btn" onClick={() => void copy()}>
           Sao chép

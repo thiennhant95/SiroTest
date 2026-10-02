@@ -3,12 +3,14 @@ import {
   compileTest,
   InvalidDefinitionError,
   UnsupportedStepError,
+  type ReusableAction,
   type TestDefinition,
   type TestStep,
 } from '@vietvang/playwright-compiler';
 import { requireAuth } from '../auth.js';
 import { ApiError } from '../errors.js';
 import { db } from '../db.js';
+import { actionMap, loadProjectActions } from '../actions.js';
 import { sanitizeExportFilename } from '../security.js';
 
 /**
@@ -23,11 +25,17 @@ import { sanitizeExportFilename } from '../security.js';
 export function compileDefinition(def: {
   steps?: Array<Record<string, unknown>>;
   name?: string;
+  datasets?: Array<Record<string, unknown>>;
   [key: string]: unknown;
-}): string {
+}, opts?: { datasetId?: string; actions?: ReusableAction[] | Map<string, ReusableAction> }): string {
   const full = normalizeDefinition(def);
+  const compileOpts: { datasetId?: string; actions?: Map<string, ReusableAction> } = {};
+  if (opts?.datasetId !== undefined) compileOpts.datasetId = opts.datasetId;
+  if (opts?.actions !== undefined) {
+    compileOpts.actions = opts.actions instanceof Map ? opts.actions : actionMap(opts.actions);
+  }
   try {
-    return compileTest(full);
+    return compileTest(full, compileOpts);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     if (
@@ -78,29 +86,50 @@ function normalizeDefinition(def: {
   if (raw['variables'] && typeof raw['variables'] === 'object') {
     normalized.variables = raw['variables'] as Record<string, string>;
   }
+  // P1 datasets pass through untouched (canonical compiler validates the
+  // selected id at compile time; stored shape was validated at import).
+  if (Array.isArray(raw['datasets'])) {
+    (normalized as unknown as Record<string, unknown>)['datasets'] = raw['datasets'];
+  }
   return normalized;
 }
 
 export async function compilerRoutes(app: FastifyInstance): Promise<void> {
   app.post('/tests/:id/compile', { preHandler: requireAuth }, async (req) => {
     const { id } = req.params as { id: string };
+    const body = (req.body ?? {}) as { datasetId?: string };
     const test = await db().test.findUnique({ where: { id } });
     if (!test) throw new ApiError('NOT_FOUND', `Test ${id} not found`, 404);
     const def = JSON.parse(test.definitionJson) as { steps?: Array<Record<string, unknown>>; name?: string };
-    const code = compileDefinition(def);
+    // P1 actions: resolve the project's callees so `callAction` steps inline.
+    const actions = await loadProjectActions(test.projectId);
+    const code = compileDefinition(
+      def,
+      {
+        ...(typeof body.datasetId === 'string' ? { datasetId: body.datasetId } : {}),
+        ...(actions.length > 0 ? { actions } : {}),
+      },
+    );
     return { testId: id, code };
   });
 
   app.get('/tests/:id/export', { preHandler: requireAuth }, async (req, reply) => {
     const { id } = req.params as { id: string };
-    const { format } = req.query as { format?: string };
+    const { format, datasetId } = req.query as { format?: string; datasetId?: string };
     if (format && format !== 'spec') {
       throw new ApiError('VALIDATION_ERROR', 'Only format=spec is supported in P0', 400);
     }
     const test = await db().test.findUnique({ where: { id } });
     if (!test) throw new ApiError('NOT_FOUND', `Test ${id} not found`, 404);
     const def = JSON.parse(test.definitionJson) as { steps?: Array<Record<string, unknown>>; name?: string };
-    const code = compileDefinition(def);
+    const actions = await loadProjectActions(test.projectId);
+    const code = compileDefinition(
+      def,
+      {
+        ...(typeof datasetId === 'string' && datasetId ? { datasetId } : {}),
+        ...(actions.length > 0 ? { actions } : {}),
+      },
+    );
     return reply
       .header('content-type', 'text/x-typescript')
       .header('content-disposition', `attachment; filename="${sanitizeExportFilename(id)}"`)

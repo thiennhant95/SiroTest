@@ -8,14 +8,22 @@ export function AddStepPalette({
   onClose,
   onAdd,
   insertLabel,
+  excludeTypes,
 }: {
   open: boolean;
   onClose: () => void;
   onAdd: (type: string) => void;
   insertLabel?: string;
+  /** Hide step types (e.g. action bodies reject nested `callAction`). */
+  excludeTypes?: string[];
 }) {
   const [q, setQ] = useState("");
-  const results = useMemo(() => searchCatalog(q), [q]);
+  const results = useMemo(() => {
+    const all = searchCatalog(q);
+    if (!excludeTypes || excludeTypes.length === 0) return all;
+    const hidden = new Set(excludeTypes);
+    return all.filter((m) => !hidden.has(m.type));
+  }, [q, excludeTypes]);
 
   return (
     <Dialog open={open} onClose={onClose} title={`Add step${insertLabel ? ` — ${insertLabel}` : ""}`} wide>

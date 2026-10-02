@@ -14,7 +14,7 @@
     "typecheck": "pnpm -r typecheck",
     "test:unit": "pnpm --filter @playwright-studio/test-model test && pnpm --filter @vietvang/playwright-compiler test && pnpm --filter @playwright-vv/locator-engine test",
     "test:security": "npx tsx --test apps/server/src/security.test.ts apps/runner/src/runner-security.test.ts",
-    "test:integration": "npx tsx --test tests/integration/recorder.test.ts tests/integration/compiler-p0.test.ts tests/integration/run-lifecycle.test.ts tests/integration/api-crud-versioning.test.ts",
+    "test:integration": "npx tsx --test tests/integration/recorder.test.ts tests/integration/compiler-p0.test.ts tests/integration/run-lifecycle.test.ts tests/integration/api-crud-versioning.test.ts tests/integration/datasets.test.ts tests/integration/suites.test.ts tests/integration/actions-p1.test.ts",
     "test:e2e": "npx playwright test -c e2e/playwright.config.ts",
     "test:p0": "pnpm test:unit && pnpm test:security && pnpm test:integration && pnpm test:e2e"
   },

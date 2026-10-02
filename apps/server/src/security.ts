@@ -171,7 +171,12 @@ export function checkAllowedHttpUrl(raw: string | undefined | null): UrlCheck {
 // 4. Test-definition validation: step allowlist => custom code disabled (P0)
 // ---------------------------------------------------------------------------
 
-/** Every executable step type in P0. Anything else (incl. customCode) is rejected. */
+/**
+ * Every storable step type (P0 + P1 `callAction`). Anything else (incl.
+ * customCode) is rejected. `callAction` is valid in TEST definitions; it is
+ * still rejected inside ACTION bodies (nested calls would break total
+ * inlining) — see routes/actions.ts.
+ */
 export const SUPPORTED_STEP_TYPES: ReadonlySet<string> = new Set([
   'goto', 'reload', 'goBack', 'goForward',
   'click', 'doubleClick', 'fill', 'clear', 'press', 'check', 'uncheck',
@@ -179,6 +184,7 @@ export const SUPPORTED_STEP_TYPES: ReadonlySet<string> = new Set([
   'assertVisible', 'assertHidden', 'assertText', 'assertContainsText',
   'assertValue', 'assertURL', 'assertTitle', 'assertEnabled',
   'assertDisabled', 'assertChecked', 'screenshot',
+  'callAction',
 ]);
 
 export interface DefinitionIssue {
