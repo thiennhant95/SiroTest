@@ -10,3 +10,5 @@ storage/runs/
 test-results/
 playwright-report/
 .opencode/.cache/
+
+*.tsbuildinfo

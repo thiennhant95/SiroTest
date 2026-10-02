@@ -178,6 +178,125 @@ export function Dialog({
   );
 }
 
+/** Keyboard-accessible tooltip: hover/focus reveals hint; trigger stays focusable. */
+export function Tooltip({
+  tip,
+  children,
+}: {
+  tip: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <span className="group relative inline-flex" tabIndex={0} aria-label={tip} title={tip}>
+      {children}
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-slate-200 bg-slate-900 px-2 py-1 text-[11px] text-white shadow-lg group-hover:block group-focus-visible:block group-focus:block"
+      >
+        {tip}
+      </span>
+    </span>
+  );
+}
+
+export interface DataTableColumn<R> {
+  key: string;
+  header: string;
+  render?: (row: R) => React.ReactNode;
+}
+
+export function DataTable<R extends { id: string }>({
+  columns,
+  rows,
+  emptyText = "Chưa có dữ liệu.",
+  caption,
+}: {
+  columns: DataTableColumn<R>[];
+  rows: R[];
+  emptyText?: string;
+  caption?: string;
+}) {
+  if (rows.length === 0) {
+    return <p className="py-3 text-center text-xs text-slate-500">{emptyText}</p>;
+  }
+  return (
+    <div className="overflow-x-auto rounded-lg border border-slate-200">
+      <table className="w-full border-collapse text-sm">
+        {caption ? <caption className="px-3 py-2 text-left text-xs text-slate-500">{caption}</caption> : null}
+        <thead>
+          <tr className="border-b-2 border-slate-200 bg-slate-50 text-left">
+            {columns.map((c) => (
+              <th key={c.key} scope="col" className="px-3 py-2 text-xs font-semibold text-slate-600">
+                {c.header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60">
+              {columns.map((c) => (
+                <td key={c.key} className="px-3 py-2 align-top">
+                  {c.render
+                    ? c.render(r)
+                    : String((r as Record<string, unknown>)[c.key] ?? "—")}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function Drawer({
+  open,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  React.useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={title}>
+      <div
+        className="absolute inset-0 bg-black/40"
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      />
+      <aside className="absolute right-0 top-0 flex h-full w-full max-w-sm flex-col bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+          <h2 className="text-sm font-semibold">{title}</h2>
+          <button
+            // eslint-disable-next-line jsx-a11y/no-autofocus
+            autoFocus
+            onClick={onClose}
+            aria-label={`Đóng ${title}`}
+            className="rounded px-2 py-1 text-slate-500 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-indigo-600"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="thin-scroll min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
+      </aside>
+    </div>
+  );
+}
+
 /** Progressively-disclosed technical details (locator JSON, raw step, …). */
 export function Advanced({ title = "Advanced", children }: { title?: string; children: React.ReactNode }) {
   return (

@@ -247,8 +247,9 @@ export function compileStepBody(step: TestStep): string[] {
       ];
     }
     case 'clear':
-      // `.fill('')` (instead of `.clear()`) for maximum Playwright version compat.
-      return [`await ${locatorToExpression(requiredTarget(step))}.fill('');`];
+      // `.clear()` is the canonical Playwright clear semantic; the single
+      // spelling is shared with apps/runner compile.ts and web preview.
+      return [`await ${locatorToExpression(requiredTarget(step))}.clear();`];
     case 'press': {
       const key = requiredString(step, 'key');
       const target = asRecord(step)['target'] as LocatorSpec | undefined;

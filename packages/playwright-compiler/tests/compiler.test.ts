@@ -195,7 +195,7 @@ describe('compileStepBody — full P0 step catalog', () => {
     ],
     [
       step('s1', 'clear', { target: T({ strategy: 'label', value: 'Email' }) }),
-      [`await page.getByLabel('Email').fill('');`],
+      [`await page.getByLabel('Email').clear();`],
     ],
     [
       step('s1', 'press', { target: T({ strategy: 'css', value: '#q' }), key: 'Enter' }),

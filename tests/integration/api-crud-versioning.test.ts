@@ -172,9 +172,20 @@ describe('runs lifecycle (API half)', () => {
     const env = (await injectJson(app, 'POST', `/api/v1/projects/${project.id}/environments`, {
       name: 'int-env', baseUrl: 'http://127.0.0.1:3123',
     })).json() as { id: string };
+    // A long fixed wait keeps the worker inside `running` for a deterministic
+    // window, so the cancel below never races a terminal state. (The full
+    // 5-step fixture execution path is covered by run-lifecycle + e2e.)
+    const slowDef = {
+      schemaVersion: '1.0',
+      id: 'test_slow_cancel',
+      projectId: project.id,
+      name: 'Slow cancellable run',
+      browser: 'chromium',
+      steps: [{ id: 's1', type: 'waitForTimeout', enabled: true, milliseconds: 30000 }],
+    };
     const test = (await injectJson(app, 'POST', `/api/v1/projects/${project.id}/tests`, {
       name: 'runnable',
-      definitionJson: loginFixtureDefinition(project.id, 'http://127.0.0.1:3123'),
+      definitionJson: slowDef,
     })).json() as { id: string };
 
     wsEvents.length = 0;
@@ -194,6 +205,18 @@ describe('runs lifecycle (API half)', () => {
 
     const detail = await injectJson(app, 'GET', `/api/v1/runs/${run.id}`);
     assert.equal(detail.statusCode, 200);
+
+    // Wait until the worker really owns the run — cancelling a `running` run
+    // exercises the real tree-kill path (cancelRun), not the queued fallback.
+    let status = '';
+    for (let i = 0; i < 100; i++) {
+      const cur = await injectJson(app, 'GET', `/api/v1/runs/${run.id}`);
+      status = (cur.json() as { status: string }).status;
+      if (status === 'running') break;
+      if (status !== 'queued') break;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    assert.equal(status, 'running');
 
     const cancelled = await injectJson(app, 'POST', `/api/v1/runs/${run.id}/cancel`);
     assert.equal(cancelled.statusCode, 200);
@@ -328,9 +351,11 @@ describe('recorder API', () => {
     const probed = await injectJson(app, 'POST', `/api/v1/recorder/${sessionId}/locator/test`, {
       candidate: { strategy: 'label', value: 'Email' },
     });
-    assert.equal(probed.statusCode, 200);
-    assert.equal((probed.json() as { matches: number }).matches, 1);
-    assert.equal((probed.json() as { healthy: boolean }).healthy, true);
+    // P0 honesty gate: no live browser is attached to the session, so the
+    // endpoint must fail loudly (503 RECORDER_NO_LIVE_BROWSER, preview null)
+    // instead of fabricating a match count.
+    assert.equal(probed.statusCode, 503);
+    assert.equal((probed.json() as { code: string }).code, 'RECORDER_NO_LIVE_BROWSER');
 
     const assertion = await injectJson(app, 'POST', `/api/v1/recorder/${sessionId}/assertion`, {
       type: 'assertVisible',

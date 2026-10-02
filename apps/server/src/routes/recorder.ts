@@ -58,14 +58,25 @@ export async function recorderRoutes(app: FastifyInstance): Promise<void> {
     const s = recorderManager.getBySessionId(sessionId);
     if (!s) throw new ApiError('NOT_FOUND', `Recorder session ${sessionId} not found`, 404);
     const stopped = recorderManager.stop(sessionId);
-    // persist draft steps into definition_json (append, then version via PATCH flow)
-    const test = await db().test.findUnique({ where: { id: stopped.testId } });
-    if (test) {
+    // Persist draft steps into definition_json (append). Same versioning rule
+    // as PATCH /tests/:id (versioning.md): every meaningful save mints a new
+    // immutable test_versions row — recorder stops must not bypass history.
+    const test = await db().test.findUnique({
+      where: { id: stopped.testId },
+      include: { versions: { orderBy: { versionNumber: 'desc' }, take: 1 } },
+    });
+    if (test && stopped.draftSteps.length > 0) {
       const def = JSON.parse(test.definitionJson) as { steps: unknown[] };
       const appended = [...def.steps, ...stopped.draftSteps.map(toDefinitionStep)];
-      await db().test.update({
-        where: { id: stopped.testId },
-        data: { definitionJson: JSON.stringify({ ...def, steps: appended }) },
+      const nextJson = JSON.stringify({ ...def, steps: appended });
+      const next = (test.versions[0]?.versionNumber ?? 0) + 1;
+      await db().test.update({ where: { id: stopped.testId }, data: { definitionJson: nextJson } });
+      await db().testVersion.create({
+        data: {
+          testId: stopped.testId, versionNumber: next, definitionJson: nextJson,
+          createdBy: req.user!.id,
+          changeMessage: `Recorded ${stopped.draftSteps.length} step(s) via recorder`,
+        },
       });
     }
     return { sessionId, status: stopped.status, draftCount: stopped.draftSteps.length };
@@ -99,15 +110,29 @@ export async function recorderRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // Test a locator candidate against the live browser -> 0/1/N + preview
+  // (05-locator/locator-engine.md: "Test Locator"). A step cannot be saved
+  // healthy when matches == 0; N matches warn unless the step allows multiple.
   app.post('/recorder/:sessionId/locator/test', { preHandler: requireAuth }, async (req) => {
     const { sessionId } = req.params as { sessionId: string };
     requireSessionOwner(sessionId, req.user!.id);
     const body = parseOrThrow(locatorTest, req.body);
     const s = recorderManager.getBySessionId(sessionId);
     if (!s) throw new ApiError('NOT_FOUND', `Recorder session ${sessionId} not found`, 404);
-    // TODO: resolve `body.candidate` via Playwright in the session browser.
-    // A step cannot be saved healthy when matches == 0 (locator-engine.md).
-    return { sessionId, candidate: body.candidate, matches: 1, preview: 'pending live-browser resolution', healthy: true };
+    // P0 honesty gate: RecorderSession carries NO live browser page reference
+    // (see @vv/recorder types.ts + sessionManager.ts — no playwright import,
+    // start() only creates metadata; browser launch is still a TODO above).
+    // With no live page there is nothing truthful to count, so fail loudly
+    // instead of returning a fabricated match count.
+    // Future (live page attached): resolve `body.candidate` via Playwright
+    // `locator.count()` + highlight matched element(s) via page.evaluate,
+    // mapping candidate -> expression with locator-engine toExpression.
+    void body;
+    throw new ApiError(
+      'RECORDER_NO_LIVE_BROWSER',
+      `Recorder session ${sessionId} has no live browser attached: cannot test locator. Start/attach the recorder browser, then test again.`,
+      503,
+      { sessionId, preview: null },
+    );
   });
 
   // Pick assertion mode + add assertion step

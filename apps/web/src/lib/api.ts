@@ -7,6 +7,13 @@
  * Client prefers the tests/:id variant and falls back to the recorder-session
  * variant when the former 404s (P0 server only implements the latter).
  *
+ * Honesty contract (05-locator): with no live browser attached to the
+ * recorder session the server answers
+ *   503 { code: "RECORDER_NO_LIVE_BROWSER", preview: null }
+ * and NEVER fabricates a match count. Non-OK responses throw an Error whose
+ * message embeds the machine code (`HTTP <status> <CODE>: <message>`) so the
+ * UI can render a dedicated no-live-browser state.
+ *
  * Pick-mode contract (recorder.ts):
  *   POST /api/v1/recorder/:sessionId/locator/pick
  *   POST /api/v1/recorder/:sessionId/assertion/pick
@@ -52,6 +59,19 @@ function normalizeTestBody(
   };
 }
 
+/** Extract `{ code, message }` from a JSON error body; fall back to raw text. */
+function locatorHttpError(status: number, text: string): Error {
+  try {
+    const body = JSON.parse(text) as { code?: unknown; message?: unknown };
+    const code = typeof body.code === "string" ? body.code : undefined;
+    const message =
+      typeof body.message === "string" ? body.message : text.slice(0, 300);
+    return new Error(code ? `HTTP ${status} ${code}: ${message}` : `HTTP ${status}: ${message}`);
+  } catch {
+    return new Error(`HTTP ${status}: ${text.slice(0, 300)}`);
+  }
+}
+
 export async function testLocator(opts: {
   apiBase: string;
   testId?: string;
@@ -78,7 +98,7 @@ export async function testLocator(opts: {
         );
       }
       if (res.status !== 404) {
-        throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+        throw locatorHttpError(res.status, await res.text());
       }
       tried.push("tests/:id/locator/test -> 404");
     } catch (e) {
@@ -99,7 +119,7 @@ export async function testLocator(opts: {
       body: JSON.stringify({ candidate: opts.candidate }),
     },
   );
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw locatorHttpError(res.status, await res.text());
   return normalizeTestBody(
     (await res.json()) as Record<string, unknown>,
     `recorder/${opts.sessionId}/locator/test`,

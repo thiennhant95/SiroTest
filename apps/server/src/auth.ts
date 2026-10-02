@@ -1,5 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { ApiError } from './errors.js';
+import { db } from './db.js';
 
 /**
  * P0 auth: Bearer token or x-user-id header resolves a user.
@@ -65,9 +66,41 @@ export function requirePrivileged(req: FastifyRequest): AuthUser {
   return user;
 }
 
-/** P0: any authenticated user may operate; project role check plugs in here. */
+/**
+ * Project access (api-spec.md + 11-security/security.md): every write that
+ * touches a project must prove membership. The project is resolved from
+ * `params.projectId`, or from the owning project of a test/run id in
+ * `params.id`. Admins bypass; everyone else needs a project_members row
+ * (owners are added automatically at project creation). Routes without a
+ * project context (e.g. GET /projects) only require authentication.
+ */
 export async function requireProjectAccess(req: FastifyRequest): Promise<AuthUser> {
   if (!req.user) throw new ApiError('UNAUTHORIZED', 'Missing credentials', 401);
-  // TODO: check project_members for req.params projectId.
+  const params = (req.params ?? {}) as Record<string, unknown>;
+  let projectId: string | undefined;
+  if (typeof params['projectId'] === 'string' && params['projectId'].length > 0) {
+    projectId = params['projectId'] as string;
+  } else if (typeof params['id'] === 'string' && (params['id'] as string).length > 0) {
+    const id = params['id'] as string;
+    const test = await db().test.findUnique({ where: { id }, select: { projectId: true } });
+    if (test) {
+      projectId = test.projectId;
+    } else {
+      const run = await db().run.findUnique({ where: { id }, select: { projectId: true } });
+      if (run) {
+        projectId = run.projectId;
+      } else {
+        const project = await db().project.findUnique({ where: { id }, select: { id: true } });
+        if (project) projectId = project.id;
+      }
+    }
+  }
+  if (!projectId) return req.user;
+  const userRow = await db().user.findUnique({ where: { id: req.user.id } });
+  if (userRow?.role === 'admin') return req.user;
+  const member = await db().projectMember.findUnique({
+    where: { projectId_userId: { projectId, userId: req.user.id } },
+  });
+  if (!member) throw new ApiError('FORBIDDEN', `No access to project ${projectId}`, 403);
   return req.user;
 }

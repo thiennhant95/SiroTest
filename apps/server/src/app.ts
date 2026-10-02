@@ -108,6 +108,18 @@ export async function buildApp() {
 const port = Number(process.env.PORT ?? 3001);
 if (process.env.SKIP_LISTEN !== '1') {
   buildApp()
-    .then((app) => app.listen({ port, host: '0.0.0.0' }))
+    .then(async (app) => {
+      await app.listen({ port, host: '0.0.0.0' });
+      // Same boot recovery as src/index.ts (this block is the `pnpm dev` entry).
+      try {
+        const { recoverIncompleteRunsOnBoot } = await import('./runner-store.js');
+        const report = await recoverIncompleteRunsOnBoot();
+        if (report.recoveredRuns.length > 0) {
+          app.log.warn({ recoveredRuns: report.recoveredRuns }, "recovered incomplete runs from previous teardown");
+        }
+      } catch (err) {
+        app.log.error({ err }, "boot recovery failed (server continues serving)");
+      }
+    })
     .catch((err) => { console.error(err); process.exit(1); });
 }
