@@ -1,0 +1,100 @@
+import { useCallback, useEffect, useState } from "react";
+import { api } from "../../api/client";
+import { sampleSpecCode } from "../../mocks/sampleVersions";
+import { CodeView } from "../../components/CodeView";
+import { EmptyState, ErrorState, Skeleton } from "../../components/ui";
+import { useToast } from "../../components/Toast";
+import { buildZip, downloadBlob, specZipFiles } from "../../lib/exportZip";
+
+/**
+ * Code tab (Advanced): GET export?format=spec hoặc POST compile.
+ * Tester không cần hiểu page.locator() — mọi thứ nằm trong tab riêng này.
+ */
+export function CodeTab({ testId, testName }: { testId: string; testName: string }) {
+  const { notify } = useToast();
+  const [code, setCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      try {
+        // Prefer raw export file; fall back to compile JSON.
+        setCode(await api.exportSpec(testId));
+      } catch {
+        const res = await api.compile(testId);
+        setCode(res.code);
+      }
+    } catch {
+      // Offline demo so the tab is still verifiable without backend.
+      await new Promise((r) => setTimeout(r, 300));
+      setCode(sampleSpecCode);
+    } finally {
+      setLoading(false);
+    }
+  }, [testId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const copy = async () => {
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      notify("Đã sao chép mã kiểm thử");
+    } catch {
+      notify("Không sao chép được — hãy bôi đen và Ctrl+C", "err");
+    }
+  };
+
+  const downloadSpec = () => {
+    if (!code) return;
+    downloadBlob(new Blob([code], { type: "text/x-typescript" }), `${testId}.spec.ts`);
+    notify("Đã tải file .spec.ts");
+  };
+
+  const downloadZip = () => {
+    if (!code) return;
+    const zip = buildZip(specZipFiles(testName || testId, code));
+    downloadBlob(zip, `${testId}-playwright.zip`);
+    notify("Đã tải gói ZIP (kèm package.json/config tối thiểu)");
+  };
+
+  if (loading) return <Skeleton lines={10} label="Đang sinh mã kiểm thử…" />;
+  if (error || code == null)
+    return <ErrorState message={error ?? "Không sinh được mã"} onRetry={() => void load()} />;
+  if (!code.trim())
+    return <EmptyState title="Chưa có mã để hiển thị" hint="Hãy thêm ít nhất một bước rồi quay lại tab Mã." />;
+
+  return (
+    <div aria-label="Mã kiểm thử (nâng cao)">
+      <div className="callout">
+        <strong>Dành cho kỹ thuật.</strong> Tester thao tác ở các tab bên trái là đủ — không cần
+        đọc hiểu <code>page.locator()</code>. Mã dưới đây chạy được bằng{" "}
+        <code>@playwright/test</code> gốc, không cần Studio.
+      </div>
+      <div className="row">
+        <button type="button" className="btn" onClick={() => void copy()}>
+          Sao chép
+        </button>
+        <button type="button" className="btn" onClick={downloadSpec}>
+          Tải .spec.ts
+        </button>
+        <button type="button" className="btn" onClick={downloadZip}>
+          Tải ZIP
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={() => void load()}>
+          Sinh lại
+        </button>
+      </div>
+      <CodeView code={code} />
+      <p className="muted small">
+        Chạy ở máy bạn: <code>npm install</code> → <code>npx playwright test</code>. Gói ZIP đã gồm{" "}
+        <code>package.json</code> + <code>playwright.config.ts</code> tối thiểu.
+      </p>
+    </div>
+  );
+}

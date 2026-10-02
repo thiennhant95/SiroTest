@@ -1,0 +1,147 @@
+// P0: SQLite via Prisma; keep PostgreSQL-compatible (no db-specific types).
+// provider sqlite locally; switch to postgresql without model changes.
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  authRef   String   // password_hash or external auth ref
+  role      String   @default("tester") // admin | developer | tester | viewer
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tests     Test[]   @relation("CreatedTests")
+  versions  TestVersion[]
+  members   ProjectMember[]
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  baseUrl     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  members     ProjectMember[]
+  envs        Environment[]
+  variables   Variable[]
+  tests       Test[]
+  runs        Run[]
+}
+
+model ProjectMember {
+  projectId String
+  userId    String
+  role      String   @default("editor") // owner | editor | viewer
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([projectId, userId])
+}
+
+model Environment {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  isDefault Boolean  @default(false)
+  baseUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  variables Variable[]
+  runs      Run[]
+  @@unique([projectId, name])
+}
+
+model Variable {
+  id           String       @id @default(cuid())
+  projectId    String
+  environmentId String?
+  key          String
+  valueEncrypted String     // AES-256-GCM ciphertext (base64); never plaintext for secrets
+  isSecret     Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment  Environment? @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  @@unique([projectId, environmentId, key])
+}
+
+model Test {
+  id             String   @id @default(cuid())
+  projectId      String
+  name           String
+  description    String?
+  definitionJson String   // canonical TestDefinition JSON (steps stay embedded — P0 simplification)
+  status         String   @default("draft") // draft | healthy | broken
+  createdBy      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator        User     @relation("CreatedTests", fields: [createdBy], references: [id])
+  versions       TestVersion[]
+  runs           Run[]
+}
+
+model TestVersion {
+  id            String   @id @default(cuid())
+  testId        String
+  versionNumber Int
+  definitionJson String
+  createdBy     String
+  changeMessage String?
+  createdAt     DateTime @default(now())
+  test          Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  author        User     @relation(fields: [createdBy], references: [id])
+  @@unique([testId, versionNumber])
+}
+
+model Run {
+  id           String    @id @default(cuid())
+  projectId    String
+  testId       String
+  environmentId String?
+  browser      String    @default("chromium")
+  status       String    @default("queued") // queued|running|passed|failed|cancelled
+  trigger      String    @default("manual")
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  durationMs   Int?
+  errorSummary String?
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  test         Test      @relation(fields: [testId], references: [id], onDelete: Cascade)
+  environment  Environment? @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+  steps        RunStep[]
+  artifacts    Artifact[]
+}
+
+model RunStep {
+  id            String  @id @default(cuid())
+  runId         String
+  stepId        String  // id inside definition_json
+  sortOrder     Int
+  status        String  @default("pending") // pending|running|passed|failed|skipped
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  durationMs    Int?
+  errorMessage  String?
+  screenshotPath String?
+  run           Run     @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+model Artifact {
+  id        String   @id @default(cuid())
+  runId     String
+  type      String   // screenshot | trace | video | log | report
+  path      String   // storage-relative path; never absolute server path to client
+  mimeType  String?
+  sizeBytes Int?
+  createdAt DateTime @default(now())
+  run       Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
+}

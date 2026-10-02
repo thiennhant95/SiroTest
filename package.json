@@ -1,0 +1,28 @@
+{
+  "name": "playwright-vv",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate",
+    "cleanup": "node scripts/cleanup-artifacts.mjs",
+    "cleanup:dry": "node scripts/cleanup-artifacts.mjs --dry-run",
+    "health": "node scripts/health-check.mjs",
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test:unit": "pnpm --filter @playwright-studio/test-model test && pnpm --filter @vietvang/playwright-compiler test && pnpm --filter @playwright-vv/locator-engine test",
+    "test:security": "npx tsx --test apps/server/src/security.test.ts apps/runner/src/runner-security.test.ts",
+    "test:integration": "npx tsx --test tests/integration/recorder.test.ts tests/integration/compiler-p0.test.ts tests/integration/run-lifecycle.test.ts tests/integration/api-crud-versioning.test.ts",
+    "test:e2e": "npx playwright test -c e2e/playwright.config.ts",
+    "test:p0": "pnpm test:unit && pnpm test:security && pnpm test:integration && pnpm test:e2e"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@prisma/client": "5.22.0",
+    "prisma": "5.22.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.6.3"
+  }
+}

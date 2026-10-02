@@ -1,0 +1,5 @@
+{
+  "name": "vv-integration-tests",
+  "private": true,
+  "type": "module"
+}

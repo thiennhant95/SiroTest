@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.turbo/
+*.db*
+*.db-journal
+prisma/migrations/
+coverage/
+.env
+storage/runs/
+test-results/
+playwright-report/
+.opencode/.cache/

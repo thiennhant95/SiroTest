@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VV Fixture — Login</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 420px; margin: 48px auto; padding: 0 16px; }
+    label { display: block; margin: 12px 0 4px; font-weight: 600; }
+    input { width: 100%; padding: 8px; font-size: 14px; box-sizing: border-box; }
+    button { margin-top: 16px; padding: 8px 20px; font-size: 14px; cursor: pointer; }
+    .error { color: #b00020; margin-top: 12px; }
+    #dashboard { display: none; }
+  </style>
+</head>
+<body>
+  <main id="login-view">
+    <h1>Login</h1>
+    <form id="login-form" novalidate>
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" placeholder="you@example.com"
+             data-testid="login-email" autocomplete="username" />
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" placeholder="••••••••"
+             data-testid="login-password" autocomplete="current-password" />
+      <button type="submit" data-testid="login-submit">Login</button>
+      <p class="error" id="form-error" role="alert" hidden></p>
+    </form>
+  </main>
+
+  <main id="dashboard" aria-label="Dashboard">
+    <h1>Dashboard</h1>
+    <p id="welcome">Welcome!</p>
+    <a href="#/login" id="logout-link">Log out</a>
+  </main>
+
+  <script>
+    (function () {
+      var form = document.getElementById('login-form');
+      var loginView = document.getElementById('login-view');
+      var dashboard = document.getElementById('dashboard');
+      var error = document.getElementById('form-error');
+      var welcome = document.getElementById('welcome');
+
+      function showDashboard(email) {
+        loginView.style.display = 'none';
+        dashboard.style.display = 'block';
+        welcome.textContent = 'Welcome, ' + email + '!';
+        document.title = 'VV Fixture — Dashboard';
+        if (location.hash !== '#/dashboard') location.hash = '#/dashboard';
+      }
+
+      function showLogin() {
+        dashboard.style.display = 'none';
+        loginView.style.display = 'block';
+        document.title = 'VV Fixture — Login';
+      }
+
+      form.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var email = document.getElementById('email').value.trim();
+        var password = document.getElementById('password').value;
+        if (!email || !password) {
+          error.hidden = false;
+          error.textContent = 'Email and password are required.';
+          return;
+        }
+        error.hidden = true;
+        showDashboard(email);
+      });
+
+      document.getElementById('logout-link').addEventListener('click', function () {
+        setTimeout(showLogin, 0);
+      });
+
+      window.addEventListener('hashchange', function () {
+        if (location.hash !== '#/dashboard') showLogin();
+      });
+
+      // Deep-link support: /fixture/login#/dashboard replays the logged-in view
+      // only when credentials were already submitted in this page lifetime.
+      if (location.hash === '#/dashboard' && window.__vvLoggedIn) {
+        showDashboard(window.__vvLoggedIn);
+      }
+    })();
+  </script>
+</body>
+</html>
