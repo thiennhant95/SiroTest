@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  PLAYWRIGHT_BROWSERS_PATH: ~/.cache/ms-playwright
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.0.0
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      # Cache Playwright browsers per docs (do not download repeatedly).
+      # Keyed by OS + Playwright version from pnpm-lock.yaml.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm db:generate
+        env:
+          DATABASE_URL: file:./prisma/ci.db
+
+      - name: Lint / typecheck (turbo)
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Unit tests (test-model + compiler golden + locator-engine)
+        run: pnpm test:unit
+
+      - name: Security tests
+        run: pnpm test:security
+
+      - name: Integration tests (isolated SQLite)
+        run: pnpm test:integration
+        env:
+          DATABASE_URL: file:./prisma/integration-test.db
+          ALLOW_PRIVATE_TARGETS: 1
+
+      - name: Install Playwright chromium (with OS deps)
+        run: npx playwright install --with-deps chromium
+
+      - name: Studio E2E (fixture app, Chromium only)
+        run: pnpm test:e2e
+        env:
+          DATABASE_URL: file:./prisma/integration-test.db
+          ALLOW_PRIVATE_TARGETS: 1

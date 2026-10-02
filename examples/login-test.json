@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0",
+  "id": "test_login_success",
+  "projectId": "project_demo",
+  "name": "Login successfully",
+  "browser": "chromium",
+  "baseUrl": "{{BASE_URL}}",
+  "steps": [
+    {"id":"s1","type":"goto","enabled":true,"url":"{{BASE_URL}}/login"},
+    {"id":"s2","type":"fill","enabled":true,"target":{"primary":{"strategy":"label","value":"Email"}},"value":"{{ADMIN_EMAIL}}"},
+    {"id":"s3","type":"fill","enabled":true,"target":{"primary":{"strategy":"label","value":"Password"}},"value":"{{ADMIN_PASSWORD}}","sensitive":true},
+    {"id":"s4","type":"click","enabled":true,"target":{"primary":{"strategy":"role","role":"button","name":"Login"}}},
+    {"id":"s5","type":"assertVisible","enabled":true,"target":{"primary":{"strategy":"text","value":"Dashboard"}}}
+  ]
+}
