@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, traceViewerUrl } from "../api/client";
+import { useRunChannel } from "../hooks/useRunChannel";
+import { locatorPreview, type BuilderStep } from "../lib/steps";
 import { sampleRun } from "../mocks/sampleRun";
 import type { RunDetail, UserRole } from "../types";
 import { formatDuration, formatTime, shortError } from "../lib/format";
@@ -44,6 +46,40 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
   );
   const [showRaw, setShowRaw] = useState(false);
   const [rerunning, setRerunning] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [defSteps, setDefSteps] = useState<Map<string, BuilderStep>>(new Map());
+
+  // Live WS subscription (08-api/websocket-events.md): informational only —
+  // DB (useRun above) stays authoritative; terminal events trigger refetch.
+  const isLive = !!run && (run.status === "queued" || run.status === "running");
+  const channel = useRunChannel(isLive ? runId : null);
+  const channelStatus = channel.run?.status;
+  useEffect(() => {
+    if (channelStatus === "passed" || channelStatus === "failed" || channelStatus === "cancelled") {
+      void reload();
+    }
+  }, [channelStatus, reload]);
+
+  // Step definition lookup for flow-C locator rows (fallback when result
+  // JSON carries no locator expression itself).
+  useEffect(() => {
+    if (!run || run.id === sampleRun.id) return;
+    let alive = true;
+    api
+      .getTest(run.testId)
+      .then((t) => {
+        if (!alive) return;
+        const raw = t.definitionJson as { steps?: BuilderStep[] } | null;
+        const steps = Array.isArray(raw?.steps) ? raw!.steps! : [];
+        setDefSteps(new Map(steps.map((s) => [s.id, s])));
+      })
+      .catch(() => {
+        if (alive) setDefSteps(new Map());
+      });
+    return () => {
+      alive = false;
+    };
+  }, [run]);
 
   useEffect(() => {
     localStorage.setItem("vv-role", role);
@@ -53,6 +89,47 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
     () => run?.steps.find((s) => s.status === "failed") ?? null,
     [run],
   );
+
+  const locatorFor = useCallback(
+    (s: { stepId?: string; target?: unknown; locatorExpression?: string }) => {
+      if (s.locatorExpression) return s.locatorExpression;
+      if (s.target) return locatorPreview(s.target);
+      const def = s.stepId ? defSteps.get(s.stepId) : undefined;
+      const target = (def as { target?: unknown } | undefined)?.target;
+      return target ? locatorPreview(target) : null;
+    },
+    [defSteps],
+  );
+
+  const timeoutFor = useCallback(
+    (s: { stepId?: string; timeoutMs?: number; timeoutSource?: string }) => {
+      if (typeof s.timeoutMs === "number") {
+        return { ms: s.timeoutMs, source: s.timeoutSource ?? "result" };
+      }
+      const def = s.stepId ? defSteps.get(s.stepId) : undefined;
+      if (typeof def?.timeoutMs === "number") return { ms: def.timeoutMs, source: "step" };
+      return null;
+    },
+    [defSteps],
+  );
+
+  const cancel = async () => {
+    if (!run) return;
+    setCancelling(true);
+    try {
+      if (run.id === sampleRun.id) {
+        notify("Bản demo không gọi server (không hủy thật)");
+      } else {
+        await api.cancelRun(run.id);
+        notify("Đã gửi yêu cầu hủy run");
+        await reload();
+      }
+    } catch (e) {
+      notify(e instanceof Error ? e.message : "Hủy run thất bại", "err");
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const rerun = async () => {
     if (!run) return;
@@ -110,6 +187,47 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
         </div>
       </header>
 
+      {isLive ? (
+        <div className="alert" role="status" data-testid="run-live-banner">
+          <div
+            aria-hidden
+            data-testid="run-progress-bar"
+            style={{
+              height: 6,
+              borderRadius: 4,
+              background: "#e5e7eb",
+              overflow: "hidden",
+              marginBottom: 8,
+            }}
+          >
+            <div
+              style={{
+                width: run.steps.length
+                  ? `${Math.round((run.steps.filter((s) => ["passed", "failed", "skipped"].includes(s.status)).length / run.steps.length) * 100)}%`
+                  : "15%",
+                height: "100%",
+                background: "#4f46e5",
+                transition: "width .3s",
+              }}
+            />
+          </div>
+          <p className="muted small">
+            Run đang {run.status === "queued" ? "xếp hàng" : "chạy"} · WS:{" "}
+            {channel.connected ? "connected" : "reconnecting…"}
+            {channel.error ? ` · ${channel.error}` : null}
+          </p>
+          <button
+            type="button"
+            className="btn"
+            data-testid="cancel-btn"
+            disabled={cancelling}
+            onClick={() => void cancel()}
+          >
+            {cancelling ? "Đang hủy…" : "Hủy run"}
+          </button>
+        </div>
+      ) : null}
+
       {run.errorSummary ? (
         <div className="alert alert-fail" role="alert">
           {run.errorSummary}
@@ -158,6 +276,24 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
                   <>
                     <p>
                       <strong>Lỗi gọn:</strong> {shortError(s.error)}
+                    </p>
+                    <p>
+                      <strong>Locator:</strong>{" "}
+                      <code>{locatorFor(s) ?? "— (không có trong result/definition)"}</code>
+                    </p>
+                    <p>
+                      <strong>Timeout:</strong>{" "}
+                      {(() => {
+                        const t = timeoutFor(s);
+                        return t ? (
+                          <>
+                            <code>{t.ms}ms</code>{" "}
+                            <span className="muted small">(nguồn: {t.source})</span>
+                          </>
+                        ) : (
+                          <span className="muted">— (mặc định runner)</span>
+                        );
+                      })()}
                     </p>
                     {role === "developer" ? (
                       <>

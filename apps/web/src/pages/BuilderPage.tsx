@@ -10,7 +10,9 @@ import { VariablesTab } from "../components/VariablesTab";
 import {
   Badge,
   Button,
+  DataTable,
   Dialog,
+  Drawer,
   EmptyState,
   ErrorState,
   Field,
@@ -18,6 +20,7 @@ import {
   Select,
   Skeleton,
   Tabs,
+  Tooltip,
   useToast,
 } from "../components/ui";
 import { ApiError, api, apiBase, parseDefinition, type Environment, type Variable } from "../lib/api";
@@ -72,6 +75,7 @@ export function BuilderPage() {
   });
   const [showEnvs, setShowEnvs] = useState(false);
   const [showRunModal, setShowRunModal] = useState(false);
+  const [showInspector, setShowInspector] = useState(false);
   // -- locator picker wiring (05-locator): session + per-step test results + assertion modal --
   const [sessionId, setSessionId] = useState("");
   const [testResults, setTestResults] = useState<Record<string, StepTestResult | null>>({});
@@ -364,13 +368,22 @@ export function BuilderPage() {
         />
         <span className="ml-auto flex items-center gap-2">
           <AutosaveBadge state={offline ? "saved" : saveState} dirty={dirty} error={saveError} offline={offline} />
-          <Button size="sm" variant="outline" onClick={() => nav(`/tests/${id}/record`)}>
-            ● Record
-          </Button>
-          <span title={runHint}>
-            <Button size="sm" disabled={runDisabled} onClick={() => setShowRunModal(true)}>
-              ▶ Run
+          <Tooltip tip="Mở Inspector trong panel trượt (mobile)">
+            <Button size="sm" variant="outline" className="md:hidden" onClick={() => setShowInspector(true)}>
+              Inspector
             </Button>
+          </Tooltip>
+          <Tooltip tip="Thu âm thao tác thành steps">
+            <Button size="sm" variant="outline" onClick={() => nav(`/tests/${id}/record`)}>
+              ● Record
+            </Button>
+          </Tooltip>
+          <span title={runHint}>
+            <Tooltip tip={runDisabled ? runHint : "Chạy revision đã lưu"}>
+              <Button size="sm" disabled={runDisabled} onClick={() => setShowRunModal(true)}>
+                ▶ Run
+              </Button>
+            </Tooltip>
           </span>
         </span>
       </header>
@@ -588,6 +601,26 @@ export function BuilderPage() {
         insertLabel={insertAt?.label}
       />
 
+      {/* Mobile: Inspector lives in a Drawer; desktop keeps the right aside. */}
+      <Drawer open={showInspector} onClose={() => setShowInspector(false)} title="Inspector">
+        {selectedStep ? (
+          <Inspector
+            step={selectedStep}
+            onPatch={(p) => patchStep(selectedStep.id, p)}
+            apiBase={apiBaseOrigin}
+            testId={id}
+            sessionId={sessionId.trim() || undefined}
+            testResult={testResults[selectedStep.id] ?? null}
+            onTestResult={(r) =>
+              setTestResults((prev) => ({ ...prev, [selectedStep.id]: r }))
+            }
+            onAddAssertion={() => setAssertionOpen(true)}
+          />
+        ) : (
+          <EmptyState title="Chưa chọn step" hint="Click một step ở giữa để chỉnh trong Inspector." />
+        )}
+      </Drawer>
+
       <AssertionPickerModal
         open={assertionOpen}
         anchorId={selectedId}
@@ -729,18 +762,31 @@ function RunsPanel({ testId }: { testId: string }) {
   if (runs.length === 0)
     return <p className="text-xs text-slate-500">Chưa có run. Chọn environment rồi nhấn Run.</p>;
   return (
-    <ul className="space-y-1">
-      {runs.map((r: { id: string; status: string; browser: string }) => (
-        <li key={r.id} className="flex items-center gap-2 text-xs">
-          <Badge tone={r.status === "failed" ? "red" : r.status === "passed" ? "green" : "slate"}>
-            {r.status}
-          </Badge>
-          <Link to={`/runs/${r.id}`} className="font-mono text-indigo-700 hover:underline">
-            <code>{r.id}</code>
-          </Link>
-          <span className="text-slate-500">{r.browser}</span>
-        </li>
-      ))}
-    </ul>
+    <DataTable<{ id: string; status: string; browser: string }>
+      caption="Các lượt chạy của test này"
+      emptyText="Chưa có run."
+      rows={runs}
+      columns={[
+        {
+          key: "status",
+          header: "Status",
+          render: (r) => (
+            <Badge tone={r.status === "failed" ? "red" : r.status === "passed" ? "green" : "slate"}>
+              {r.status}
+            </Badge>
+          ),
+        },
+        {
+          key: "id",
+          header: "Run",
+          render: (r) => (
+            <Link to={`/runs/${r.id}`} className="font-mono text-indigo-700 hover:underline">
+              <code>{r.id}</code>
+            </Link>
+          ),
+        },
+        { key: "browser", header: "Browser" },
+      ]}
+    />
   );
 }

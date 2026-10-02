@@ -46,6 +46,9 @@ export const sampleRun: RunDetail = {
       name: "4. Nhấn nút Đăng nhập",
       status: "failed",
       durationMs: 5200,
+      locatorExpression: "page.getByRole('button', { name: 'Đăng nhập' })",
+      timeoutMs: 5000,
+      timeoutSource: "step",
       error:
         "Không tìm thấy nút «Đăng nhập» sau 5s. Có thể nút đổi tên hoặc chưa hiện — hãy kiểm tra lại định danh (locator).",
       rawError: `TimeoutError: locator.click: Target closed

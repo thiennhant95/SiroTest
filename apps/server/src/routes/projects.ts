@@ -13,6 +13,17 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
   app.post('/projects', { preHandler: requireAuth }, async (req, reply) => {
     const body = parseOrThrow(projectCreate, req.body);
     const created = await db().project.create({ data: body });
+    // The creator becomes project owner so subsequent project-scoped writes
+    // pass requireProjectAccess. Skipped only when the user row does not exist
+    // (dev stub auth mints ids without rows — membership is best-effort there).
+    const userRow = await db().user.findUnique({ where: { id: req.user!.id } });
+    if (userRow) {
+      await db().projectMember.upsert({
+        where: { projectId_userId: { projectId: created.id, userId: userRow.id } },
+        update: { role: 'owner' },
+        create: { projectId: created.id, userId: userRow.id, role: 'owner' },
+      });
+    }
     return reply.code(201).send(created);
   });
 

@@ -18,6 +18,12 @@ export interface StepResult {
   /** raw stack — only shown to Developer role, redacted server-side. */
   rawError?: string;
   screenshotUrl?: string;
+  /** Flow C (01-product/user-flows.md): failed step shows locator + timeout. */
+  locatorExpression?: string;
+  target?: unknown;
+  /** Persisted by runner reporter (result.json): effective timeout + source. */
+  timeoutMs?: number;
+  timeoutSource?: "step" | "test" | "project" | "default" | string;
 }
 
 export interface RunDetail {

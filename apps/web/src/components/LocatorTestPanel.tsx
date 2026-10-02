@@ -4,6 +4,11 @@
  * POST /api/v1/recorder/:sessionId/locator/test), renders 0/1/N +
  * highlight preview. 0 matches -> error blocking healthy save;
  * N matches -> warning unless the step type permits multiple.
+ *
+ * Honesty contract (05-locator): when the recorder session has no live
+ * browser attached the server answers 503 RECORDER_NO_LIVE_BROWSER with a
+ * null preview and NO match count. That case renders a dedicated notice —
+ * never a fabricated 0/1/N result.
  */
 import { useState } from "react";
 import { testLocator } from "../lib/api";
@@ -59,10 +64,19 @@ export function LocatorTestPanel(props: {
       props.onResult?.(out);
       setPhase("idle");
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      // A failed test invalidates any previous result — never show a stale
+      // match count next to the error.
+      setResult(null);
+      setPreview(null);
+      props.onResult?.(null);
       setPhase("error");
     }
   }
+
+  const isNoLiveBrowser =
+    error !== null && /RECORDER_NO_LIVE_BROWSER/.test(error);
 
   const box =
     result && !error ? (
@@ -132,8 +146,35 @@ export function LocatorTestPanel(props: {
         {phase === "testing" ? "Testing…" : "Test locator"}
       </button>
       {error && (
-        <div role="alert" style={{ marginTop: 8, color: "#991b1b", fontSize: 13 }}>
-          Test failed: {error}
+        <div
+          role="alert"
+          style={{
+            marginTop: 8,
+            padding: "8px 10px",
+            borderRadius: 6,
+            fontSize: 13,
+            background: isNoLiveBrowser ? "#fffbeb" : "#fef2f2",
+            border: `1px solid ${isNoLiveBrowser ? "#fde68a" : "#fecaca"}`,
+            color: isNoLiveBrowser ? "#92400e" : "#991b1b",
+          }}
+        >
+          {isNoLiveBrowser ? (
+            <>
+              <div style={{ fontWeight: 700 }}>
+                No live browser attached — locator not tested
+              </div>
+              <div>
+                This recorder session has no live browser page, so no match
+                count is reported. Start/attach the recorder browser, then
+                test again.
+              </div>
+              <div style={{ marginTop: 4, opacity: 0.8 }}>
+                <code>RECORDER_NO_LIVE_BROWSER</code>
+              </div>
+            </>
+          ) : (
+            <>Test failed: {error}</>
+          )}
         </div>
       )}
       {box}

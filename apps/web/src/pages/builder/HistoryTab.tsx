@@ -95,7 +95,7 @@ export function HistoryTab({ testId }: { testId: string }) {
     return (
       <EmptyState
         title="Chưa có bản lưu nào"
-        hint="Nhập nội dung thay đổi rồi bấm “Lưu bản mới” — hệ thống không tạo bản cho từng phím gõ."
+        hint="Bản lưu được tạo qua meaningful save: autosave kèm changeMessage cho mỗi thay đổi có ý nghĩa — hệ thống không tạo bản cho từng phím gõ."
       />
     );
 

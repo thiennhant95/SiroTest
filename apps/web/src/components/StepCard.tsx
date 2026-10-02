@@ -1,4 +1,4 @@
-import { Badge } from "./ui";
+import { Badge, Tooltip } from "./ui";
 import { STEP_META, businessName, targetSummary, type BuilderStep } from "../lib/steps";
 
 export type StepStatus = "idle" | "running" | "failed";
@@ -84,13 +84,13 @@ export function StepCard({
         className="mt-1.5 hidden flex-wrap gap-1 group-hover:flex group-focus-within:flex"
         onClick={(e) => e.stopPropagation()}
       >
-        <MiniBtn title={step.enabled ? "Disable" : "Enable"} onClick={onToggleEnabled}>
+        <MiniBtn title={step.enabled ? "Disable" : "Enable"} onClick={onToggleEnabled} tip={step.enabled ? "Tắt step (giữ lại trong test)" : "Bật lại step"}>
           {step.enabled ? "⏸" : "▶"}
         </MiniBtn>
-        <MiniBtn title="Duplicate" onClick={onDuplicate}>⧉</MiniBtn>
-        <MiniBtn title="Insert before" onClick={onInsertBefore}>↑+</MiniBtn>
-        <MiniBtn title="Insert after" onClick={onInsertAfter}>↓+</MiniBtn>
-        <MiniBtn title="Delete" onClick={onDelete}>🗑</MiniBtn>
+        <MiniBtn title="Duplicate" tip="Nhân bản step này" onClick={onDuplicate}>⧉</MiniBtn>
+        <MiniBtn title="Insert before" tip="Thêm step mới phía trên" onClick={onInsertBefore}>↑+</MiniBtn>
+        <MiniBtn title="Insert after" tip="Thêm step mới phía dưới" onClick={onInsertAfter}>↓+</MiniBtn>
+        <MiniBtn title="Delete" tip="Xóa step (cần xác nhận)" onClick={onDelete}>🗑</MiniBtn>
       </div>
     </div>
   );
@@ -98,21 +98,25 @@ export function StepCard({
 
 function MiniBtn({
   title,
+  tip,
   onClick,
   children,
 }: {
   title: string;
+  tip?: string;
   onClick: () => void;
   children: React.ReactNode;
 }) {
   return (
-    <button
-      title={title}
-      aria-label={title}
-      onClick={onClick}
-      className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] text-slate-600 hover:bg-slate-100"
-    >
-      {children}
-    </button>
+    <Tooltip tip={tip ?? title}>
+      <button
+        title={title}
+        aria-label={title}
+        onClick={onClick}
+        className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-indigo-600"
+      >
+        {children}
+      </button>
+    </Tooltip>
   );
 }

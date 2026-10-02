@@ -45,9 +45,15 @@ importers:
       '@fastify/websocket':
         specifier: ^11.0.0
         version: 11.3.1
+      '@playwright-studio/runner':
+        specifier: workspace:*
+        version: link:../runner
       '@prisma/client':
         specifier: ^5.0.0
         version: 5.22.0(prisma@5.22.0)
+      '@vietvang/playwright-compiler':
+        specifier: workspace:*
+        version: link:../../packages/playwright-compiler
       '@vv/recorder':
         specifier: workspace:*
         version: link:../../packages/recorder

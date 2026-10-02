@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { api, type Variable } from '../lib/api';
 import { interpolatePreview, codePreviewFor, secretKeysOf, SECRET_MASK } from '../lib/variables';
+import { DataTable } from './ui';
 
 interface Props {
   projectId: string;
@@ -60,27 +61,30 @@ export function VariablesTab({ projectId, envId, envName, variables, onChanged, 
         as plaintext after creation.
       </p>
       {err && <p style={{ color: 'crimson' }}>{err}</p>}
-      <table cellPadding={6} style={{ borderCollapse: 'collapse', width: '100%' }}>
-        <thead>
-          <tr style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb' }}>
-            <th>Key</th><th>Value</th><th>Scope</th><th>Type</th><th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {scoped.map((v) => (
-            <tr key={v.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-              <td><code>{v.key}</code></td>
-              <td>{v.isSecret ? <span title="Secret is masked">{SECRET_MASK}</span> : <code>{v.value}</code>}</td>
-              <td style={{ fontSize: 12, color: '#6b7280' }}>{v.environmentId ? 'environment' : 'shared'}</td>
-              <td>{v.isSecret ? <span style={badge}>secret</span> : <span style={{ ...badge, background: '#eef2ff', color: '#3730a3' }}>plain</span>}</td>
-              <td><button type="button" onClick={() => void remove(v.id)}>Delete</button></td>
-            </tr>
-          ))}
-          {scoped.length === 0 && (
-            <tr><td colSpan={5} style={{ color: '#6b7280' }}>No variables in this scope yet.</td></tr>
-          )}
-        </tbody>
-      </table>
+      <DataTable<Variable>
+        caption={`Biến cho ${envName || 'môi trường đã chọn'} (env-scoped ghi đè shared)`}
+        emptyText="No variables in this scope yet."
+        rows={scoped}
+        columns={[
+          { key: 'key', header: 'Key', render: (v) => <code>{v.key}</code> },
+          {
+            key: 'value', header: 'Value',
+            render: (v) => (v.isSecret ? <span title="Secret is masked">{SECRET_MASK}</span> : <code>{v.value}</code>),
+          },
+          {
+            key: 'environmentId', header: 'Scope',
+            render: (v) => <span style={{ fontSize: 12, color: '#6b7280' }}>{v.environmentId ? 'environment' : 'shared'}</span>,
+          },
+          {
+            key: 'isSecret', header: 'Type',
+            render: (v) => (v.isSecret ? <span style={badge}>secret</span> : <span style={{ ...badge, background: '#eef2ff', color: '#3730a3' }}>plain</span>),
+          },
+          {
+            key: 'id', header: '',
+            render: (v) => <button type="button" onClick={() => void remove(v.id)}>Delete</button>,
+          },
+        ]}
+      />
 
       <h4>Add variable to {envName || 'selected environment'}</h4>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>

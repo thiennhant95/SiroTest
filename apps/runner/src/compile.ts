@@ -139,7 +139,7 @@ function stepBody(step: TestStep): string {
       return `await page.waitForTimeout(${Number(ms)}); // WARNING: fixed wait is discouraged`;
     }
     case 'waitForURL':
-      return `await page.waitForURL(${templateExpr(step.expected ?? step.pattern ?? '', 'expected', step.id)});`;
+      return `await page.waitForURL(${templateExpr(step.url ?? step.expected ?? step.pattern ?? '', 'expected', step.id)});`;
     case 'assertVisible':
       return `await expect(${loc()}).toBeVisible();`;
     case 'assertHidden':

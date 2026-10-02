@@ -56,14 +56,14 @@ jobs:
       - name: Security tests
         run: pnpm test:security
 
-      - name: Integration tests (isolated SQLite)
+      - name: Install Playwright chromium (with OS deps)
+        run: npx playwright install --with-deps chromium
+
+      - name: Integration tests (isolated SQLite, real worker)
         run: pnpm test:integration
         env:
           DATABASE_URL: file:./prisma/integration-test.db
           ALLOW_PRIVATE_TARGETS: 1
-
-      - name: Install Playwright chromium (with OS deps)
-        run: npx playwright install --with-deps chromium
 
       - name: Studio E2E (fixture app, Chromium only)
         run: pnpm test:e2e
