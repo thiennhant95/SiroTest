@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AddStepPalette } from "../components/AddStepPalette";
 import { AssertionPickerModal, type InsertPosition } from "../components/AssertionPickerModal";
+import { DatasetsTab } from "../components/DatasetsTab";
 import { EnvironmentsPanel } from "../components/EnvironmentsPanel";
 import { Inspector } from "../components/Inspector";
 import { RunModal } from "../components/RunModal";
@@ -34,7 +35,7 @@ import {
 import { CodeTab } from "./builder/CodeTab";
 import { HistoryTab } from "./builder/HistoryTab";
 
-type BottomTab = "steps" | "variables" | "runs" | "code" | "history";
+type BottomTab = "steps" | "variables" | "datasets" | "runs" | "code" | "history";
 type SaveState = "saved" | "saving" | "error";
 
 /**
@@ -302,6 +303,9 @@ export function BuilderPage() {
         : "Run revision đã lưu.";
 
   const envName = environments.find((e) => e.id === envId)?.name ?? "";
+  const defTags: string[] = Array.isArray((definition as unknown as { tags?: unknown } | null)?.tags)
+    ? ((definition as unknown as { tags: string[] }).tags.filter((t) => typeof t === "string"))
+    : [];
 
   // -- render states --
   if (loading) {
@@ -349,6 +353,11 @@ export function BuilderPage() {
           onChange={(e) => setDefinition({ ...definition, name: e.target.value })}
           className="max-w-xs font-semibold"
         />
+        {defTags.map((t) => (
+          <Link key={t} to={projectId && projectId !== "demo" ? `/projects/${projectId}/tests` : "/projects"} title={`Tests tagged ${t}`}>
+            <Badge tone="slate">#{t}</Badge>
+          </Link>
+        ))}
         <Select aria-label="Environment" value={envId} onChange={(e) => setEnvId(e.target.value)} className="w-44">
           <option value="">Environment…</option>
           {environments.map((e) => (
@@ -358,6 +367,13 @@ export function BuilderPage() {
         <Button size="sm" variant="outline" onClick={() => setShowEnvs(true)} disabled={offline || !projectId || projectId === "demo"} title="Manage environments">
           ⚙ Envs
         </Button>
+        {projectId && projectId !== "demo" ? (
+          <Tooltip tip="Reusable actions / business keywords của project">
+            <Button size="sm" variant="outline" onClick={() => nav(`/projects/${projectId}/actions`)}>
+              🔁 Actions
+            </Button>
+          </Tooltip>
+        ) : null}
         <Input
           aria-label="Recorder session"
           title="Recorder session — enables Pick from page + Test locator on live page"
@@ -531,6 +547,7 @@ export function BuilderPage() {
               step={selectedStep}
               onPatch={(p) => patchStep(selectedStep.id, p)}
               apiBase={apiBaseOrigin}
+              projectId={projectId || undefined}
               testId={id}
               sessionId={sessionId.trim() || undefined}
               testResult={testResults[selectedStep.id] ?? null}
@@ -554,6 +571,7 @@ export function BuilderPage() {
             tabs={[
               { value: "steps", label: `Steps (${definition.steps.length})` },
               { value: "variables", label: offline ? `Variables (${Object.keys(definition.variables ?? {}).length})` : `Variables (${variables.length})` },
+              { value: "datasets", label: `Datasets (${definition.datasets?.length ?? 0})` },
               { value: "runs", label: "Runs" },
               { value: "code", label: "Code" },
               { value: "history", label: "History" },
@@ -586,6 +604,20 @@ export function BuilderPage() {
             )
           ) : null}
           {bottomTab === "runs" ? <RunsPanel testId={id!} /> : null}
+          {bottomTab === "datasets" ? (
+            <DatasetsTab
+              testId={id!}
+              datasets={definition.datasets ?? []}
+              onChanged={(definitionJson) => {
+                // Server already persisted + versioned the import/delete;
+                // adopt it as both current and saved (autosave stays green).
+                const next = definitionJson as BuilderDefinition;
+                setDefinition(next);
+                setPersistedJson(JSON.stringify(next));
+                setSaveState("saved");
+              }}
+            />
+          ) : null}
           {bottomTab === "code" ? <CodeTab testId={id!} testName={definition.name} /> : null}
           {bottomTab === "history" ? <HistoryTab testId={id!} /> : null}
         </div>
@@ -608,6 +640,7 @@ export function BuilderPage() {
             step={selectedStep}
             onPatch={(p) => patchStep(selectedStep.id, p)}
             apiBase={apiBaseOrigin}
+            projectId={projectId || undefined}
             testId={id}
             sessionId={sessionId.trim() || undefined}
             testResult={testResults[selectedStep.id] ?? null}
@@ -645,6 +678,7 @@ export function BuilderPage() {
           testId={id}
           envs={environments}
           envId={envId || null}
+          datasets={definition.datasets ?? []}
           onClose={() => setShowRunModal(false)}
           onStarted={(runId) => {
             setShowRunModal(false);

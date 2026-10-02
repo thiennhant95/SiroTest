@@ -24,6 +24,8 @@ export interface TestDefinition {
   timeoutMs?: number;
   tags?: string[];
   variables?: Record<string, string>;
+  /** P1 — embedded data tables; selected per run via `datasetId`. */
+  datasets?: DataSet[];
   steps: TestStep[];
 }
 
@@ -182,6 +184,51 @@ export interface ScreenshotStep extends BaseStep {
   fullPage?: boolean;
 }
 
+// --------------------------------------------------------------- P1 ---
+// P1 additions are strictly additive: P0 parsers/compilers that do not know
+// these shapes must reject them explicitly (never silently skip).
+
+/** P1 — a named parameter of a reusable action. */
+export interface ActionParameter {
+  name: string;
+  description?: string;
+  /** Used when the caller omits the argument. */
+  default?: string;
+  /** Secret params resolve at run time and are redacted like variables. */
+  secret?: boolean;
+}
+
+/**
+ * P1 — reusable business action (project-scoped, stored in `actions` table).
+ * Body steps are P0 steps only: nested `callAction` is rejected at compile
+ * time with an explicit error (keeps inlining total and readable).
+ */
+export interface ReusableAction {
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  parameters: ActionParameter[];
+  steps: TestStep[];
+}
+
+/** P1 — invoke a reusable action with argument values. */
+export interface CallActionStep extends BaseStep {
+  type: "callAction";
+  actionId: string;
+  arguments?: Record<string, string>;
+}
+
+/** P1 — one named table of rows for data-driven runs (embedded, capped). */
+export interface DataSet {
+  id: string;
+  name: string;
+  rows: Record<string, string>[];
+}
+
+/** Maximum embedded dataset rows per definition (artifact/size discipline). */
+export const MAX_DATASET_ROWS = 500;
+
 export type TestStep =
   | GotoStep
   | ReloadStep
@@ -209,7 +256,8 @@ export type TestStep =
   | AssertEnabledStep
   | AssertDisabledStep
   | AssertCheckedStep
-  | ScreenshotStep;
+  | ScreenshotStep
+  | CallActionStep;
 
 export type StepType = TestStep["type"];
 
@@ -243,3 +291,6 @@ export const P0_STEP_TYPES: readonly StepType[] = [
   "assertChecked",
   "screenshot",
 ] as const;
+
+/** P1 step types (require P1-aware compiler/runner; P0 tooling rejects them). */
+export const P1_STEP_TYPES: readonly string[] = ["callAction"] as const;

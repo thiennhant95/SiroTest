@@ -48,6 +48,68 @@ export const runCreate = z.object({
   environmentId: z.string().min(1),
   browser: z.enum(['chromium', 'firefox', 'webkit']).default('chromium'),
   headed: z.boolean().default(false),
+  /** P1 data-driven: dataset id embedded in the test definition. */
+  datasetId: z.string().min(1).optional(),
+  /** P1 data-driven: single 0-based row (requires datasetId). */
+  rowIndex: z.number().int().nonnegative().optional(),
+});
+
+/** P1 dataset import (CSV/JSON text → embedded definition.datasets). */
+export const datasetImport = z.object({
+  format: z.enum(['csv', 'json']),
+  name: z.string().min(1).max(200).optional(),
+  content: z.string().min(1).max(512 * 1024),
+});
+
+// P1 — suites/tags + suite parallelism/retries.
+export const suiteCreate = z.object({
+  name: z.string().min(1).max(200),
+  description: z.string().max(2000).optional(),
+});
+export const suiteUpdate = suiteCreate.partial();
+
+export const suiteMemberAdd = z.object({
+  testId: z.string().min(1),
+  sortOrder: z.number().int().optional(),
+});
+export const suiteMembersReplace = z.object({
+  // Full ordered membership; replaces existing rows (reorder = PUT ordered ids).
+  testIds: z.array(z.string().min(1)).max(200),
+});
+
+export const suiteRunCreate = z.object({
+  environmentId: z.string().min(1),
+  browser: z.enum(['chromium', 'firefox', 'webkit']).default('chromium'),
+  headed: z.boolean().default(false),
+  // Max automatic retries per failing test (new attempt Run rows, default 0).
+  retries: z.number().int().min(0).max(5).default(0),
+  // Desired parallelism, clamped to the server queue capacity (RunQueue(2)).
+  // 2 = enqueue all at once (queue caps concurrency); 1 = strict sequential.
+  parallel: z.number().int().min(1).max(2).default(2),
+});
+
+// P1 — reusable actions (mirrors test-model reusableActionSchema; the
+// canonical validation lives in packages/test-model, this is the REST
+// boundary shape). Body steps are validated deeper in routes/actions.ts
+// (P0-only: nested callAction rejected).
+const actionParameterName = z.string().min(1).max(120).regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'parameter name must match /^[A-Za-z_][A-Za-z0-9_]*$/');
+export const actionParameter = z.object({
+  name: actionParameterName,
+  description: z.string().max(500).optional(),
+  default: z.string().max(5000).optional(),
+  secret: z.boolean().optional(),
+});
+export const actionCreate = z.object({
+  name: z.string().min(1).max(200),
+  description: z.string().max(2000).optional(),
+  parameters: z.array(actionParameter).max(50).optional(),
+  steps: z.array(z.record(z.unknown())).min(1),
+});
+export const actionUpdate = z.object({
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(2000).optional().nullable(),
+  parameters: z.array(actionParameter).max(50).optional(),
+  steps: z.array(z.record(z.unknown())).min(1).optional(),
 });
 
 const variableKey = z.string().min(1).max(120).regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'KEY must match /^[A-Za-z_][A-Za-z0-9_]*$/');

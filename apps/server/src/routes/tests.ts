@@ -33,10 +33,20 @@ function blankDefinition(projectId: string, name: string, browser = 'chromium'):
 }
 
 export async function testRoutes(app: FastifyInstance): Promise<void> {
-  // list under project
+  // list under project; ?tag=X filters by TestDefinition.tags (P1, additive).
   app.get('/projects/:projectId/tests', { preHandler: requireAuth }, async (req) => {
     const { projectId } = req.params as { projectId: string };
-    return db().test.findMany({ where: { projectId }, orderBy: { updatedAt: 'desc' } });
+    const { tag } = req.query as { tag?: string };
+    const rows = await db().test.findMany({ where: { projectId }, orderBy: { updatedAt: 'desc' } });
+    if (!tag) return rows;
+    return rows.filter((t) => {
+      try {
+        const def = JSON.parse(t.definitionJson) as { tags?: unknown };
+        return Array.isArray(def.tags) && def.tags.includes(tag);
+      } catch {
+        return false;
+      }
+    });
   });
 
   app.post('/projects/:projectId/tests', { preHandler: requireAuth }, async (req, reply) => {

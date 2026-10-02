@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Advanced, Badge, Button, Checkbox, Field, Input, Select, Textarea } from "./ui";
+import { ApiError, api, type ActionRecord } from "../lib/api";
 import {
   STEP_META,
   locatorPreview,
@@ -20,7 +22,10 @@ type Patch = (patch: Partial<BuilderStep>) => void;
 
 export interface InspectorExtraProps {
   /** Origin for testLocator/setPickMode (e.g. http://localhost:3001). Defaults from lib/api. */
-  apiBase?: string;  /** Test id for POST /tests/:id/locator/test (falls back to sessionId). */
+  apiBase?: string;
+  /** Project id — enables the callAction editor (list project actions). */
+  projectId?: string;
+  /** Test id for POST /tests/:id/locator/test (falls back to sessionId). */
   testId?: string;
   /** Recorder session for pick mode + session locator test fallback. */
   sessionId?: string;
@@ -44,7 +49,7 @@ export interface InspectorExtraProps {
  * recorder.locatorPicked fills primary+alternatives) + Add assertion
  * (parent AssertionPickerModal, before/after anchor).
  */
-export function Inspector({ step, onPatch, apiBase, testId, sessionId, testResult, onTestResult, onAddAssertion, testTimeoutMs, projectTimeoutMs }: { step: BuilderStep; onPatch: Patch } & InspectorExtraProps) {
+export function Inspector({ step, onPatch, apiBase, projectId, testId, sessionId, testResult, onTestResult, onAddAssertion, testTimeoutMs, projectTimeoutMs }: { step: BuilderStep; onPatch: Patch } & InspectorExtraProps) {
   const meta = STEP_META[step.type];
   const set = (k: string, v: unknown) => onPatch({ [k]: v } as Partial<BuilderStep>);
   const blocked = !!testResult && !testResult.canSave;
@@ -95,7 +100,7 @@ export function Inspector({ step, onPatch, apiBase, testId, sessionId, testResul
         />
       ) : null}
 
-      <StepFields step={step} set={set} />
+      <StepFields step={step} set={set} projectId={projectId} />
 
       {onAddAssertion ? (
         <Button size="sm" variant="outline" onClick={onAddAssertion}>
@@ -324,9 +329,11 @@ function TargetEditor({
 
 // ----------------------------------------------------------- per-type fields ---
 
-function StepFields({ step, set }: { step: BuilderStep; set: (k: string, v: unknown) => void }) {
+function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: string, v: unknown) => void; projectId?: string }) {
   const str = (v: unknown) => (typeof v === "string" ? v : "");
   switch (step.type) {
+    case "callAction":
+      return <CallActionFields step={step} set={set} projectId={projectId} />;
     case "goto":
       return (
         <Field label="URL" hint="Tương đối (/login) hoặc tuyệt đối">
@@ -444,4 +451,135 @@ function StepFields({ step, set }: { step: BuilderStep; set: (k: string, v: unkn
     default:
       return null;
   }
+}
+
+// ------------------------------------------------------- P1 callAction ---
+
+/**
+ * CallActionFields: pick a project reusable action + fill its arguments.
+ * Required params (no default) are marked; secret params render as password
+ * inputs. Values support {{VARIABLES}} (secret args MUST be {{VARIABLES}} —
+ * the compiler rejects plaintext secrets explicitly).
+ */
+function CallActionFields({
+  step,
+  set,
+  projectId,
+}: {
+  step: BuilderStep;
+  set: (k: string, v: unknown) => void;
+  projectId?: string;
+}) {
+  const [actions, setActions] = useState<ActionRecord[] | null>(null);
+  const [error, setError] = useState("");
+  const actionId = typeof step.actionId === "string" ? step.actionId : "";
+  const args = (step.arguments as Record<string, string> | undefined) ?? {};
+
+  useEffect(() => {
+    if (!projectId || projectId === "demo") {
+      setActions([]);
+      return;
+    }
+    let alive = true;
+    setActions(null);
+    setError("");
+    api
+      .listActions(projectId)
+      .then((list) => {
+        if (alive) setActions(list);
+      })
+      .catch((e) => {
+        if (alive) {
+          setActions([]);
+          setError(e instanceof ApiError ? e.message : "Không tải được actions");
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, [projectId]);
+
+  const selected = actions?.find((a) => a.id === actionId) ?? null;
+
+  const setArg = (name: string, value: string) => {
+    const next = { ...args };
+    if (value === "") delete next[name];
+    else next[name] = value;
+    set("arguments", next);
+  };
+
+  return (
+    <div className="space-y-3">
+      <Field label="Reusable action" hint="Business keyword — body steps inline lúc compile">
+        {actions === null ? (
+          <p className="text-xs text-slate-500">Đang tải actions…</p>
+        ) : actions.length > 0 ? (
+          <Select
+            value={actionId}
+            onChange={(e) => {
+              set("actionId", e.target.value);
+              // Switching actions resets arguments (params differ).
+              set("arguments", {});
+            }}
+          >
+            <option value="">— Chọn action —</option>
+            {actions.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name} ({a.parameters.length} param{a.parameters.length === 1 ? "" : "s"}, {a.steps.length} steps)
+              </option>
+            ))}
+          </Select>
+        ) : (
+          <Input
+            value={actionId}
+            placeholder="action id (vd action_xxxxxxxxxx)"
+            onChange={(e) => set("actionId", e.target.value)}
+          />
+        )}
+      </Field>
+      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {projectId && projectId !== "demo" ? (
+        <p className="text-[11px] text-slate-500">
+          <Link to={`/projects/${projectId}/actions`} className="text-indigo-700 hover:underline">
+            Manage actions →
+          </Link>
+        </p>
+      ) : null}
+      {actionId && actions !== null && !selected ? (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Action <code>{actionId}</code> không có trong project này — compile sẽ báo lỗi
+          explicit. Chọn lại action ở trên.
+        </p>
+      ) : null}
+      {selected ? (
+        <div className="space-y-2 rounded-md border border-slate-200 p-3">
+          <p className="text-xs font-semibold text-slate-600">
+            Arguments · {selected.parameters.length === 0 ? "action không có param" : null}
+          </p>
+          {selected.parameters.map((p) => (
+            <Field
+              key={p.name}
+              label={`Argument ${p.name}`}
+              hint={
+                p.secret
+                  ? `Bắt buộc {{BIEN}} — plaintext bị compiler từ chối. ${p.description ?? ""} ${p.default !== undefined ? `(mặc định: ${p.default})` : ""}`
+                  : `${p.description ?? ""} ${p.default !== undefined ? `(mặc định: ${p.default})` : ""}`
+              }
+            >
+              <span className="mb-1 flex gap-1">
+                {p.secret ? <Badge tone="red">secret</Badge> : null}
+                {p.default === undefined ? <Badge tone="amber">required</Badge> : null}
+              </span>
+              <Input
+                type={p.secret ? "password" : "text"}
+                value={args[p.name] ?? ""}
+                placeholder={p.default ?? `{{BIEN}} hoặc giá trị cho ${p.name}`}
+                onChange={(e) => setArg(p.name, e.target.value)}
+              />
+            </Field>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }

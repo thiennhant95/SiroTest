@@ -8,7 +8,7 @@
  * RUN_EVENTS_PATH, RUN_SECRETS_JSON, RUN_STEPS_META_JSON.
  */
 
-export { P0Reporter, parseStepId, type ReporterOptions, type StepMeta } from './reporter.js';
+export { P0Reporter, mergeIterationEntry, parseStepId, type ReporterOptions, type StepMeta } from './reporter.js';
 export { redactResult, REDACTED, type RunResultJson, type RunResultStatus, type StepResultEntry } from './result.js';
 import { P0Reporter } from './reporter.js';
 export default P0Reporter;

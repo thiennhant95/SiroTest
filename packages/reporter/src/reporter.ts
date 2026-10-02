@@ -100,6 +100,25 @@ export function parseStepId(title: string): string | null {
   return m ? m[1] : null;
 }
 
+/**
+ * Merge one dataset-loop iteration into the accumulated step entry:
+ * durations add up, any failure fails the step, the first error is kept,
+ * wall-clock spans earliest-start → latest-finish.
+ */
+export function mergeIterationEntry(
+  prev: StepResultEntry,
+  next: StepResultEntry,
+): StepResultEntry {
+  return {
+    stepId: prev.stepId,
+    status: prev.status === 'failed' || next.status === 'failed' ? 'failed' : 'passed',
+    startedAt: Math.min(prev.startedAt ?? next.startedAt ?? 0, next.startedAt ?? prev.startedAt ?? 0),
+    finishedAt: Math.max(prev.finishedAt ?? 0, next.finishedAt ?? 0),
+    durationMs: (prev.durationMs ?? 0) + (next.durationMs ?? 0),
+    ...(prev.error ?? next.error ? { error: prev.error ?? next.error } : {}),
+  };
+}
+
 function errorText(error: unknown): string | undefined {
   if (!error) return undefined;
   if (typeof error === 'string') return error;
@@ -202,13 +221,19 @@ export class P0Reporter {
       durationMs: started ? finishedAt - started.startedAt : step.duration,
       ...(safeErr ? { error: safeErr } : {}),
     };
-    this.finished.set(stepId, entry);
+    // P1 data-driven aggregation: the dataset loop executes the SAME step id
+    // once per iteration. Records merge as durationMs = sum(iterations) and
+    // status = failed when ANY iteration failed (first error kept), so WS
+    // step.* contracts and stepId joins keep working unchanged.
+    const prev = this.finished.get(stepId);
+    this.finished.set(stepId, prev ? mergeIterationEntry(prev, entry) : entry);
+    const merged = this.finished.get(stepId)!;
     void this.emit({
       event: err ? 'step.failed' : 'step.passed',
       stepId,
-      status: entry.status,
-      durationMs: entry.durationMs,
-      ...(safeErr ? { error: safeErr } : {}),
+      status: merged.status,
+      durationMs: merged.durationMs,
+      ...(merged.error ? { error: merged.error } : {}),
     });
   }
 

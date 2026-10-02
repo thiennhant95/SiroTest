@@ -59,9 +59,40 @@ export interface BaseStep {
   expected?: string;
   pattern?: string;
   fullPage?: boolean;
+  // P1 reusable-action invocation (see ReusableAction below)
+  actionId?: string;
+  arguments?: Record<string, string>;
 }
 
 export type TestStep = BaseStep;
+
+/** P1 — a named parameter of a reusable action. */
+export interface ActionParameter {
+  name: string;
+  description?: string;
+  /** Used when the caller omits the argument. */
+  default?: string;
+  /** Secret params must be passed as {{VARIABLE}} refs — never literals. */
+  secret?: boolean;
+}
+
+/**
+ * P1 — reusable business action (project-scoped). Body steps are P0 steps
+ * only: nested `callAction` is rejected at compile time with an explicit
+ * error (keeps inlining total and readable).
+ */
+export interface ReusableAction {
+  schemaVersion: '1.0';
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  parameters: ActionParameter[];
+  steps: TestStep[];
+}
+
+/** Lookup for `callAction` resolution: actionId -> ReusableAction. */
+export type ActionsContext = Map<string, ReusableAction> | Record<string, ReusableAction>;
 
 export interface TestDefinition {
   schemaVersion: '1.0';
@@ -75,7 +106,16 @@ export interface TestDefinition {
   timeoutMs?: number;
   tags?: string[];
   variables?: Record<string, string>;
+  /** P1 — embedded data tables; a run selects one via RunRequest.datasetId. */
+  datasets?: DataSet[];
   steps: TestStep[];
+}
+
+/** P1 — one named table of plaintext rows for data-driven runs. */
+export interface DataSet {
+  id: string;
+  name: string;
+  rows: Record<string, string>[];
 }
 
 // ---- Run request / records (08-api/api-spec.md + 09-database/schema.md) ----
@@ -100,6 +140,17 @@ export interface RunRequest {
   environmentId?: string;
   browser?: BrowserName;
   headed?: boolean;
+  /** P1 data-driven: dataset id selected at trigger time (must exist in test.datasets). */
+  datasetId?: string;
+  /** P1 data-driven: run a single row only (0-based index into the dataset). */
+  rowIndex?: number;
+  /**
+   * P1 reusable actions: resolved callee bodies for `callAction` steps.
+   * Optional (existing callers keep working); when a definition contains
+   * `callAction` but the action is absent here, compilation fails
+   * explicitly — never silently skipped.
+   */
+  actions?: ReusableAction[];
   /** project-level default timeout (ms) */
   projectDefaultTimeoutMs?: number;
   /** project-level non-secret variables */
@@ -144,6 +195,9 @@ export interface RunRecord {
   browser: BrowserName;
   status: RunStatus;
   trigger?: string;
+  /** P1 data-driven selection (persisted; Prisma Run has matching columns). */
+  datasetId?: string;
+  rowIndex?: number;
   startedAt?: number;
   finishedAt?: number;
   durationMs?: number;

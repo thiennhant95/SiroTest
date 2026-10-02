@@ -189,6 +189,14 @@ const screenshotStep = baseStep.extend({
   fullPage: z.boolean().optional(),
 });
 
+// P1 — reusable-action invocation (P0 tooling rejects via unknown-type path
+// until it learns P1; P1 compiler inlines the callee body explicitly).
+const callActionStep = baseStep.extend({
+  type: z.literal("callAction"),
+  actionId: z.string().min(1),
+  arguments: z.record(z.string()).optional(),
+});
+
 export const testStepSchema = z.discriminatedUnion("type", [
   gotoStep,
   reloadStep,
@@ -217,6 +225,7 @@ export const testStepSchema = z.discriminatedUnion("type", [
   assertDisabledStep,
   assertCheckedStep,
   screenshotStep,
+  callActionStep,
 ]).superRefine((val, ctx) => {
   // Cross-field rules live here (not on individual options) because
   // z.discriminatedUnion options must stay plain ZodObjects — .refine()
@@ -235,6 +244,45 @@ export const testStepSchema = z.discriminatedUnion("type", [
   }
 });
 
+// ------------------------------------------------------------ P1 actions ---
+
+// P1 — reusable action body (project-scoped). Stored in `actions.definitionJson`.
+export const actionParameterSchema = z.object({
+  name: z.string().min(1).max(120).regex(/^[A-Za-z_][A-Za-z0-9_]*$/),
+  description: z.string().max(500).optional(),
+  default: z.string().max(5000).optional(),
+  secret: z.boolean().optional(),
+});
+
+export const reusableActionSchema = z.object({
+  schemaVersion: z.literal("1.0"),
+  id: z.string().min(1),
+  projectId: z.string().min(1),
+  name: z.string().min(1).max(200),
+  description: z.string().max(2000).optional(),
+  parameters: z.array(actionParameterSchema).max(50),
+  steps: z.array(testStepSchema),
+}).superRefine((val, ctx) => {
+  // No nested callAction: inlining stays total and readable.
+  if (val.steps.some((s) => s.type === "callAction")) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "reusable action steps must be P0 steps (nested callAction rejected)",
+    });
+  }
+  const names = val.parameters.map((p) => p.name);
+  if (new Set(names).size !== names.length) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "parameter names must be unique" });
+  }
+});
+
+// P1 — embedded data tables (CSV/JSON/table import lands here, capped).
+const dataSetSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1).max(200),
+  rows: z.array(z.record(z.string())).max(500),
+});
+
 // ------------------------------------------------------------- definition ---
 
 export const testDefinitionSchema = z.object({
@@ -251,6 +299,7 @@ export const testDefinitionSchema = z.object({
   timeoutMs: z.number().int().positive().optional(),
   tags: z.array(z.string().min(1)).optional(),
   variables: z.record(z.string()).optional(),
+  datasets: z.array(dataSetSchema).optional(),
   steps: z.array(testStepSchema),
 });
 

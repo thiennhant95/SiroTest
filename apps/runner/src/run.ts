@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import type { ChildProcess } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { compileConfig, compileSpec } from './compile.js';
+import { buildDatasetEnvValue, resolveDatasetRows, VV_DATASET_ROWS_ENV } from './datasets.js';
 import { redactSecrets, resolveEnv } from './env.js';
 import { buildEvent, type EventPublisher } from './events.js';
 import { now, terminalRunStatusOf, type RunStore } from './persist.js';
@@ -210,14 +211,28 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     browser,
     status: 'queued',
     trigger: req.trigger ?? 'api',
+    ...(req.datasetId !== undefined ? { datasetId: req.datasetId } : {}),
+    ...(req.rowIndex !== undefined ? { rowIndex: req.rowIndex } : {}),
   });
   publish(buildEvent('run.queued', runId, { status: 'queued' }));
 
   // ---- Step 1: validate ----
+  // Dataset selection is validated here too (unknown datasetId / bad rowIndex
+  // fail fast before any workspace/spawn). Resolved rows are injected as
+  // VV_DATASET_ROWS in step 5; the compiled spec loops over them (or runs
+  // once with `{}` when the dataset is empty — never silently skipped).
+  let datasetRows: Record<string, string>[] = [];
   try {
     validateTestDefinition(req.test);
+    datasetRows = resolveDatasetRows(req.test, req.datasetId, req.rowIndex);
   } catch (err) {
-    const message = err instanceof ValidationError ? err.message : String(err);
+    // Name fallback: under tsx dev/loader conditions validate.js can exist
+    // as dual ESM/CJS instances (see datasets.ts re-export note) — the
+    // message stays identical either way, never silently swallowed.
+    const message =
+      err instanceof ValidationError || (err as Error)?.name === 'ValidationError'
+        ? (err as Error).message
+        : String(err);
     const at = now();
     await store.updateRun(runId, { status: 'failed', finishedAt: at, errorSummary: message });
     publish(buildEvent('run.failed', runId, { status: 'failed', error: message }));
@@ -265,7 +280,16 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     const testTimeoutMs = resolveTestTimeout(test, req.projectDefaultTimeoutMs);
     const reporterPath = deps.reporterPath ?? process.env.REPORTER_PATH ?? defaultReporterPath();
     const eventsPath = join(ws.workDir, 'events.jsonl');
-    const specSource = compileSpec(test, { testTimeoutMs });
+    const specSource = compileSpec(test, {
+      testTimeoutMs,
+      datasetId: req.datasetId,
+      // P1 reusable actions: resolved callee bodies (server loads them from
+      // the project's actions table). Absent actions fail explicitly inside
+      // compileSpec — before any browser is spawned, never silently skipped.
+      ...(req.actions !== undefined
+        ? { actions: new Map(req.actions.map((a) => [a.id, a] as const)) }
+        : {}),
+    });
     const configSource = compileConfig({
       browser,
       headed: req.headed ?? false,
@@ -292,6 +316,12 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
       RUN_ARTIFACT_DIR: ws.artifactDir,
       RUN_EVENTS_PATH: eventsPath,
       RUN_SECRETS_JSON: JSON.stringify(secrets),
+      // P1 data-driven: selected rows (or all rows) as JSON. Present only
+      // when a dataset was selected; the spec loop falls back to one empty
+      // row when the array is empty. Size-capped in datasets.ts (fail fast).
+      ...(req.datasetId !== undefined
+        ? { [VV_DATASET_ROWS_ENV]: buildDatasetEnvValue(datasetRows) }
+        : {}),
       RUN_STEPS_META_JSON: JSON.stringify(
         test.steps.map((s) => ({
           stepId: s.id,
