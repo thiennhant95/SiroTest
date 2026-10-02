@@ -13,6 +13,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ChildProcess } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { compileConfig, compileSpec } from './compile.js';
 import { redactSecrets, resolveEnv } from './env.js';
 import { buildEvent, type EventPublisher } from './events.js';
@@ -38,6 +39,23 @@ export interface ActiveRun {
 }
 
 const activeRuns = new Map<string, ActiveRun>();
+
+/**
+ * Default Playwright invocation: `node <playwright-cli.js> test ...`.
+ * Resolved from this package so it works on Windows (no .cmd shim) and POSIX
+ * alike, always with shell:false + argument array (11-security/security.md).
+ */
+export function defaultPlaywrightCommand(): { command: string; baseArgs: string[] } {
+  try {
+    // CJS build: resolve from this file (exports map: "./cli" -> "./cli.js";
+    // subpath "./cli.js" is NOT exported, so request "./cli").
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const cliJs = createRequire(__filename).resolve('@playwright/test/cli');
+    return { command: process.execPath, baseArgs: [cliJs, 'test'] };
+  } catch {
+    return { command: process.platform === 'win32' ? 'npx.cmd' : 'npx', baseArgs: ['playwright', 'test'] };
+  }
+}
 
 export function getActiveRun(runId: string): ActiveRun | undefined {
   return activeRuns.get(runId);
@@ -264,7 +282,9 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     await writeWorkFile(ws.workDir, 'playwright.config.ts', configSource);
 
     // ---- Step 5: execute Playwright (arg array, never a shell string) ----
-    const cli = deps.playwrightCommand ?? { command: 'npx', baseArgs: ['playwright', 'test'] };
+    // Run the Playwright CLI JS directly under node: `npx` is a .cmd shim on
+    // Windows and cannot spawn with shell:false (ENOENT/EINVAL). Still no shell.
+    const cli = deps.playwrightCommand ?? defaultPlaywrightCommand();
     const childEnv: NodeJS.ProcessEnv = {
       ...process.env,
       ...runtimeEnv,
