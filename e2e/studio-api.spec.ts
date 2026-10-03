@@ -109,17 +109,25 @@ test('studio flow: project -> test -> assertion -> compile -> run -> cancel', as
   expect(exported.status()).toBe(200);
   expect(exported.headers()['content-disposition']).toContain('.spec.ts');
 
-  // 6. Run: queued (P0 API half; execution streams run.queued -> worker).
+  // 6. Run: accepted (202, queued) then executed by the wired worker —
+  // by the time we fetch, it may be queued/running (usual) or already
+  // terminal on a fast host. All are valid lifecycle states.
   const runRes = await api.post(`/tests/${created.id}/runs`, { environmentId: env.id, browser: 'chromium' });
   expect(runRes.status()).toBe(202);
   const run = await runRes.json() as { id: string; status: string };
   expect(run.status).toBe('queued');
 
   const detail = await (await api.get(`/runs/${run.id}`)).json() as { status: string };
-  expect(detail.status).toBe('queued');
+  expect(['queued', 'running', 'passed', 'failed', 'cancelled']).toContain(detail.status);
 
-  // 7. Cancel the queued run.
+  // 7. Cancel while active; if the run already settled, that itself proves
+  // the full execution path (fetch the terminal state as evidence).
   const cancelRes = await api.post(`/runs/${run.id}/cancel`);
-  expect(cancelRes.ok()).toBeTruthy();
-  expect(((await cancelRes.json()) as { status: string }).status).toBe('cancelled');
+  if (cancelRes.status() === 409) {
+    const final = await (await api.get(`/runs/${run.id}`)).json() as { status: string };
+    expect(['passed', 'failed', 'cancelled']).toContain(final.status);
+  } else {
+    expect(cancelRes.ok()).toBeTruthy();
+    expect(((await cancelRes.json()) as { status: string }).status).toBe('cancelled');
+  }
 });
