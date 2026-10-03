@@ -54,9 +54,40 @@ export async function ensureUserRow(userId: string): Promise<void> {
 }
 
 export async function requireAuth(req: FastifyRequest, _reply: FastifyReply): Promise<void> {
-  const user = resolveUser(req.headers.authorization, req.headers['x-user-id'] as string | undefined);
+  // 1) Stateful session token (real auth): Bearer <session-token>.
+  // Session tokens are 43-char base64url (32 random bytes). Anything shaped
+  // like one MUST verify — a revoked/unknown token is rejected outright and
+  // never demoted to a dev identity (otherwise logout would be meaningless).
+  const header = req.headers.authorization;
+  if (header?.startsWith('Bearer ')) {
+    const bearer = header.slice(7).trim();
+    if (/^[A-Za-z0-9_-]{32,64}$/.test(bearer)) {
+      const verified = await verifySessionToken(bearer).catch(() => null);
+      if (verified) {
+        req.user = verified;
+        return;
+      }
+      throw new ApiError('UNAUTHORIZED', 'Invalid or expired token', 401);
+    }
+    // Not a session token: legacy dev clients send `Bearer <user-id>`.
+    // Honor that only while dev auth is allowed (otherwise 401 outright —
+    // a Bearer-looking credential is never silently demoted on hard hosts).
+    if (!devAuthAllowed()) {
+      throw new ApiError('UNAUTHORIZED', 'Invalid or expired token', 401);
+    }
+    const legacy = resolveUser(header, undefined);
+    if (!legacy) throw new ApiError('UNAUTHORIZED', 'Missing credentials', 401);
+    req.user = legacy;
+    await ensureUserRow(legacy.id);
+    return;
+  }
+  // 2) Dev stub (x-user-id header). Disabled on hardened hosts.
+  const user = resolveUser(undefined, req.headers['x-user-id'] as string | undefined);
   if (!user) {
     throw new ApiError('UNAUTHORIZED', 'Missing credentials', 401);
+  }
+  if (!devAuthAllowed()) {
+    throw new ApiError('UNAUTHORIZED', 'Dev auth is disabled on this host: log in for a session token', 401);
   }
   req.user = user;
   // Provision the stub identity so first-touch flows (project creation ->
@@ -79,12 +110,56 @@ export function resolveUser(authorization: string | undefined, userIdHeader: str
   return { id: userId, role: 'tester' };
 }
 
+/** Dev stub allowed? Hosts set ALLOW_DEV_AUTH=0 to force real session tokens. */
+export function devAuthAllowed(): boolean {
+  return process.env.ALLOW_DEV_AUTH !== '0';
+}
+
+/**
+ * Verify a stateful session token (login/register issued). Returns the user
+ * with the DB role, or null. Touches lastUsedAt (sliding activity, best
+ * effort — a failure there must not fail the request).
+ */
+export async function verifySessionToken(raw: string): Promise<AuthUser | null> {
+  const { createHash } = await import('node:crypto');
+  const digest = createHash('sha256').update(raw.trim(), 'utf8').digest('hex');
+  const row = await db().authToken.findUnique({
+    where: { tokenHash: digest },
+    include: { user: true },
+  });
+  if (!row) return null;
+  if (row.expiresAt.getTime() <= Date.now()) {
+    await db().authToken.delete({ where: { id: row.id } }).catch(() => undefined);
+    return null;
+  }
+  void db().authToken.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } }).catch(() => undefined);
+  return { id: row.user.id, role: row.user.role };
+}
+
 /** WS handshake auth: ?token=<bearer-or-user-id>. Returns null when rejected. */
 export function authenticateWsToken(query: unknown): AuthUser | null {
   const q = (query ?? {}) as Record<string, unknown>;
   const token = typeof q['token'] === 'string' ? (q['token'] as string) : undefined;
   if (!token) return null;
   return resolveUser(token.startsWith('Bearer ') ? token : `Bearer ${token}`, undefined);
+}
+
+/** Async WS handshake: accepts stateful session tokens, falls back to stub. */
+export async function authenticateWsTokenAsync(query: unknown): Promise<AuthUser | null> {
+  const q = (query ?? {}) as Record<string, unknown>;
+  const raw = typeof q['token'] === 'string' ? q['token'].trim() : '';
+  if (!raw) return null;
+  const bearer = raw.startsWith('Bearer ') ? raw.slice(7).trim() : raw;
+  // A 43-char base64url token is a session token; anything else is a dev id.
+  // Token-shaped misses MUST NOT fall back (see requireAuth): logout and
+  // revocation depend on it.
+  if (/^[A-Za-z0-9_-]{32,64}$/.test(bearer)) {
+    const verified = await verifySessionToken(bearer).catch(() => null);
+    if (verified) return verified;
+    return null;
+  }
+  if (!devAuthAllowed()) return null;
+  return resolveUser(`Bearer ${bearer}`, undefined);
 }
 
 /** P1-ready: only Developer/Admin may author custom code (P0: disabled for all). */

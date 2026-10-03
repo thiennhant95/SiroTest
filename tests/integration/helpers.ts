@@ -47,12 +47,21 @@ export async function ensureIntegrationDb(opts: { reset?: boolean } = {}): Promi
   if (!needsPush) {
     try {
       const probe = new PrismaClient();
-      // Probe every table the suites touch: a DB pushed before a schema
-      // wave (e.g. missing AuthProfile/FileAsset/Schedule) must re-push
-      // instead of failing at runtime with P2021.
-      for (const t of ['"Project"', '"TestSuite"', '"Action"', '"AuthProfile"', '"FileAsset"', '"Schedule"', '"Baseline"', '"HealingProposal"', '"AuditLog"', '"Worker"']) {
-        await probe.$queryRawUnsafe(`SELECT 1 AS one FROM ${t} LIMIT 1`);
-      }
+      // Full table inventory: a DB pushed before ANY schema wave must re-push
+      // (additive, keeps rows) instead of failing at runtime with P2021.
+      // Listing names (not per-table SELECTs) also catches tables the old
+      // probe forgot (e.g. AuthToken).
+      const rows = (await probe.$queryRawUnsafe(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_prisma%'`,
+      )) as Array<{ name: string }>;
+      const have = new Set(rows.map((r) => r.name));
+      const want = [
+        'User', 'Project', 'ProjectMember', 'Environment', 'Variable',
+        'Test', 'TestVersion', 'Action', 'TestSuite', 'SuiteTest',
+        'Run', 'RunStep', 'Artifact', 'AuthProfile', 'FileAsset', 'Schedule',
+        'Baseline', 'HealingProposal', 'AuditLog', 'Worker', 'AuthToken',
+      ];
+      if (!want.every((t) => have.has(t))) needsPush = true;
       // Probe newer COLUMNS too: a table can exist while missing columns
       // added later (push is additive and keeps rows, so re-push is safe).
       await probe.$queryRawUnsafe(

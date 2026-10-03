@@ -22,6 +22,21 @@ model User {
   actions   Action[]
   members   ProjectMember[]
   auditLogs AuditLog[]
+  tokens    AuthToken[]
+}
+
+// Stateful bearer tokens (real auth; x-user-id header stays dev-only).
+// Only SHA-256 hashes are stored — raw tokens are shown once at login.
+model AuthToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  name      String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  lastUsedAt DateTime?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
 }
 
 model Project {
