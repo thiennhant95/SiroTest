@@ -56,6 +56,9 @@ jobs:
       - name: Security tests
         run: pnpm test:security
 
+      - name: Runner + recorder unit tests (no browser)
+        run: pnpm --filter @playwright-studio/runner test && pnpm --filter @vv/recorder test
+
       - name: Install Playwright chromium (with OS deps)
         run: npx playwright install --with-deps chromium
 
