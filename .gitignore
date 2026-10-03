@@ -7,6 +7,8 @@ prisma/migrations/
 coverage/
 .env
 storage/runs/
+**/storage/runs/
+artifacts/
 test-results/
 playwright-report/
 .opencode/.cache/
