@@ -34,6 +34,30 @@ export async function buildApp() {
   const app = Fastify({ logger: true, bodyLimit: JSON_BODY_LIMIT_BYTES });
   await app.register(websocket);
 
+  // CORS for split deployments (web static host ≠ API host). Same-origin
+  // setups (vite proxy in dev, single host in prod) need nothing.
+  // CORS_ALLOWED_ORIGINS="https://studio.example.com,https://..." — exact
+  // match only, no wildcards; unset = no cross-origin access. Credentials
+  // are never needed (Bearer/header auth, no cookies).
+  const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? '')
+    .split(',')
+    .map((s) => s.trim().replace(/\/$/, ''))
+    .filter((s) => s.length > 0);
+  if (allowedOrigins.length > 0) {
+    app.addHook('onRequest', async (req, reply) => {
+      const origin = req.headers.origin;
+      if (origin && allowedOrigins.includes(origin)) {
+        reply.header('Access-Control-Allow-Origin', origin);
+        reply.header('Vary', 'Origin');
+        reply.header('Access-Control-Allow-Headers', 'content-type, authorization, x-user-id');
+        reply.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
+      }
+      if (req.method === 'OPTIONS') {
+        return reply.code(origin && allowedOrigins.includes(origin) ? 204 : 403).send();
+      }
+    });
+  }
+
   app.setErrorHandler((err, _req, reply) => {
     const { statusCode, body } = toErrorBody(err);
     return reply.code(statusCode).send(body);

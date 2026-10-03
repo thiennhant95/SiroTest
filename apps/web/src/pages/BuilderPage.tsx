@@ -101,7 +101,7 @@ export function BuilderPage() {
     definition?.steps.find((s) => s.id === selectedId) ?? null;
 
   // Origin for testLocator/setPickMode (they append /api/v1/…). apiBase includes /api/v1.
-  const apiBaseOrigin = useMemo(() => apiBase.replace(/\/api\/v1$/, "").replace(/\/$/, "") || "http://localhost:3001", []);
+  const apiBaseOrigin = useMemo(() => apiBase.replace(/\/api\/v1$/, "").replace(/\/$/, "") || window.location.origin, []);
   const unhealthy = useMemo(
     () => (definition?.steps ?? []).filter((s) => testResults[s.id] && !testResults[s.id]!.canSave),
     [definition, testResults],
