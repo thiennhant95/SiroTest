@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/app.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "pretypecheck": "pnpm --filter @vietvang/playwright-compiler --filter @vv/recorder --filter @playwright-studio/runner --filter @playwright-studio/reporter --filter @vv/ai --filter @playwright-studio/action-sdk build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "start": "node dist/app.js"
+    "start": "node dist/index.js"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0",

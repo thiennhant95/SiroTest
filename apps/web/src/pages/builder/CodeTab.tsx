@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { sampleSpecCode } from "../../mocks/sampleVersions";
 import { CodeView } from "../../components/CodeView";
-import { EmptyState, ErrorState, Skeleton } from "../../components/ui";
-import { useToast } from "../../components/Toast";
+import { EmptyState, ErrorState, Skeleton, useToast } from "../../components/ui";
 import { buildZip, downloadBlob, specZipFiles } from "../../lib/exportZip";
 
 interface DataSetInfo {
@@ -19,7 +18,7 @@ interface DataSetInfo {
  * data-driven (`for (... VV_DATASET_ROWS ...)`); mặc định xem bản P0.
  */
 export function CodeTab({ testId, testName }: { testId: string; testName: string }) {
-  const { notify } = useToast();
+  const toast = useToast();
   const [code, setCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,23 +62,23 @@ export function CodeTab({ testId, testName }: { testId: string; testName: string
     if (!code) return;
     try {
       await navigator.clipboard.writeText(code);
-      notify("Đã sao chép mã kiểm thử");
+      toast.push("success", "Đã sao chép mã kiểm thử");
     } catch {
-      notify("Không sao chép được — hãy bôi đen và Ctrl+C", "err");
+      toast.push("error", "Không sao chép được — hãy bôi đen và Ctrl+C");
     }
   };
 
   const downloadSpec = () => {
     if (!code) return;
     downloadBlob(new Blob([code], { type: "text/x-typescript" }), `${testId}.spec.ts`);
-    notify("Đã tải file .spec.ts");
+    toast.push("success", "Đã tải file .spec.ts");
   };
 
   const downloadZip = () => {
     if (!code) return;
     const zip = buildZip(specZipFiles(testName || testId, code));
     downloadBlob(zip, `${testId}-playwright.zip`);
-    notify("Đã tải gói ZIP (kèm package.json/config tối thiểu)");
+    toast.push("success", "Đã tải gói ZIP (kèm package.json/config tối thiểu)");
   };
 
   if (loading) return <Skeleton lines={10} label="Đang sinh mã kiểm thử…" />;

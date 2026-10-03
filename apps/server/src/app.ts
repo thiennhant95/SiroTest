@@ -139,29 +139,8 @@ export async function buildApp() {
   return app;
 }
 
-const port = Number(process.env.PORT ?? 3001);
-if (process.env.SKIP_LISTEN !== '1') {
-  buildApp()
-    .then(async (app) => {
-      await app.listen({ port, host: '0.0.0.0' });
-      // Same boot recovery as src/index.ts (this block is the `pnpm dev` entry).
-      try {
-        const { recoverIncompleteRunsOnBoot } = await import('./runner-store.js');
-        const report = await recoverIncompleteRunsOnBoot();
-        if (report.recoveredRuns.length > 0) {
-          app.log.warn({ recoveredRuns: report.recoveredRuns }, "recovered incomplete runs from previous teardown");
-        }
-      } catch (err) {
-        app.log.error({ err }, "boot recovery failed (server continues serving)");
-      }
-      // P1 scheduling ticker (scheduler.ts): same guards as src/index.ts —
-      // this block only runs for the real `pnpm dev` / `node dist/app.js`
-      // entry (SKIP_LISTEN=1 in tests/e2e keeps the ticker off), and
-      // SCHEDULER_DISABLED=1 opts into external-cron-only mode.
-      if (process.env.SCHEDULER_DISABLED !== '1') {
-        const { startScheduler } = await import('./scheduler.js');
-        startScheduler({ log: app.log });
-      }
-    })
-    .catch((err) => { console.error(err); process.exit(1); });
-}
+// NOTE: this module intentionally has NO bottom listen block. The single
+// canonical entry is src/index.ts (listen + boot recovery + scheduler).
+// Keeping listen logic here would double-listen whenever index.js imports
+// buildApp (EADDRINUSE crash). Dev: `tsx watch src/index.ts`,
+// prod: `node dist/index.js`, tests/e2e import buildApp() directly.

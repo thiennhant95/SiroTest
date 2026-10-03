@@ -186,6 +186,13 @@ model Schedule {
   cron          String     // minute hour dom month dow (5 fields)
   enabled       Boolean    @default(true)
   retries       Int        @default(0)
+  browser       String     @default("chromium")
+  headed        Boolean    @default(false)
+  // Optional run inputs (null = default behavior, same as manual triggers).
+  profileId     String?
+  datasetId     String?
+  rowIndex      Int?
+  healWithAlternatives Boolean @default(false)
   lastRunAt     DateTime?
   nextRunAt     DateTime?
   createdBy     String

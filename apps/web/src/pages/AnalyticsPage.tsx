@@ -1,5 +1,5 @@
 /**
- * P2 — Analytics (/projects/:id/analytics). NEW FILE, self-contained.
+ * P2 — Analytics (/projects/:id/analytics, wired in App.tsx).
  *
  * BACKEND CONTRACT (implemented in apps/server/src/routes/analytics.ts):
  *   GET /api/v1/projects/:id/analytics/summary?days=30
@@ -12,14 +12,13 @@
  *   GET /api/v1/tests/:testId/history?limit=20
  *     -> { testId, testName, runs:[Run…] }   (error text already redacted)
  *
- * ROUTE CONTRACT (App.tsx maintainer wires — this file is NOT imported yet):
- *   <Route path="/projects/:id/analytics" element={<AnalyticsPage />} />
- *
  * Churn-safe: plain fetch + localStorage vv_token (same convention as
  * lib/api authHeaders), no new dependencies. Duration chart is CSS div-bars.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { isNotFoundError } from "../lib/api";
+import { EmptyState, ErrorState, Skeleton, useToast } from "../components/ui";
 
 const API = "/api/v1";
 
@@ -82,16 +81,21 @@ function fmtMs(ms: number | null): string {
 
 export function AnalyticsPage() {
   const { id: projectId } = useParams();
+  const toast = useToast();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [flaky, setFlaky] = useState<FlakyRow[]>([]);
   const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [history, setHistory] = useState<HistoryRun[] | null>(null);
   const [historyTitle, setHistoryTitle] = useState("");
   const [error, setError] = useState("");
+  const [unsupported, setUnsupported] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!projectId) return;
     setError("");
+    setUnsupported(false);
+    setLoading(true);
     try {
       const [s, f, d] = await Promise.all([
         get<Summary>(`${API}/projects/${projectId}/analytics/summary?days=30`),
@@ -102,7 +106,13 @@ export function AnalyticsPage() {
       setFlaky(f.flaky);
       setTrend(d.trend);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không tải được analytics");
+      if (isNotFoundError(e)) {
+        setUnsupported(true);
+      } else {
+        setError(e instanceof Error ? e.message : "Không tải được analytics");
+      }
+    } finally {
+      setLoading(false);
     }
   }, [projectId]);
 
@@ -119,7 +129,9 @@ export function AnalyticsPage() {
       setHistory(h.runs);
     } catch (e) {
       setHistory([]);
-      setError(e instanceof Error ? e.message : "Không tải được history");
+      const msg = e instanceof Error ? e.message : "Không tải được history";
+      setError(msg);
+      toast.push("error", msg);
     }
   }
 
@@ -131,11 +143,23 @@ export function AnalyticsPage() {
         ← Project
       </Link>
       <h1 className="text-xl font-semibold">Analytics</h1>
-      {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null}
+      {unsupported ? (
+        <EmptyState
+          title="Backend chưa hỗ trợ analytics (API 404)"
+          hint="UI đã sẵn sàng theo contract GET /projects/:id/analytics/*. Đợi backend P2 rồi reload."
+        />
+      ) : error ? (
+        <ErrorState message={error} onRetry={load} />
+      ) : null}
 
-      {summary === null ? (
-        <p className="text-sm text-slate-500">Đang tải…</p>
-      ) : (
+      {loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
+      ) : !unsupported && !error && summary === null ? (
+        <EmptyState title="Chưa có dữ liệu analytics" hint="Chạy vài lượt rồi quay lại." />
+      ) : summary === null ? null : (
         <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div className="rounded-lg border p-3">
             <p className="text-xs text-slate-500">Pass rate (30d)</p>
@@ -166,7 +190,7 @@ export function AnalyticsPage() {
       <section>
         <h2 className="mb-2 text-sm font-semibold">Duration trend (runs/day, CSS bars)</h2>
         {trend.length === 0 ? (
-          <p className="text-xs text-slate-500">Chưa có dữ liệu 30 ngày qua.</p>
+          <EmptyState title="Chưa có dữ liệu 30 ngày qua" hint="Chạy vài lượt rồi quay lại xem xu hướng." />
         ) : (
           <div className="space-y-1">
             {trend.map((t) => (
@@ -191,7 +215,7 @@ export function AnalyticsPage() {
       <section>
         <h2 className="mb-2 text-sm font-semibold">Flaky tests (passed + failed trong 20 runs gần nhất)</h2>
         {flaky.length === 0 ? (
-          <p className="text-xs text-slate-500">Không phát hiện flaky.</p>
+          <EmptyState title="Không phát hiện flaky" hint="Cần ít nhất 2 runs gần nhất vừa pass vừa fail mới tính score." />
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -226,7 +250,7 @@ export function AnalyticsPage() {
         <section>
           <h2 className="mb-2 text-sm font-semibold">History — {historyTitle}</h2>
           {history.length === 0 ? (
-            <p className="text-xs text-slate-500">Không có runs.</p>
+            <EmptyState title="Không có runs" hint="Test này chưa có lượt chạy nào trong 20 runs gần nhất." />
           ) : (
             <table className="w-full text-sm">
               <thead>

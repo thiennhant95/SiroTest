@@ -78,11 +78,12 @@ Dùng Task Scheduler, mỗi tác vụ "At startup":
 
 | Task | Program | Arguments | Start in |
 |---|---|---|---|
-| vv-server | `node.exe` | `dist/app.js` | `D:\VietVang\Project\playwright-vv\apps\server` |
+| vv-server | `node.exe` | `dist/index.js` | `D:\VietVang\Project\playwright-vv\apps\server` |
 | vv-web | `node.exe` (serve) hoặc IIS | `serve -s dist -l 5173` | `...\apps\web` |
 | vv-cleanup (hàng đêm) | `node.exe` | `..\..\scripts\cleanup-artifacts.mjs` | repo root |
 
-Build prod trước: `pnpm build`, rồi `node dist/app.js` (server) +
+Build prod trước: `pnpm build`, rồi `node dist/index.js` (server, entry duy nhất —
+listen + boot recovery + scheduler ticker) +
 phục vụ `apps/web/dist/` bằng `serve`/IIS.
 
 > Ghi chú quyền: tài khoản chạy vv-server phải có quyền **SeDebugPrivilege**

@@ -47,10 +47,43 @@ import {
   registerPendingSuiteRun,
 } from '../suite-runs.js';
 import { prismaRunStore, workerPublish } from '../runner-store.js';
+import { broadcastRunEvent } from '../runner-store.js';
 
-function broadcast(type: string, runId: string, extra: Record<string, unknown> = {}): void {
-  const send = (globalThis as { __vvWsBroadcast?: (e: string, p: unknown) => void }).__vvWsBroadcast;
-  send?.(type, { runId, at: Date.now(), ...extra });
+/**
+ * Suite WS broadcasts go through the shared builder (runner-store.ts) so
+ * runId/at/error-redaction stay consistent across single, suite and
+ * scheduled runs. Kept as a thin local alias for call-site stability.
+ */
+function broadcast(type: Parameters<typeof broadcastRunEvent>[0], runId: string, extra: Record<string, unknown> = {}): void {
+  broadcastRunEvent(type, runId, extra);
+}
+
+/**
+ * Suite-level dataset check for one member definition. Returns a human
+ * reason when the member cannot honor the suite's datasetId/rowIndex
+ * selection, or null when it can. Never throws — the caller aggregates.
+ */
+function memberDatasetProblem(
+  definitionJson: string,
+  datasetId: string,
+  rowIndex?: number,
+): string | null {
+  let datasets: Array<{ id?: unknown; rows?: unknown }> = [];
+  try {
+    const def = JSON.parse(definitionJson) as { datasets?: unknown };
+    if (Array.isArray(def.datasets)) datasets = def.datasets as Array<{ id?: unknown; rows?: unknown }>;
+  } catch {
+    return 'definition is not valid JSON';
+  }
+  const found = datasets.find((d) => d.id === datasetId);
+  if (!found) return `does not carry dataset '${datasetId}'`;
+  if (rowIndex !== undefined) {
+    const n = Array.isArray(found.rows) ? found.rows.length : 0;
+    if (!Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= n) {
+      return `rowIndex ${rowIndex} out of range for dataset '${datasetId}' (${n} row(s))`;
+    }
+  }
+  return null;
 }
 
 /**
@@ -308,6 +341,20 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
     if (ordered.length === 0) {
       throw new ApiError('VALIDATION_ERROR', `Suite ${sid} has no resolvable tests`, 400);
     }
+    // Suite-level data selection: every member must carry the dataset (and
+    // the row when given) — otherwise the trigger fails fast naming the
+    // offending test instead of running the wrong data anywhere.
+    if (body.datasetId === undefined && body.rowIndex !== undefined) {
+      throw new ApiError('VALIDATION_ERROR', 'rowIndex requires datasetId', 400);
+    }
+    if (body.datasetId !== undefined) {
+      for (const t of ordered) {
+        const problem = memberDatasetProblem(t!.definitionJson, body.datasetId, body.rowIndex);
+        if (problem) {
+          throw new ApiError('VALIDATION_ERROR', `Test ${t!.id}: ${problem}`, 400);
+        }
+      }
+    }
 
     const base = {
       projectId: suite.projectId,
@@ -320,6 +367,8 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
       retriesLeft: body.retries ?? 0,
       ...(body.profileId !== undefined ? { profileId: body.profileId } : {}),
       ...(body.healWithAlternatives === true ? { healWithAlternatives: true as const } : {}),
+      ...(body.datasetId !== undefined ? { datasetId: body.datasetId } : {}),
+      ...(body.rowIndex !== undefined ? { rowIndex: body.rowIndex } : {}),
     };
 
     if (body.parallel === 1) {

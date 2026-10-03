@@ -1,6 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { ToastProvider as UiToastProvider } from "./components/ui";
-import { ToastProvider as LegacyToastProvider } from "./components/Toast";
+import { ToastProvider } from "./components/ui";
 import { getToken } from "./lib/api";
 import { ActionsPage } from "./pages/ActionsPage";
 import { BuilderPage } from "./pages/BuilderPage";
@@ -32,9 +31,8 @@ function RequireAuth({ children }: { children: JSX.Element }) {
 
 export function App() {
   return (
-    <UiToastProvider>
-      <LegacyToastProvider>
-        <Routes>
+    <ToastProvider>
+      <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/projects" element={<RequireAuth><ProjectsPage /></RequireAuth>} />
           <Route path="/projects/:id" element={<RequireAuth><ProjectDetailPage /></RequireAuth>} />
@@ -62,7 +60,6 @@ export function App() {
           <Route path="/" element={<Navigate to="/projects" replace />} />
           <Route path="*" element={<Navigate to="/projects" replace />} />
         </Routes>
-      </LegacyToastProvider>
-    </UiToastProvider>
+    </ToastProvider>
   );
 }

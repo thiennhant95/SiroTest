@@ -40,6 +40,13 @@ export interface BridgeEvent {
   point?: { x: number; y: number };
   /** true when element is password-like (set by bridge, re-checked on server) */
   maybeSensitive?: boolean;
+  /**
+   * Full element metadata captured synchronously in-page at event time.
+   * Preferred over point re-resolution (the page may change before the host
+   * evaluates). Shape mirrors locator-engine ElementMetadata; never contains
+   * trusted selectors — candidates are still computed server-side.
+   */
+  meta?: Record<string, unknown>;
 }
 
 // Server-side captured step (normalized later into a TestDefinition step)

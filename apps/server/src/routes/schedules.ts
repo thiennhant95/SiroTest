@@ -3,6 +3,7 @@ import { db } from '../db.js';
 import { requireAuth, requireProjectAccess } from '../auth.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, scheduleCreate, scheduleUpdate } from '../schemas.js';
+import { cronIssue } from '../scheduler.js';
 
 /**
  * P1 wave-2 — scheduled suite/test runs (CRUD only).
@@ -23,54 +24,8 @@ import { parseOrThrow, scheduleCreate, scheduleUpdate } from '../schemas.js';
  *   with SCHEDULE_CONFLICT (409) instead of silently doubling executions.
  */
 
-const CRON_RANGES: Array<[number, number]> = [
-  [0, 59], // minute
-  [0, 23], // hour
-  [1, 31], // day of month
-  [1, 12], // month
-  [0, 7], // day of week (7 = Sunday, like classic cron)
-];
-
-function checkCronField(field: string, min: number, max: number): boolean {
-  // `*` or `*/step`
-  if (field === '*') return true;
-  const stepSplit = field.split('/');
-  if (stepSplit.length > 2) return false;
-  const base = stepSplit[0]!;
-  if (stepSplit.length === 2) {
-    if (!/^\d+$/.test(stepSplit[1]!) || Number(stepSplit[1]) < 1) return false;
-    if (base !== '*' && !base.includes('-')) return false;
-  }
-  if (base === '*') return true;
-  // comma list of `n` or `a-b`
-  return base.split(',').every((part) => {
-    if (/^\d+$/.test(part)) {
-      const n = Number(part);
-      return n >= min && n <= max;
-    }
-    const m = /^(\d+)-(\d+)$/.exec(part);
-    if (!m) return false;
-    const a = Number(m[1]);
-    const b = Number(m[2]);
-    return a <= b && a >= min && b <= max;
-  });
-}
-
 /** Null when valid; a human reason when not (route maps to CRON_INVALID). */
-export function cronIssue(cron: string): string | null {
-  const fields = cron.trim().split(/\s+/);
-  if (fields.length !== 5) {
-    return `cron must have exactly 5 fields (minute hour dom month dow), got ${fields.length}`;
-  }
-  const names = ['minute', 'hour', 'day-of-month', 'month', 'day-of-week'];
-  for (let i = 0; i < 5; i++) {
-    const [min, max] = CRON_RANGES[i]!;
-    if (!checkCronField(fields[i]!, min, max)) {
-      return `cron field ${i + 1} (${names[i]!}, "${fields[i]}") is out of range ${min}-${max} or malformed`;
-    }
-  }
-  return null;
-}
+export { cronIssue };
 
 export function assertValidCron(cron: string): void {
   const issue = cronIssue(cron);
@@ -123,6 +78,16 @@ async function checkEnv(projectId: string, environmentId: string): Promise<void>
   if (!env || env.projectId !== projectId) {
     throw new ApiError('VALIDATION_ERROR', 'environmentId does not belong to this project', 400);
   }
+}
+
+/** Profile refs must belong to the project (env match is checked at fire time). */
+async function checkProfile(projectId: string, profileId: string | null | undefined): Promise<string | null> {
+  if (profileId === undefined || profileId === null) return null;
+  const row = await db().authProfile.findUnique({ where: { id: profileId } });
+  if (!row || row.projectId !== projectId) {
+    throw new ApiError('VALIDATION_ERROR', `profileId '${profileId}' does not belong to this project`, 400);
+  }
+  return profileId;
 }
 
 async function assertNoDuplicate(
@@ -180,6 +145,12 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
         cron: body.cron,
         enabled: body.enabled ?? true,
         retries: body.retries ?? 0,
+        browser: body.browser ?? 'chromium',
+        headed: body.headed ?? false,
+        profileId: await checkProfile(projectId, body.profileId),
+        datasetId: body.datasetId ?? null,
+        rowIndex: body.rowIndex ?? null,
+        healWithAlternatives: body.healWithAlternatives ?? false,
         createdBy: req.user!.id,
       },
     });
@@ -227,6 +198,12 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
         ...(body.cron !== undefined ? { cron: body.cron } : {}),
         ...(body.enabled !== undefined ? { enabled: body.enabled } : {}),
         ...(body.retries !== undefined ? { retries: body.retries } : {}),
+        ...(body.browser !== undefined ? { browser: body.browser } : {}),
+        ...(body.headed !== undefined ? { headed: body.headed } : {}),
+        ...(body.profileId !== undefined ? { profileId: await checkProfile(row.projectId, body.profileId) } : {}),
+        ...(body.datasetId !== undefined ? { datasetId: body.datasetId } : {}),
+        ...(body.rowIndex !== undefined ? { rowIndex: body.rowIndex } : {}),
+        ...(body.healWithAlternatives !== undefined ? { healWithAlternatives: body.healWithAlternatives } : {}),
       },
     });
   });

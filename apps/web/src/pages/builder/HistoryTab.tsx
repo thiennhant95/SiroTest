@@ -4,12 +4,11 @@ import { sampleVersions } from "../../mocks/sampleVersions";
 import type { TestVersion } from "../../types";
 import { formatTime } from "../../lib/format";
 import { diffSteps } from "../../lib/diff";
-import { EmptyState, ErrorState, Skeleton } from "../../components/ui";
-import { useToast } from "../../components/Toast";
+import { EmptyState, ErrorState, Skeleton, useToast } from "../../components/ui";
 import { useConfirm } from "../../components/Confirm";
 
 export function HistoryTab({ testId }: { testId: string }) {
-  const { notify } = useToast();
+  const toast = useToast();
   const { confirm, dialog } = useConfirm();
   const [versions, setVersions] = useState<TestVersion[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,10 +78,10 @@ export function HistoryTab({ testId }: { testId: string }) {
             : prev,
         );
       }
-      notify(`Đã khôi phục bản v${selected.versionNumber} thành bản mới`);
+      toast.push("success", `Đã khôi phục bản v${selected.versionNumber} thành bản mới`);
       void load();
     } catch (e) {
-      notify(e instanceof Error ? e.message : "Khôi phục thất bại", "err");
+      toast.push("error", e instanceof Error ? e.message : "Khôi phục thất bại");
     } finally {
       setRestoring(false);
     }

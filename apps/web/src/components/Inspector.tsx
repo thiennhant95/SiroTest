@@ -58,10 +58,11 @@ export function Inspector({ step, onPatch, apiBase, projectId, testId, sessionId
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-semibold text-slate-900">
-          {meta?.icon} {meta?.label ?? step.type}
+          {meta?.icon} {meta?.label ?? (step.type.startsWith("plugin:") ? "Custom step" : step.type)}
+          {step.type.startsWith("plugin:") ? <Badge tone="indigo">plugin</Badge> : null}
         </h3>
         <p className="text-[11px] text-slate-500">
-          <code>{step.type}</code> · id <code>{step.id}</code>
+          {meta?.description ?? (step.type.startsWith("plugin:") ? "Step từ plugin server-side" : "Step chưa hỗ trợ trong palette")}
         </p>
       </div>
 
@@ -116,6 +117,9 @@ export function Inspector({ step, onPatch, apiBase, projectId, testId, sessionId
       ) : null}
 
       <Advanced title="Step options">
+        <p className="font-mono text-[11px] text-slate-500">
+          type <code>{step.type}</code> · id <code>{step.id}</code>
+        </p>
         <Field label="Timeout (ms, để trống = mặc định)">
           <Input
             type="number"
@@ -505,8 +509,18 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
     }
     case "apiRequest":
       return <ApiRequestFields step={step} set={set} />;
+    case "visualCheck":
+      return <VisualCheckFields step={step} set={set} />;
     default:
-      return null;
+      if (typeof step.type === "string" && step.type.startsWith("plugin:")) {
+        return <PluginStepFields step={step} set={set} />;
+      }
+      return (
+        <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+          Step type <code>{step.type}</code> chưa được hỗ trợ trong Inspector — compile sẽ
+          báo lỗi explicit. Xóa step này hoặc chọn type khác trong palette.
+        </p>
+      );
   }
 }
 
@@ -858,6 +872,180 @@ function ApiRequestFields({ step, set }: { step: BuilderStep; set: (k: string, v
       {!saveAsOk ? (
         <p className="text-xs text-red-600">Tên biến phải khớp /^[A-Za-z_][A-Za-z0-9_]*$/.</p>
       ) : null}
+    </div>
+  );
+}
+
+// ------------------------------------------------------- P2 visualCheck ---
+
+/**
+ * visualCheck: baseline name (required) + threshold 0–1 (default 0.05).
+ * Target is OPTIONAL — empty means whole-viewport comparison (VisualCheckStep).
+ */
+function VisualCheckFields({ step, set }: { step: BuilderStep; set: (k: string, v: unknown) => void }) {
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  const threshold = typeof step.threshold === "number" ? step.threshold : 0.05;
+  const outOfRange = !Number.isFinite(threshold) || threshold < 0 || threshold > 1;
+  return (
+    <div className="space-y-3">
+      <Field label="Baseline name" hint="Tên duy nhất trong test — lần chạy capture đầu tiên lưu baseline này.">
+        <Input value={str(step.name)} placeholder="vd hero" onChange={(e) => set("name", e.target.value)} />
+      </Field>
+      {!str(step.name) ? (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Chưa đặt tên baseline — compile sẽ báo lỗi explicit (name bắt buộc).
+        </p>
+      ) : null}
+      <Field label="Threshold (0–1)" hint="Tỉ lệ pixel khác cho phép — mặc định 0.05 (5%).">
+        <Input
+          type="number"
+          min={0}
+          max={1}
+          step={0.01}
+          value={Number.isFinite(threshold) ? threshold : ""}
+          onChange={(e) => set("threshold", e.target.value === "" ? undefined : Number(e.target.value))}
+        />
+      </Field>
+      {outOfRange ? (
+        <p className="text-xs text-red-600">Threshold phải nằm trong 0–1.</p>
+      ) : null}
+      <p className="text-[11px] text-slate-500">
+        Target ở trên là tùy chọn — để trống = so toàn trang. Xem/sửa baseline tại trang Visual
+        regression của test.
+      </p>
+    </div>
+  );
+}
+
+// ------------------------------------------------------- P2 plugin:* ---
+
+interface PluginStepSchema {
+  required?: string[];
+  properties?: Record<string, { type: string; description?: string; secret?: boolean; default?: string }>;
+}
+
+interface PluginListResponse {
+  enabled: boolean;
+  plugins: Array<{
+    name: string;
+    steps: Array<{ type: string; description?: string; schema?: PluginStepSchema }>;
+  }>;
+}
+
+/**
+ * Schema-driven form for `plugin:*` steps (mirrors CallActionFields):
+ * required params are badged, secret params render as password inputs and
+ * MUST be {{VARIABLES}} (server rejects plaintext at compile/run time).
+ * Values live in `step.params`. Unknown plugin → manual JSON fallback.
+ */
+function PluginStepFields({ step, set }: { step: BuilderStep; set: (k: string, v: unknown) => void }) {
+  const [meta, setMeta] = useState<{ description?: string; schema?: PluginStepSchema } | null | undefined>(undefined);
+  const params = (step.params as Record<string, string> | undefined) ?? {};
+
+  useEffect(() => {
+    let alive = true;
+    const base = (defaultApiBase.replace(/\/api\/v1$/, "")).replace(/\/$/, "");
+    const headers: Record<string, string> = {};
+    try {
+      const token = localStorage.getItem("vv_token");
+      if (token) headers.Authorization = `Bearer ${token}`;
+      else headers["x-user-id"] = "dev-user";
+    } catch {
+      headers["x-user-id"] = "dev-user";
+    }
+    fetch(`${base}/api/v1/plugins`, { headers })
+      .then((res) => {
+        if (!alive) return;
+        if (res.status === 404 || !res.ok) {
+          setMeta(null);
+          return;
+        }
+        return (res.json() as Promise<PluginListResponse>).then((data) => {
+          if (!alive) return;
+          const found = data.plugins.flatMap((p) => p.steps).find((s) => s.type === step.type) ?? null;
+          setMeta(found ? { description: found.description, schema: found.schema } : null);
+        });
+      })
+      .catch(() => {
+        if (alive) setMeta(null);
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step.type]);
+
+  const setParam = (name: string, value: string) => {
+    const next = { ...params };
+    if (value === "") delete next[name];
+    else next[name] = value;
+    set("params", next);
+  };
+
+  const schema = meta?.schema;
+  const required = new Set(schema?.required ?? []);
+  const properties = schema?.properties ?? {};
+
+  return (
+    <div className="space-y-3">
+      {meta?.description ? (
+        <p className="text-xs text-slate-600">{meta.description}</p>
+      ) : null}
+      {meta === undefined ? (
+        <p className="text-xs text-slate-500">Đang tải plugin metadata…</p>
+      ) : meta === null || !schema ? (
+        <>
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Không tìm thấy metadata cho <code>{step.type}</code> (plugin chưa load hoặc
+            ALLOW_PLUGINS tắt) — nhập params JSON thủ công. Compile/run báo lỗi explicit
+            (PLUGIN_NOT_FOUND) nếu plugin thiếu.
+          </p>
+          <Field label="Params (JSON)" hint='vd {"label":"Password","value":"{{LOGIN_PW}}"}'>
+            <Textarea
+              rows={5}
+              value={JSON.stringify(step.params ?? {}, null, 2)}
+              onChange={(e) => {
+                try {
+                  set("params", JSON.parse(e.target.value) as Record<string, unknown>);
+                } catch {
+                  /* ignore invalid JSON while typing */
+                }
+              }}
+            />
+          </Field>
+        </>
+      ) : Object.keys(properties).length === 0 ? (
+        <p className="text-xs text-slate-500">Plugin step này không khai báo param.</p>
+      ) : (
+        <div className="space-y-2 rounded-md border border-slate-200 p-3">
+          <p className="text-xs font-semibold text-slate-600">Params</p>
+          {Object.entries(properties).map(([name, prop]) => (
+            <Field
+              key={name}
+              label={`Param ${name}`}
+              hint={`${prop.description ?? ""} ${prop.default !== undefined ? `(mặc định: ${prop.default})` : ""}`.trim() || undefined}
+            >
+              <span className="mb-1 flex gap-1">
+                {prop.secret ? <Badge tone="red">secret</Badge> : null}
+                {required.has(name) ? <Badge tone="amber">required</Badge> : null}
+              </span>
+              <Input
+                type={prop.secret ? "password" : "text"}
+                value={params[name] ?? ""}
+                placeholder={prop.secret ? "{{BIEN}} (bắt buộc — plaintext bị từ chối)" : (prop.default ?? `Giá trị cho ${name}`)}
+                onChange={(e) => setParam(name, e.target.value)}
+              />
+            </Field>
+          ))}
+          {Object.keys(params).filter((k) => !(k in properties)).length > 0 ? (
+            <p className="text-[11px] text-slate-500">
+              Params thừa (không có trong schema):{" "}
+              {Object.keys(params).filter((k) => !(k in properties)).join(", ")} — giữ lại khi
+              compile, plugin tự quyết định.
+            </p>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

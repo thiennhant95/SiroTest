@@ -91,6 +91,11 @@ function normalizeDefinition(def: {
   if (Array.isArray(raw['datasets'])) {
     (normalized as unknown as Record<string, unknown>)['datasets'] = raw['datasets'];
   }
+  // Tags are metadata (filtering/reporting), never compiled — but they must
+  // survive preview/export round-trips instead of being silently dropped.
+  if (Array.isArray(raw['tags'])) {
+    normalized.tags = (raw['tags'] as unknown[]).filter((t): t is string => typeof t === 'string');
+  }
   return normalized;
 }
 

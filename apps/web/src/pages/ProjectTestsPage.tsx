@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Badge, Button, EmptyState, ErrorState, Input, Select, Skeleton, useToast } from "../components/ui";
 import { ExportProjectButton, ImportProjectButton, ImportSpecDialog } from "../components/ProjectTransfer";
 import { ApiError, api, type TestRecord } from "../lib/api";
 
 export function ProjectTestsPage() {
   const { id: projectId } = useParams();
+  const [searchParams] = useSearchParams();
   const [tests, setTests] = useState<TestRecord[] | null>(null);
   const [tags, setTags] = useState<Array<{ tag: string; count: number }>>([]);
-  const [tag, setTag] = useState("");
+  // Deep-link from Builder tag badges (?tag=…).
+  const [tag, setTag] = useState(() => searchParams.get("tag") ?? "");
   const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [specOpen, setSpecOpen] = useState(false);
@@ -31,7 +33,9 @@ export function ProjectTestsPage() {
   };
 
   useEffect(() => {
-    void load("");
+    const initial = searchParams.get("tag") ?? "";
+    setTag(initial);
+    void load(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 

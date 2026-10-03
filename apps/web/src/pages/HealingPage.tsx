@@ -1,25 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { p2api, type HealingProposal } from "../api/p2";
+import { isNotFoundError } from "../lib/api";
 import { locatorPreview } from "../lib/steps";
+import { EmptyState, ErrorState, Skeleton, useToast } from "../components/ui";
 
 /**
- * P2 — reviewable locator healing.
- *
- * CONTRACT (this file is NEW and NOT wired into App.tsx — owner: web wiring):
- *   Route path (proposed): `/tests/:id/healing`
- *   Wire with (in App.tsx, next to the Builder route):
- *     <Route path="/tests/:id/healing"
- *            element={<RequireAuth><HealingPage /></RequireAuth>} />
- *   Mount points proposed:
- *     - BuilderPage toolbar: a "Healing (N)" link to `/tests/${testId}/healing`.
- *     - RunDetailPage failed-step row: deep-link here when a step has a
- *       pending proposal; back-link below returns to the builder with
- *       `?focusStep=<stepId>` so the reviewer lands on the healed step.
+ * P2 — reviewable locator healing (`/tests/:id/healing`, wired in App.tsx).
  *
  * Healing NEVER auto-applies: this page only lists proposals (primary →
  * alternative + evidence) and lets a human Approve (rewrites the step primary
- * + mints a new test version server-side) or Reject them.
+ * + mints a new test version server-side) or Reject them. Builder links here
+ * via a "Healing (N)" entry; back-links return with `?focusStep=<stepId>`.
  */
 export const HEALING_ROUTE_PATH = "/tests/:id/healing";
 
@@ -47,20 +39,28 @@ function evidenceOf(p: HealingProposal): {
 
 export function HealingPage() {
   const { id: testId } = useParams<{ id: string }>();
+  const toast = useToast();
   const [proposals, setProposals] = useState<HealingProposal[]>([]);
   const [filter, setFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [unsupported, setUnsupported] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!testId) return;
     setLoading(true);
     setError(null);
+    setUnsupported(false);
     try {
       setProposals(await p2api.listHealing(testId, filter));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load healing proposals");
+      if (isNotFoundError(e)) {
+        setUnsupported(true);
+        setProposals([]);
+      } else {
+        setError(e instanceof Error ? e.message : "Failed to load healing proposals");
+      }
     } finally {
       setLoading(false);
     }
@@ -76,9 +76,12 @@ export function HealingPage() {
     try {
       if (action === "approve") await p2api.approveHealing(pid);
       else await p2api.rejectHealing(pid);
+      toast.push("success", action === "approve" ? "Đã duyệt proposal (primary đã viết lại)." : "Đã từ chối proposal.");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : `${action} failed`);
+      const msg = e instanceof Error ? e.message : `${action} failed`;
+      setError(msg);
+      toast.push("error", msg);
     } finally {
       setBusy(null);
     }
@@ -110,9 +113,22 @@ export function HealingPage() {
           </button>
         ))}
       </div>
-      {loading && <p>Loading…</p>}
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
-      {!loading && proposals.length === 0 && <p>No {filter} proposals.</p>}
+      {loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-12" />
+          <Skeleton className="h-12" />
+          <Skeleton className="h-12" />
+        </div>
+      ) : unsupported ? (
+        <EmptyState
+          title="Backend chưa hỗ trợ healing (API 404)"
+          hint="UI đã sẵn sàng theo contract GET /tests/:id/healing. Đợi backend P2 rồi reload."
+        />
+      ) : error ? (
+        <ErrorState message={error} onRetry={load} />
+      ) : proposals.length === 0 ? (
+        <EmptyState title={`Không có proposal ${filter}`} hint="Proposal xuất hiện khi alternative locator thắng primary lúc run (có bật heal flag)." />
+      ) : null}
       <ul style={{ listStyle: "none", padding: 0 }}>
         {proposals.map((p) => {
           const ev = evidenceOf(p);

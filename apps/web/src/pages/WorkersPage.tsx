@@ -1,5 +1,5 @@
 /**
- * P2 — Distributed workers board. NEW FILE, self-contained.
+ * P2 — Distributed workers board (/workers, wired in App.tsx).
  *
  * BACKEND CONTRACT (apps/server/src/routes/workers.ts):
  *   POST /api/v1/workers/register {name, capacity?} -> 201 Worker
@@ -9,15 +9,14 @@
  *   POST /api/v1/workers/:id/deregister -> {worker, releasedQueuedRuns}
  *   POST /api/v1/workers/sweep -> {staleWorkers, releasedRuns}
  *
- * ROUTE CONTRACT (App.tsx maintainer wires — this file is NOT imported yet):
- *   <Route path="/workers" element={<WorkersPage />} />
- *
  * LIMIT (honest, also shown in-UI): true distribution needs a SHARED DB
  * (Postgres). With the default SQLite file, only processes on the same host
  * sharing the same file see the same queue.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { isNotFoundError } from "../lib/api";
+import { EmptyState, ErrorState, Skeleton, useToast } from "../components/ui";
 
 const API = "/api/v1";
 
@@ -61,18 +60,26 @@ interface WorkerRow {
 }
 
 export function WorkersPage() {
+  const toast = useToast();
   const [workers, setWorkers] = useState<WorkerRow[] | null>(null);
   const [error, setError] = useState("");
+  const [unsupported, setUnsupported] = useState(false);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setError("");
+    setUnsupported(false);
     try {
       setWorkers(await req<WorkerRow[]>("GET", `${API}/workers`));
     } catch (e) {
-      setWorkers([]);
-      setError(e instanceof Error ? e.message : "Không tải được workers");
+      if (isNotFoundError(e)) {
+        setUnsupported(true);
+        setWorkers([]);
+      } else {
+        setWorkers([]);
+        setError(e instanceof Error ? e.message : "Không tải được workers");
+      }
     }
   }, []);
 
@@ -87,9 +94,12 @@ export function WorkersPage() {
     try {
       await req("POST", `${API}/workers/register`, { name: name.trim(), capacity: 2 });
       setName("");
+      toast.push("success", "Đã đăng ký worker.");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Register thất bại");
+      const msg = e instanceof Error ? e.message : "Register thất bại";
+      setError(msg);
+      toast.push("error", msg);
     } finally {
       setBusy(false);
     }
@@ -98,19 +108,26 @@ export function WorkersPage() {
   async function deregister(id: string) {
     try {
       await req("POST", `${API}/workers/${id}/deregister`);
+      toast.push("success", "Đã gỡ worker.");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Deregister thất bại");
+      const msg = e instanceof Error ? e.message : "Deregister thất bại";
+      setError(msg);
+      toast.push("error", msg);
     }
   }
 
   async function sweep() {
     try {
       const r = await req<{ staleWorkers: string[]; releasedRuns: string[] }>("POST", `${API}/workers/sweep`);
-      setError(r.staleWorkers.length === 0 ? "" : `Sweep: ${r.staleWorkers.length} stale, ${r.releasedRuns.length} runs released`);
+      const msg = r.staleWorkers.length === 0 ? "Không có worker stale." : `Sweep: ${r.staleWorkers.length} stale, ${r.releasedRuns.length} runs released`;
+      setError(r.staleWorkers.length === 0 ? "" : msg);
+      toast.push("success", msg);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Sweep thất bại");
+      const msg = e instanceof Error ? e.message : "Sweep thất bại";
+      setError(msg);
+      toast.push("error", msg);
     }
   }
 
@@ -141,12 +158,25 @@ export function WorkersPage() {
           {busy ? "…" : "Register"}
         </button>
       </div>
-      {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null}
+      {unsupported ? (
+        <EmptyState
+          title="Backend chưa hỗ trợ workers (API 404)"
+          hint="UI đã sẵn sàng theo contract POST/GET /workers. Đợi backend P2 rồi reload — in-process runQueue vẫn là executor mặc định."
+        />
+      ) : error ? (
+        <ErrorState message={error} onRetry={load} />
+      ) : null}
       {workers === null ? (
-        <p className="text-sm text-slate-500">Đang tải…</p>
-      ) : workers.length === 0 ? (
-        <p className="text-sm text-slate-500">Chưa có worker nào. In-process runQueue vẫn là executor mặc định.</p>
-      ) : (
+        <div className="space-y-2">
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+        </div>
+      ) : !unsupported && !error && workers.length === 0 ? (
+        <EmptyState
+          title="Chưa có worker nào"
+          hint="In-process runQueue vẫn là executor mặc định. Đăng ký worker đầu tiên ở ô phía trên."
+        />
+      ) : workers.length === 0 ? null : (
         <ul className="space-y-2">
           {workers.map((w) => (
             <li key={w.id} className="rounded-lg border p-4">
