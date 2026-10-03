@@ -73,6 +73,10 @@ export async function ensureIntegrationDb(opts: { reset?: boolean } = {}): Promi
   }
   const db = new PrismaClient();
   try {
+    // Same concurrency posture as the server (WAL + busy wait): the full
+    // suite plus background run workers share this one SQLite file.
+    await db.$executeRawUnsafe('PRAGMA journal_mode=WAL').catch(() => undefined);
+    await db.$executeRawUnsafe('PRAGMA busy_timeout = 5000').catch(() => undefined);
     await db.user.upsert({
       where: { id: TEST_USER_ID },
       update: {},

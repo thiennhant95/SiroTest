@@ -84,8 +84,21 @@ export function captureBridgeEvent(
   const sensitive = isSensitiveField(e);
 
   switch (e.kind) {
-    case 'navigation':
+    case 'navigation': {
+      // Only real web targets become goto steps:
+      // - about:blank is the browser's initial state (racy, meaningless);
+      // - browser-internal/error schemes (chrome-error://, chrome://, edge://,
+      //   data:, ...) are failure artifacts, never test intent.
+      if (!e.url || e.url === 'about:blank') return null;
+      let protocol = '';
+      try {
+        protocol = new URL(e.url).protocol;
+      } catch {
+        return null;
+      }
+      if (protocol !== 'http:' && protocol !== 'https:') return null;
       return { id: nanoid(10), type: 'goto', url: e.url, at, elementKey: `nav|${e.url}`, value: e.url };
+    }
 
     case 'click': {
       // Checkbox/radio clicks are normalized to check/uncheck via `checked`.
