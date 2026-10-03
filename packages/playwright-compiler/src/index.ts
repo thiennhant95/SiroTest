@@ -39,6 +39,7 @@ export {
   escapeString,
   stringLiteral,
   compileValueExpression,
+  compileUrlMatcher,
   redactSecrets,
 } from './variables';
 export type { TemplatePart } from './variables';
