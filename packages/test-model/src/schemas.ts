@@ -230,6 +230,15 @@ const apiRequestStep = baseStep.extend({
   saveAs: z.string().min(1).max(120).regex(/^[A-Za-z_][A-Za-z0-9_]*$/).optional(),
 });
 
+// --------------------------------------------------------------- P2 ---
+
+const visualCheckStep = baseStep.extend({
+  type: z.literal("visualCheck"),
+  name: z.string().min(1).max(200),
+  target: locatorSpecSchema.optional(),
+  threshold: z.number().min(0).max(1).optional(),
+});
+
 export const testStepSchema = z.discriminatedUnion("type", [
   gotoStep,
   reloadStep,
@@ -265,6 +274,7 @@ export const testStepSchema = z.discriminatedUnion("type", [
   closeTabStep,
   handleDialogStep,
   apiRequestStep,
+  visualCheckStep,
 ]).superRefine((val, ctx) => {
   // Cross-field rules live here (not on individual options) because
   // z.discriminatedUnion options must stay plain ZodObjects — .refine()

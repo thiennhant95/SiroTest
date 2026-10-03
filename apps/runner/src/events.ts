@@ -24,6 +24,17 @@ export interface RunEvent {
   status?: RunStatus | StepStatus;
   durationMs?: number;
   error?: string;
+  /**
+   * P2 — healing evidence for `step.healed` (see healing.ts HealEvidence).
+   * Kept off the `RunEventName` union on purpose: the union is the P0 WS
+   * contract consumed by `apps/server/src/ws/events.ts` + `runner-store.ts`,
+   * which forward only the P0 fields. `step.healed` is emitted through this
+   * publisher with a cast in run.ts (never silently applied — proposal only)
+   * and full evidence travels in the `runTest()` return value for the server
+   * to persist as `HealingProposal` rows. Server WS passthrough for the new
+   * name + this field is a documented 3-line wiring item (owner: server).
+   */
+  evidence?: unknown;
 }
 
 /** Transport-agnostic publisher; the server wires this to its WS gateway. */
@@ -49,7 +60,7 @@ export function fanout(publishers: EventPublisher[]): EventPublisher {
 export function buildEvent(
   event: RunEventName,
   runId: string,
-  extra?: Pick<RunEvent, 'stepId' | 'status' | 'durationMs' | 'error'>,
+  extra?: Pick<RunEvent, 'stepId' | 'status' | 'durationMs' | 'error' | 'evidence'>,
 ): RunEvent {
   return { event, runId, at: Date.now(), ...extra };
 }

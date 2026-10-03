@@ -54,6 +54,8 @@ export const runCreate = z.object({
   rowIndex: z.number().int().nonnegative().optional(),
   /** P1 wave-2: explicit auth profile (storage state); never auto-applied. */
   profileId: z.string().min(1).optional(),
+  /** P2 healing: try stored alternatives on locator failure (proposal-only). */
+  healWithAlternatives: z.boolean().optional(),
 });
 
 /** P1 dataset import (CSV/JSON text → embedded definition.datasets). */
@@ -90,6 +92,8 @@ export const suiteRunCreate = z.object({
   parallel: z.number().int().min(1).max(2).default(2),
   /** P1 wave-2: explicit auth profile (storage state); never auto-applied. */
   profileId: z.string().min(1).optional(),
+  /** P2 healing: try stored alternatives on locator failure (proposal-only). */
+  healWithAlternatives: z.boolean().optional(),
 });
 
 // P1 — reusable actions (mirrors test-model reusableActionSchema; the

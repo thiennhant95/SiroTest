@@ -14,10 +14,13 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import { delimiter, join } from 'node:path';
 import type { ChildProcess } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { compileConfig, compileSpec } from './compile.js';
+import { compileConfig, compileSpec, VISUAL_DEFAULT_THRESHOLD } from './compile.js';
+import { collectPluginStepTypes, materializePlugins, type MaterializedPlugins } from './plugin-shim.js';
+import { visualHelperSource } from './visual-compare.js';
 import { buildDatasetEnvValue, resolveDatasetRows, VV_DATASET_ROWS_ENV } from './datasets.js';
 import { redactSecrets, resolveEnv } from './env.js';
-import { buildEvent, type EventPublisher } from './events.js';
+import { buildEvent, type EventPublisher, type RunEventName } from './events.js';
+import { attemptHealing, STEP_HEALED_EVENT, type HealAttempt, type HealProbe } from './healing.js';
 import { now, terminalRunStatusOf, type RunStore } from './persist.js';
 import { CancellationToken, killProcessTree, spawnArgs } from './process.js';
 import { resolveTestTimeout, resolveTimeouts } from './timeout.js';
@@ -32,6 +35,15 @@ export interface RunDependencies {
   reporterPath?: string;
   /** e.g. ['npx', ...] prefix — tests inject a stub command. */
   playwrightCommand?: { command: string; baseArgs: string[]; nodePath?: string };
+  /**
+   * P2 healing probe: live unique-match counter for alternative candidates.
+   * Injected by callers with a live page (tests inject a stub). Absent means
+   * every alternative is `undefined` (unknown) — attempts are still recorded
+   * with `verified: false`, but no winner is declared and no proposal with a
+   * `succeededWith` is produced. Never throws into the run (healing.ts
+   * guards probe errors).
+   */
+  healProbe?: HealProbe;
 }
 
 export interface ActiveRun {
@@ -205,7 +217,7 @@ async function collectArtifacts(ws: RunWorkspace, runId: string): Promise<Artifa
   return artifacts;
 }
 
-export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{ status: RunStatus; runId: string }> {
+export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{ status: RunStatus; runId: string; healing: HealAttempt[] }> {
   const { store, publish } = deps;
   const runId = req.runId;
   const token = new CancellationToken();
@@ -275,7 +287,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     await store.updateRun(runId, { status: 'failed', finishedAt: at, errorSummary: message });
     publish(buildEvent('run.failed', runId, { status: 'failed', error: message }));
     activeRuns.delete(runId);
-    return { status: 'failed', runId };
+    return { status: 'failed', runId, healing: [] };
   }
 
   // ---- Step 2: resolve env ----
@@ -312,6 +324,11 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
 
   let status: RunStatus = 'failed';
   let errorSummary: string | undefined;
+  // P2 healing outcomes (proposal-only; the steps below stay `failed`).
+  // Prisma `RunStep` has no evidence column (schema frozen) — evidence
+  // travels via the `step.healed` WS event + this return value so the server
+  // can persist `HealingProposal` rows. Never silently applied.
+  const healing: HealAttempt[] = [];
 
   try {
     // ---- Step 4: compile ----
@@ -327,6 +344,21 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
       await writeWorkFile(ws.workDir, 'storageState.json', req.storageStateJson);
       storageStateFile = 'storageState.json';
     }
+    // P2 visual regression: materialize the self-contained compare helper
+    // so generated specs can screenshot + diff without new dependencies.
+    const visualSteps = test.steps.filter((s) => s.enabled !== false && s.type === 'visualCheck');
+    if (visualSteps.length > 0) {
+      await writeWorkFile(ws.workDir, 'vv-visual-compare.cjs', visualHelperSource());
+    }
+    // P2 plugins: load the trusted registry (ALLOW_PLUGINS=1 required),
+    // copy entry files into the workdir and write the `vv-plugins.cjs`
+    // shim. Disabled/missing plugins fail here with an explicit
+    // PLUGIN_* error — before any browser is spawned, never silently.
+    const pluginTypes = collectPluginStepTypes(test.steps);
+    let pluginRegistry: MaterializedPlugins['registry'] | undefined;
+    if (pluginTypes.length > 0) {
+      pluginRegistry = (await materializePlugins(ws.workDir, pluginTypes, req.pluginsDir)).registry;
+    }
     const specSource = compileSpec(test, {
       testTimeoutMs,
       datasetId: req.datasetId,
@@ -336,6 +368,10 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
       ...(req.actions !== undefined
         ? { actions: new Map(req.actions.map((a) => [a.id, a] as const)) }
         : {}),
+      // P2 plugins: trusted registry materialized into the workdir above;
+      // passing the snapshot makes unknown types / bad secret literals fail
+      // here instead of inside the worker (same explicit codes either way).
+      ...(pluginRegistry !== undefined ? { plugins: pluginRegistry } : {}),
     });
     const configSource = compileConfig({
       browser,
@@ -385,6 +421,27 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
       ...(req.filePaths !== undefined
         ? { VV_FILE_PATHS: JSON.stringify(req.filePaths), FILE_PATHS: JSON.stringify(req.filePaths) }
         : {}),
+      // P2 visual regression: baseline name -> absolute path map for
+      // `visualCheck` steps (server resolves from the Baseline table) plus
+      // the capture flag. The stub runner and generated specs read these.
+      VV_BASELINES: JSON.stringify(req.baselines ?? {}),
+      ...(req.updateBaselines === true ? { VV_UPDATE_BASELINES: '1' } : {}),
+      ...(visualSteps.length > 0
+        ? {
+            VV_VISUAL_STEPS: JSON.stringify(
+              visualSteps.map((s) => ({
+                stepId: s.id,
+                name: typeof (s as { name?: unknown }).name === 'string' ? (s as { name?: unknown }).name : s.id,
+                threshold:
+                  typeof (s as { threshold?: unknown }).threshold === 'number'
+                    ? (s as { threshold?: number }).threshold
+                    : VISUAL_DEFAULT_THRESHOLD,
+              })),
+            ),
+          }
+        : {}),
+      // P2 plugins: type -> { file, schema } for the `vv-plugins.cjs` shim.
+      ...(pluginRegistry !== undefined ? { VV_PLUGINS: JSON.stringify(pluginRegistry) } : {}),
       RUN_STEPS_META_JSON: JSON.stringify(
         test.steps.map((s) => ({
           stepId: s.id,
@@ -470,6 +527,37 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
         }
       }
     }
+    // ---- Step 7b: P2 opt-in healing analysis (proposal-only) ----
+    // Runs only when `healWithAlternatives === true` (default false keeps P0
+    // behavior byte-identical: no extra events, empty `healing`). For every
+    // FAILED locator-bearing step whose error is a locator failure and whose
+    // definition carries stored alternatives, walk the alternatives in order
+    // (healing.ts). The step keeps `failed`; a `step.healed` event carries
+    // runId + stepId + evidence (informational, like all WS events), and the
+    // attempt is collected below for the server to persist as a reviewable
+    // `HealingProposal` (pending). Nothing is rewritten here — the runner
+    // has no DB and never mutates the stored definition.
+    if (req.healWithAlternatives === true && !token.cancelled) {
+      const settled = await store.getSummary(runId);
+      if (settled) {
+        const defById = new Map(test.steps.map((s) => [s.id, s]));
+        for (const rec of settled.steps) {
+          if (rec.status !== 'failed') continue;
+          const defStep = defById.get(rec.stepId);
+          if (!defStep) continue;
+          const attempt = attemptHealing(defStep, rec.errorMessage ?? '', deps.healProbe);
+          if (!attempt) continue;
+          healing.push(attempt);
+          publish(
+            buildEvent(STEP_HEALED_EVENT as RunEventName, runId, {
+              stepId: attempt.stepId,
+              status: 'failed',
+              evidence: { fromLocator: attempt.fromLocator, ...attempt.evidence },
+            }),
+          );
+        }
+      }
+    }
     for (const artifact of await collectArtifacts(ws, runId)) {
       await store.addArtifact(artifact);
     }
@@ -503,5 +591,5 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     activeRuns.delete(runId);
   }
 
-  return { status, runId };
+  return { status, runId, healing };
 }

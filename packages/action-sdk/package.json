@@ -1,0 +1,25 @@
+{
+  "name": "@playwright-studio/action-sdk",
+  "version": "0.1.0",
+  "description": "P2 Studio plugin/action SDK: StudioPlugin contract, manifest validation and trusted-directory loader.",
+  "type": "commonjs",
+  "main": "dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "echo \"(P2 placeholder) no linter configured for action-sdk\"",
+    "test": "npm run build && node --test dist/tests/contract.test.js dist/tests/loader.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "typescript": "^5.6.3"
+  },
+  "license": "UNLICENSED"
+}

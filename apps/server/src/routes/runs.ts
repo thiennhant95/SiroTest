@@ -11,7 +11,7 @@ import { parseOrThrow, runCreate } from '../schemas.js';
 import { checkAllowedHttpUrl, stripServerPaths } from '../security.js';
 import { db } from '../db.js';
 import { runEvent } from '../ws/events.js';
-import { resolveRunInputs } from '../run-inputs.js';
+import { resolveRunInputs, maybeCreateHealingProposals } from '../run-inputs.js';
 import {
   markQueuedEmittedByRoute,
   prismaRunStore,
@@ -131,11 +131,14 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
       ...(inputs.actions.length > 0 ? { actions: inputs.actions } : {}),
       ...(inputs.filePaths !== undefined ? { filePaths: inputs.filePaths } : {}),
       ...(inputs.storageStateJson !== undefined ? { storageStateJson: inputs.storageStateJson } : {}),
+      // P2 healing is opt-in and proposal-only (never silently applied).
+      ...(body.healWithAlternatives === true ? { healWithAlternatives: true as const } : {}),
       projectVariables,
       environmentVariables,
       trigger: 'manual',
       triggeredBy: req.user!.id,
     };
+    const healCtx = { testId: id, projectId: test.projectId, runId: run.id, createdBy: req.user!.id };
     void runQueue
       .submit(run.id, async () => {
         // A cancel that landed while the job was still queued must win:
@@ -143,6 +146,10 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
         const current = await prismaRunStore.getRun(run.id);
         if (current?.status === 'cancelled') return { status: 'cancelled' as const, runId: run.id };
         return runTest(request, { store: prismaRunStore, publish: workerPublish });
+      })
+      .then(async (outcome) => {
+        // P2 healing proposals are review aids derived from terminal evidence.
+        await maybeCreateHealingProposals(outcome, healCtx);
       })
       .catch(async (err: unknown) => {
         // runTest settles internally; this is a last-resort guard against a

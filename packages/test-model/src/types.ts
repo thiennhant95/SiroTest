@@ -281,6 +281,25 @@ export interface ApiRequestStep extends BaseStep {
   saveAs?: string;
 }
 
+// --------------------------------------------------------------- P2 ---
+// P2 additions are strictly additive (same contract as P1 additions).
+
+/**
+ * P2 — visual regression check against a stored baseline screenshot.
+ * First passing run with `updateBaselines` captures the baseline;
+ * later runs diff against it within `threshold` (0..1 fraction of
+ * differing pixels).
+ */
+export interface VisualCheckStep extends BaseStep {
+  type: "visualCheck";
+  /** Baseline name (unique per test). */
+  name: string;
+  /** Limit comparison to this element; whole viewport when omitted. */
+  target?: LocatorSpec;
+  /** Allowed fraction of differing pixels (default 0.05). */
+  threshold?: number;
+}
+
 /** P1 — one named table of rows for data-driven runs (embedded, capped). */
 export interface DataSet {
   id: string;
@@ -325,7 +344,8 @@ export type TestStep =
   | NewTabStep
   | CloseTabStep
   | HandleDialogStep
-  | ApiRequestStep;
+  | ApiRequestStep
+  | VisualCheckStep;
 
 export type StepType = TestStep["type"];
 
@@ -370,3 +390,6 @@ export const P1_STEP_TYPES: readonly string[] = [
   "handleDialog",
   "apiRequest",
 ] as const;
+
+/** P2 step types (require P2-aware compiler/runner). */
+export const P2_STEP_TYPES: readonly string[] = ["visualCheck"] as const;

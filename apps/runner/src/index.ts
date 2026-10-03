@@ -18,6 +18,37 @@ export { resolveEnv, redactSecrets, REDACTED } from './env.js';
 export { resolveStepTimeout, resolveTimeouts, resolveTestTimeout, DEFAULT_TEST_TIMEOUT_MS, DEFAULT_STEP_TIMEOUT_MS } from './timeout.js';
 export { createRunWorkspace, assertSafePath, cleanupWorkDir, storageRoot } from './workspace.js';
 export { compileSpec, compileConfig, CompileError, RUNNER_COMPILER_VERSION } from './compile.js';
+export { sanitizeVisualFileName as sanitizeRunnerVisualFileName, VISUAL_DEFAULT_THRESHOLD as RUNNER_VISUAL_DEFAULT_THRESHOLD, PLUGIN_STEP_PATTERN } from './compile.js';
+export type { PluginCompileInfo } from './compile.js';
+export {
+  compareVisualBuffers,
+  compareVisualFromEnv,
+  decodePngImage,
+  diffPngImages,
+  encodePngImage,
+  readPngDimensions,
+  sanitizeVisualFileName,
+  visualHelperSource,
+  vvDiffFileName,
+  VISUAL_DEFAULT_THRESHOLD,
+  type VisualCheckResult,
+  type VisualDiff,
+} from './visual-compare.js';
+export {
+  collectPluginStepTypes,
+  isPluginsEnabled,
+  loadPluginsFromDir,
+  describePlugin,
+  materializePlugins,
+  PluginExecutionError,
+  PluginLoadError,
+  pluginsDir,
+  PLUGIN_SHIM_CJS,
+  validatePluginManifest,
+  validatePluginParams,
+  type LoadedPlugins,
+  type MaterializedPlugins,
+} from './plugin-shim.js';
 export { buildEvent, fanout, noopPublisher, type EventPublisher, type RunEvent, type RunEventName } from './events.js';
 export { InMemoryRunStore, terminalRunStatusOf, settleIncompleteSteps, type RunStore } from './persist.js';
 export { recoverIncompleteRuns, type RecoveryReport } from './recover.js';
@@ -25,6 +56,17 @@ export { retentionDaysFromEnv, selectExpiredRuns, type RetentionCandidate, type 
 export { spawnArgs, killProcessTree, CancellationToken } from './process.js';
 export { RunQueue } from './queue.js';
 export { runTest, cancelRun, getActiveRun } from './run.js';
+export {
+  attemptHealing,
+  isLocatorBearingStep,
+  isLocatorFailure,
+  previewHealingCandidate,
+  STEP_HEALED_EVENT,
+  LOCATOR_BEARING_STEP_TYPES,
+  type HealAttempt,
+  type HealEvidence,
+  type HealProbe,
+} from './healing.js';
 
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';

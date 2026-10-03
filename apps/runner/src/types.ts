@@ -71,6 +71,10 @@ export interface BaseStep {
   expectedStatus?: number;
   action?: string;
   promptText?: string;
+  // P2 visual regression (mirrors VisualCheckStep in test-model)
+  threshold?: number;
+  // P2 plugin step params (record of strings; secrets as {{VARIABLE}} refs)
+  params?: Record<string, string>;
 }
 
 export type TestStep = BaseStep;
@@ -175,6 +179,22 @@ export interface RunRequest {
    * the runner only receives and materializes it.
    */
   storageStateJson?: string;
+  /**
+   * P2 visual regression (all optional, backward compatible):
+   * - `baselines`: baseline name -> absolute baseline path (server resolves
+   *   from the Baseline table; injected as `VV_BASELINES` JSON at run time).
+   * - `updateBaselines`: capture mode (`VV_UPDATE_BASELINES=1`) — visual
+   *   steps pass and the server promotes actual artifacts to baselines.
+   */
+  baselines?: Record<string, string>;
+  updateBaselines?: boolean;
+  /**
+   * P2 plugin steps: directory the runner loads trusted plugins from
+   * (`PLUGINS_DIR` default). Loading additionally requires
+   * `ALLOW_PLUGINS=1`; otherwise compilation fails explicitly
+   * (PLUGIN_DISABLED / PLUGIN_NOT_FOUND — never silently skipped).
+   */
+  pluginsDir?: string;
   /** project-level default timeout (ms) */
   projectDefaultTimeoutMs?: number;
   /** project-level non-secret variables */
@@ -183,6 +203,15 @@ export interface RunRequest {
   environmentVariables?: VariableDef[];
   trigger?: string;
   triggeredBy?: string;
+  /**
+   * P2 opt-in healing (healing.ts). When true, locator-bearing steps that
+   * FAIL with a locator error (timeout/waiting-for-selector — never
+   * assertion failures) get post-failure analysis over their stored
+   * `alternatives`: the step still ends `failed`, but a `step.healed` event
+   * plus evidence is emitted/returned so the server can open a reviewable
+   * `HealingProposal`. Default false — P0 executes `primary` only.
+   */
+  healWithAlternatives?: boolean;
   artifacts?: RunArtifactsOptions;
 }
 

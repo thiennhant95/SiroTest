@@ -289,11 +289,15 @@ export function workerPublish(evt: RunEvent): void {
   const send = wsSend();
   if (!send) return;
   const { runId, stepId, status, durationMs, error } = evt;
+  const evidence = (evt as { evidence?: unknown }).evidence;
   runEvent(send, evt.event, runId, {
     ...(stepId !== undefined ? { stepId } : {}),
     ...(status !== undefined ? { status } : {}),
     ...(durationMs !== undefined ? { durationMs } : {}),
     ...(error !== undefined ? { error: stripServerPaths(error) } : {}),
+    // P2 healing evidence rides along informationally (never secrets —
+    // the runner redacts before emitting, same as error text).
+    ...(evidence !== undefined ? { evidence } : {}),
   });
 }
 

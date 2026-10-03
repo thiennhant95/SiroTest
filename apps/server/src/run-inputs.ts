@@ -2,6 +2,7 @@ import type { ReusableAction } from '@vietvang/playwright-compiler';
 import { loadProjectActions } from './actions.js';
 import { db } from './db.js';
 import { ApiError } from './errors.js';
+import { createHealingProposalsFromEvidence } from './routes/healing.js';
 import { decryptSecret } from './security.js';
 import { resolveFilePaths } from './routes/files.js';
 
@@ -101,4 +102,43 @@ export async function resolveRunInputs(
     ...(filePaths !== undefined ? { filePaths } : {}),
     ...(storageStateJson !== undefined ? { storageStateJson } : {}),
   };
+}
+
+/** P2 healing outcome shape produced by runTest (runner/src/healing.ts). */
+export interface RunHealingAttempt {
+  stepId: string;
+  fromLocator: unknown;
+  evidence?: {
+    tried?: string[];
+    succeededWith?: unknown;
+    matchCount?: number;
+    preview?: string;
+    verified?: boolean;
+    durationMs?: number;
+    reason?: string;
+  };
+}
+
+/**
+ * Persist `pending` healing proposals from a terminal run's healing evidence.
+ * Best-effort and silent on failure: proposals are review aids, never load-
+ * bearing for the run lifecycle itself.
+ */
+export async function maybeCreateHealingProposals(
+  outcome: { status: string; runId: string; healing?: RunHealingAttempt[] },
+  ctx: { testId: string; projectId: string; runId: string; createdBy?: string },
+): Promise<void> {
+  const attempts = Array.isArray(outcome?.healing) ? outcome.healing : [];
+  if (attempts.length === 0) return;
+  try {
+    await createHealingProposalsFromEvidence({
+      testId: ctx.testId,
+      projectId: ctx.projectId,
+      runId: ctx.runId,
+      attempts,
+      ...(ctx.createdBy !== undefined ? { createdBy: ctx.createdBy } : {}),
+    });
+  } catch {
+    // Review aids must never break run settlement.
+  }
 }

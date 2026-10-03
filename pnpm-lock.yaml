@@ -42,6 +42,9 @@ importers:
 
   apps/runner:
     dependencies:
+      '@playwright-studio/action-sdk':
+        specifier: workspace:*
+        version: link:../../packages/action-sdk
       '@playwright-studio/reporter':
         specifier: workspace:*
         version: link:../../packages/reporter
@@ -70,6 +73,9 @@ importers:
       '@vietvang/playwright-compiler':
         specifier: workspace:*
         version: link:../../packages/playwright-compiler
+      '@vv/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@vv/recorder':
         specifier: workspace:*
         version: link:../../packages/recorder
@@ -129,6 +135,31 @@ importers:
       vite:
         specifier: ^6.0.3
         version: 6.4.3(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)
+
+  packages/action-sdk:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.1
+        version: 22.20.5
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
+  packages/ai:
+    dependencies:
+      '@playwright-studio/test-model':
+        specifier: workspace:*
+        version: link:../test-model
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.1
+        version: 22.20.5
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.5)(lightningcss@1.32.0)
 
   packages/locator-engine:
     devDependencies:

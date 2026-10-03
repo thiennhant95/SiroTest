@@ -118,6 +118,36 @@ export function ProjectDetailPage() {
           Schedules
         </Link>
         <Link
+          to={`/projects/${id}/analytics`}
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
+        >
+          Analytics
+        </Link>
+        <Link
+          to={`/projects/${id}/audit`}
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
+        >
+          Audit
+        </Link>
+        <Link
+          to={`/projects/${id}/ai`}
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
+        >
+          AI Assistant
+        </Link>
+        <Link
+          to="/workers"
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
+        >
+          Workers
+        </Link>
+        <Link
+          to="/plugins"
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
+        >
+          Plugins
+        </Link>
+        <Link
           to="/settings"
           className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
         >

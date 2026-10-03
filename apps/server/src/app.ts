@@ -18,7 +18,15 @@ import { scheduleRoutes } from './routes/schedules.js';
 import { transferRoutes } from './routes/transfer.js';
 import { specImportRoutes } from './routes/specimport.js';
 import { compilerRoutes } from './routes/compiler.js';
+import { healingRoutes } from './routes/healing.js';
+import { suggestionRoutes } from './routes/suggestions.js';
+import { aiRoutes } from './routes/ai.js';
+import { visualRoutes } from './routes/visual.js';
+import { pluginRoutes } from './routes/plugins.js';
 import { fixtureRoutes } from './routes/fixture.js';
+import { workerRoutes } from './routes/workers.js';
+import { analyticsRoutes } from './routes/analytics.js';
+import { auditRoutes } from './routes/audit.js';
 
 export async function buildApp() {
   // Upload/artifact size limit: reject oversized JSON bodies before parsing.
@@ -52,9 +60,19 @@ export async function buildApp() {
       await v1.register(transferRoutes);
       await v1.register(specImportRoutes);
       await v1.register(compilerRoutes);
+      await v1.register(healingRoutes);
+      await v1.register(suggestionRoutes);
+      await v1.register(aiRoutes);
+      await v1.register(visualRoutes);
+      await v1.register(pluginRoutes);
     },
     { prefix: '/api/v1' },
   );
+  // P2 ops routes declare absolute /api/v1/... paths (see routes/workers.ts,
+  // analytics.ts, audit.ts) so they register at root without a prefix.
+  await app.register(workerRoutes);
+  await app.register(analyticsRoutes);
+  await app.register(auditRoutes);
 
   // WS channel: authenticated clients subscribe with
   // ?token=<bearer-or-user-id>&runId=… and/or &sessionId=….

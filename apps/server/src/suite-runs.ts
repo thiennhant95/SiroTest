@@ -19,7 +19,7 @@ import type { runTest as runTestFn, RunRequest } from '@playwright-studio/runner
 import { nanoid } from 'nanoid';
 import { db } from './db.js';
 import { stripServerPaths } from './security.js';
-import { resolveRunInputs } from './run-inputs.js';
+import { maybeCreateHealingProposals, resolveRunInputs } from './run-inputs.js';
 import {
   markQueuedEmittedByRoute,
   prismaRunStore,
@@ -98,6 +98,8 @@ export interface EnqueueSuiteMemberOptions {
   retriesLeft: number;
   /** P1 wave-2: explicit auth profile (storage state); never auto-applied. */
   profileId?: string;
+  /** P2 healing: try stored alternatives on locator failure (proposal-only). */
+  healWithAlternatives?: boolean;
 }
 
 type RunTest = typeof runTestFn;
@@ -151,6 +153,8 @@ export async function enqueueSuiteMember(
       ...(inputs.actions.length > 0 ? { actions: inputs.actions } : {}),
       ...(inputs.filePaths !== undefined ? { filePaths: inputs.filePaths } : {}),
       ...(inputs.storageStateJson !== undefined ? { storageStateJson: inputs.storageStateJson } : {}),
+      // P2 healing is opt-in and proposal-only (never silently applied).
+      ...(opts.healWithAlternatives === true ? { healWithAlternatives: true as const } : {}),
       projectVariables,
       environmentVariables,
       trigger: opts.trigger,
@@ -167,6 +171,13 @@ export async function enqueueSuiteMember(
         return runTest(request, { store: prismaRunStore, publish: workerPublish });
       });
       terminal = (outcome as { status?: string })?.status ?? terminal;
+      // P2 healing proposals are review aids derived from terminal evidence.
+      await maybeCreateHealingProposals(outcome, {
+        testId: opts.testId,
+        projectId: opts.projectId,
+        runId: run.id,
+        createdBy: opts.triggeredBy,
+      });
     } catch (err: unknown) {
       // Last-resort guard against a worker crash escaping the lifecycle.
       const message = err instanceof Error ? err.message : String(err);
