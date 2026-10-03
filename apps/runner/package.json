@@ -14,7 +14,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
+    "pretypecheck": "pnpm --filter @playwright-studio/action-sdk --filter @playwright-studio/reporter build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "echo \"(P0 placeholder) no linter configured for runner\"",
     "test": "node --test tests/"
