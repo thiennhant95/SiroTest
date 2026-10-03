@@ -9,6 +9,7 @@
  */
 import { useCallback, useState } from "react";
 import { setPickMode } from "../lib/api";
+import { Button, Dialog, Field, Input, Select } from "./ui";
 import {
   extractPickedLocator,
   useRecorderEvents,
@@ -38,13 +39,6 @@ function deriveAlternatives(primary: LocatorCandidate): LocatorCandidate[] {
       return [];
   }
 }
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "6px 8px",
-  marginTop: 2,
-};
 
 export function LocatorPickerModal(props: {
   open: boolean;
@@ -135,80 +129,67 @@ export function LocatorPickerModal(props: {
     strategy === "role" ? role.trim().length > 0 : value.trim().length > 0;
 
   return (
-    <div
-      role="dialog"
-      aria-label="Pick locator from page"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.45)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 50,
-      }}
-      onClick={props.onClose}
-    >
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: 10,
-          padding: 20,
-          width: 520,
-          maxWidth: "92vw",
-          maxHeight: "88vh",
-          overflowY: "auto",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 style={{ marginTop: 0 }}>Pick from page</h3>
-
-        <section style={{ marginBottom: 16 }}>
-          <h4 style={{ margin: "0 0 6px" }}>Live browser</h4>
-          <p style={{ fontSize: 13, color: "#475569", margin: "0 0 8px" }}>
+    <Dialog open={props.open} onClose={props.onClose} title="Pick from page">
+      <div className="space-y-4 px-4 py-4">
+        <section className="space-y-2">
+          <h4 className="text-sm font-semibold text-slate-700">
+            <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-bold text-indigo-700">1</span>
+            Live browser
+          </h4>
+          <p className="text-[13px] text-slate-500">
             {picking
               ? "Pick mode is ON — click any element in the headed recorder browser. The picked locator will fill the Inspector automatically."
               : "Connects to the recorder session and waits for the locatorPicked event."}
           </p>
-          <button type="button" onClick={() => void enablePickMode()} disabled={picking}>
-            {picking ? "Pick mode ON — click an element…" : "Enable pick mode"}
-          </button>{" "}
-          <button type="button" onClick={props.onClose}>
-            Cancel
-          </button>
-          <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => void enablePickMode()} disabled={picking}>
+              {picking ? "Pick mode ON — click an element…" : "Enable pick mode"}
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={props.onClose}>
+              Cancel
+            </Button>
+          </div>
+          <p className="text-xs text-slate-500">
             WS: {wsStatus}
             {rawEvents.length > 0 && ` · last events: ${rawEvents.join(", ")}`}
-          </div>
+          </p>
           {pickError && (
-            <div role="alert" style={{ color: "#991b1b", fontSize: 13, marginTop: 6 }}>
+            <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
               {pickError}
-            </div>
+            </p>
           )}
         </section>
 
-        <section style={{ marginBottom: 16 }}>
-          <h4 style={{ margin: "0 0 6px" }}>Fixture presets (no browser needed)</h4>
-          {FIXTURE_TARGETS.map((t) => (
-            <button
-              key={t.label}
-              type="button"
-              style={{ marginRight: 8, marginBottom: 8 }}
-              onClick={() => {
-                props.onPicked({ primary: t.primary, alternatives: t.alternatives });
-                props.onClose();
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
+        <section className="space-y-2">
+          <h4 className="text-sm font-semibold text-slate-700">
+            <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-bold text-indigo-700">2</span>
+            Fixture presets <span className="font-normal text-slate-500">(no browser needed)</span>
+          </h4>
+          <div className="flex flex-wrap gap-1.5">
+            {FIXTURE_TARGETS.map((t) => (
+              <Button
+                key={t.label}
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  props.onPicked({ primary: t.primary, alternatives: t.alternatives });
+                  props.onClose();
+                }}
+              >
+                {t.label}
+              </Button>
+            ))}
+          </div>
         </section>
 
-        <section>
-          <h4 style={{ margin: "0 0 6px" }}>Manual locator</h4>
-          <label style={{ fontSize: 13 }}>
-            Strategy{" "}
-            <select
+        <section className="space-y-2">
+          <h4 className="text-sm font-semibold text-slate-700">
+            <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-bold text-indigo-700">3</span>
+            Manual locator
+          </h4>
+          <Field label="Strategy">
+            <Select
               value={strategy}
               onChange={(e) => setStrategy(e.target.value as Strategy)}
             >
@@ -219,30 +200,31 @@ export function LocatorPickerModal(props: {
               <option value="text">text</option>
               <option value="css">css</option>
               <option value="xpath">xpath</option>
-            </select>
-          </label>
+            </Select>
+          </Field>
           {strategy === "role" ? (
-            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-              <label style={{ flex: 1, fontSize: 13 }}>
-                Role <input style={inputStyle} value={role} onChange={(e) => setRole(e.target.value)} />
-              </label>
-              <label style={{ flex: 2, fontSize: 13 }}>
-                Accessible name{" "}
-                <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} />
-              </label>
+            <div className="flex gap-2">
+              <Field label="Role">
+                <Input value={role} onChange={(e) => setRole(e.target.value)} />
+              </Field>
+              <div className="flex-[2]">
+                <Field label="Accessible name">
+                  <Input value={name} onChange={(e) => setName(e.target.value)} />
+                </Field>
+              </div>
             </div>
           ) : (
-            <label style={{ fontSize: 13 }}>
-              Value <input style={inputStyle} value={value} onChange={(e) => setValue(e.target.value)} />
-            </label>
+            <Field label="Value">
+              <Input value={value} onChange={(e) => setValue(e.target.value)} />
+            </Field>
           )}
-          <div style={{ marginTop: 10 }}>
-            <button type="button" onClick={useManual} disabled={!manualValid}>
+          <div>
+            <Button type="button" size="sm" onClick={useManual} disabled={!manualValid}>
               Use this locator
-            </button>
+            </Button>
           </div>
         </section>
       </div>
-    </div>
+    </Dialog>
   );
 }

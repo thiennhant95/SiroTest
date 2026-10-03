@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { p2api, type HealingProposal } from "../api/p2";
 import { isNotFoundError } from "../lib/api";
 import { locatorPreview } from "../lib/steps";
-import { EmptyState, ErrorState, Skeleton, useToast } from "../components/ui";
+import { EmptyState, ErrorState, Badge, Button, Skeleton, useToast } from "../components/ui";
 
 /**
  * P2 — reviewable locator healing (`/tests/:id/healing`, wired in App.tsx).
@@ -90,24 +90,31 @@ export function HealingPage() {
   if (!testId) return <p>Missing test id.</p>;
 
   return (
-    <div style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
-      <p>
-        <Link to={`/tests/${testId}`}>← Back to builder</Link>
-      </p>
-      <h1>Healing proposals</h1>
-      <p style={{ color: "#666" }}>
-        A proposal is created when a stored alternative locator succeeded where the primary
-        failed. Approving rewrites the step primary (old primary demoted to alternatives) and
-        mints a new test version. Nothing is ever applied automatically.
-      </p>
-      <div style={{ marginBottom: 12 }}>
+    <main className="mx-auto max-w-4xl space-y-4 p-6">
+      <Link to={`/tests/${testId}`} className="text-sm text-slate-500 hover:text-slate-800">
+        ← Back to builder
+      </Link>
+      <div>
+        <h1 className="text-xl font-semibold">Healing proposals</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          A proposal is created when a stored alternative locator succeeded where the primary
+          failed. Approving rewrites the step primary (old primary demoted to alternatives) and
+          mints a new test version. Nothing is ever applied automatically.
+        </p>
+      </div>
+      <div className="flex gap-1.5" role="tablist" aria-label="Filter proposals">
         {(["pending", "approved", "rejected", "all"] as const).map((s) => (
           <button
             key={s}
             type="button"
-            disabled={filter === s}
+            role="tab"
+            aria-selected={filter === s}
             onClick={() => setFilter(s)}
-            style={{ marginRight: 8 }}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
+              filter === s
+                ? "bg-indigo-600 text-white"
+                : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+            }`}
           >
             {s}
           </button>
@@ -129,21 +136,22 @@ export function HealingPage() {
       ) : proposals.length === 0 ? (
         <EmptyState title={`Không có proposal ${filter}`} hint="Proposal xuất hiện khi alternative locator thắng primary lúc run (có bật heal flag)." />
       ) : null}
-      <ul style={{ listStyle: "none", padding: 0 }}>
+      <ul className="space-y-3">
         {proposals.map((p) => {
           const ev = evidenceOf(p);
           return (
-            <li key={p.id} style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, marginBottom: 12 }}>
-              <div>
-                <strong>Step <code>{p.stepId}</code></strong>
-                {" · "}run <code>{p.runId}</code>
-                {" · "}status <code>{p.status}</code>
+            <li key={p.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <strong>Step <code className="rounded bg-slate-100 px-1 font-mono text-xs">{p.stepId}</code></strong>
+                <span className="text-slate-400">·</span>
+                <span className="font-mono text-xs text-slate-500">{p.runId.slice(0, 12)}…</span>
+                <Badge tone={p.status === "pending" ? "amber" : p.status === "approved" ? "green" : "slate"}>{p.status}</Badge>
               </div>
-              <div style={{ marginTop: 8, fontFamily: "monospace", fontSize: 13 }}>
-                <div>from: {locatorPreview(candidateOf(p.fromLocator))}</div>
-                <div>to:&nbsp;&nbsp;&nbsp;{locatorPreview(candidateOf(p.toLocator))}</div>
+              <div className="mt-2 space-y-1 rounded-md bg-slate-50 p-2 font-mono text-[13px]">
+                <div><span className="text-red-600">− from:</span> {locatorPreview(candidateOf(p.fromLocator))}</div>
+                <div><span className="text-green-700">+ to:</span>&nbsp;&nbsp;{locatorPreview(candidateOf(p.toLocator))}</div>
               </div>
-              <div style={{ marginTop: 8, fontSize: 13, color: "#444" }}>
+              <div className="mt-2 text-[13px] text-slate-600">
                 <div>tried: {(ev.tried ?? []).join(" → ") || "—"}</div>
                 <div>
                   match: {ev.matchCount ?? "?"} · verified: {ev.verified ? "yes (live unique match)" : "no"}
@@ -151,19 +159,18 @@ export function HealingPage() {
                   {ev.preview && <> · {ev.preview}</>}
                 </div>
               </div>
-              <div style={{ marginTop: 8 }}>
-                <Link to={`/tests/${testId}?focusStep=${encodeURIComponent(p.stepId)}`}>
+              <div className="mt-3 flex items-center gap-2">
+                <Link to={`/tests/${testId}?focusStep=${encodeURIComponent(p.stepId)}`} className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700 hover:border-indigo-400 hover:text-indigo-700">
                   Open step in builder
                 </Link>
                 {p.status === "pending" && (
                   <>
-                    {" · "}
-                    <button type="button" disabled={busy === p.id} onClick={() => void decide(p.id, "approve")}>
-                      Approve
-                    </button>{" "}
-                    <button type="button" disabled={busy === p.id} onClick={() => void decide(p.id, "reject")}>
+                    <Button size="sm" disabled={busy === p.id} onClick={() => void decide(p.id, "approve")}>
+                      {busy === p.id ? "…" : "Approve"}
+                    </Button>
+                    <Button size="sm" variant="outline" disabled={busy === p.id} onClick={() => void decide(p.id, "reject")}>
                       Reject
-                    </button>
+                    </Button>
                   </>
                 )}
               </div>
@@ -171,6 +178,6 @@ export function HealingPage() {
           );
         })}
       </ul>
-    </div>
+    </main>
   );
 }

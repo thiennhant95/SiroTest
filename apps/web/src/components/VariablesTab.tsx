@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ApiError, api, type Variable } from '../lib/api';
 import { interpolatePreview, codePreviewFor, secretKeysOf, SECRET_MASK } from '../lib/variables';
-import { Button, DataTable, Dialog, Field, Input, useToast } from './ui';
+import { Badge, Button, Checkbox, DataTable, Dialog, Field, Input, useToast } from './ui';
 
 interface Props {
   projectId: string;
@@ -87,37 +87,41 @@ export function VariablesTab({ projectId, envId, envName, variables, onChanged, 
   }
 
   return (
-    <section data-testid="variables-tab">
-      <h3>Variables — {envName || '(select environment)'}</h3>
-      <p style={{ color: '#6b7280', fontSize: 13 }}>
+    <section data-testid="variables-tab" className="space-y-3">
+      <h3 className="text-sm font-semibold text-slate-800">Variables — {envName || '(select environment)'}</h3>
+      <p className="text-[13px] text-slate-500">
         Env-scoped rows override shared rows. Secret values are write-only: they never display
         as plaintext after creation.
       </p>
-      {err && <p style={{ color: 'crimson' }}>{err}</p>}
+      {err && (
+        <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+          {err}
+        </p>
+      )}
       <DataTable<Variable>
         caption={`Biến cho ${envName || 'môi trường đã chọn'} (env-scoped ghi đè shared)`}
         emptyText="No variables in this scope yet."
         rows={scoped}
         columns={[
-          { key: 'key', header: 'Key', render: (v) => <code>{v.key}</code> },
+          { key: 'key', header: 'Key', render: (v) => <code className="rounded bg-slate-100 px-1 text-xs">{v.key}</code> },
           {
             key: 'value', header: 'Value',
-            render: (v) => (v.isSecret ? <span title="Secret is masked">{SECRET_MASK}</span> : <code>{v.value}</code>),
+            render: (v) => (v.isSecret ? <span title="Secret is masked">{SECRET_MASK}</span> : <code className="text-xs">{v.value}</code>),
           },
           {
             key: 'environmentId', header: 'Scope',
-            render: (v) => <span style={{ fontSize: 12, color: '#6b7280' }}>{v.environmentId ? 'environment' : 'shared'}</span>,
+            render: (v) => <span className="text-xs text-slate-500">{v.environmentId ? 'environment' : 'shared'}</span>,
           },
           {
             key: 'isSecret', header: 'Type',
-            render: (v) => (v.isSecret ? <span style={badge}>secret</span> : <span style={{ ...badge, background: '#eef2ff', color: '#3730a3' }}>plain</span>),
+            render: (v) => (v.isSecret ? <Badge tone="amber">secret</Badge> : <Badge tone="indigo">plain</Badge>),
           },
           {
             key: 'id', header: '',
             render: (v) => (
-              <span style={{ display: 'flex', gap: 8 }}>
-                <button type="button" onClick={() => openEdit(v)}>Edit</button>
-                <button type="button" onClick={() => void remove(v.id)}>Delete</button>
+              <span className="flex gap-1.5">
+                <Button type="button" size="sm" variant="ghost" onClick={() => openEdit(v)}>Edit</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => void remove(v.id)}>Delete</Button>
               </span>
             ),
           },
@@ -150,32 +154,32 @@ export function VariablesTab({ projectId, envId, envName, variables, onChanged, 
         </div>
       </Dialog>
 
-      <h4>Add variable to {envName || 'selected environment'}</h4>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input placeholder="KEY" value={key} onChange={(e) => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))} style={{ width: 160 }} />
-        <input
-          placeholder={isSecret ? 'secret value (never shown again)' : 'value'}
-          type={isSecret ? 'password' : 'text'}
-          autoComplete="off"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          style={{ width: 260 }}
-        />
-        <label style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          <input type="checkbox" checked={isSecret} onChange={(e) => setIsSecret(e.target.checked)} /> secret
+      <h4 className="text-sm font-semibold text-slate-700">Add variable to {envName || 'selected environment'}</h4>
+      <div className="grid grid-cols-[160px_1fr_auto_auto] items-end gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
+        <Field label="Key">
+          <Input placeholder="KEY" value={key} onChange={(e) => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))} className="font-mono" />
+        </Field>
+        <Field label="Value">
+          <Input
+            placeholder={isSecret ? 'secret value (never shown again)' : 'value'}
+            type={isSecret ? 'password' : 'text'}
+            autoComplete="off"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+          />
+        </Field>
+        <label className="flex items-center gap-1.5 pb-2 text-sm text-slate-600">
+          <Checkbox checked={isSecret} onChange={(e) => setIsSecret(e.target.checked)} /> secret
         </label>
-        <button type="button" onClick={() => void create()} disabled={busy || !key.trim()}>Add</button>
+        <Button type="button" onClick={() => void create()} disabled={busy || !key.trim()}>Add</Button>
       </div>
 
-      <h4>Interpolate preview (resolves against {envName || 'selected env'})</h4>
-      <input value={sample} onChange={(e) => setSample(e.target.value)} style={{ width: '100%', maxWidth: 560 }} />
-      <pre data-testid="interp-preview" style={preview}>{interpolatePreview(sample, variables, envId)}</pre>
+      <h4 className="text-sm font-semibold text-slate-700">Interpolate preview <span className="font-normal text-slate-500">(resolves against {envName || 'selected env'})</span></h4>
+      <Input value={sample} onChange={(e) => setSample(e.target.value)} className="font-mono" />
+      <pre data-testid="interp-preview" className="whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 p-2.5 font-mono text-xs">{interpolatePreview(sample, variables, envId)}</pre>
 
-      <h4>Code preview (redacted — secrets compile to runtime helpers)</h4>
-      <pre data-testid="code-preview" style={preview}>{codePreviewFor(sample, secrets)}</pre>
+      <h4 className="text-sm font-semibold text-slate-700">Code preview <span className="font-normal text-slate-500">(redacted — secrets compile to runtime helpers)</span></h4>
+      <pre data-testid="code-preview" className="whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 p-2.5 font-mono text-xs">{codePreviewFor(sample, secrets)}</pre>
     </section>
   );
 }
-
-const badge: React.CSSProperties = { background: '#fef3c7', color: '#92400e', borderRadius: 10, padding: '1px 8px', fontSize: 12 };
-const preview: React.CSSProperties = { background: '#f8fafc', border: '1px solid #e5e7eb', padding: 10, borderRadius: 6, whiteSpace: 'pre-wrap' };

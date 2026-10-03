@@ -133,6 +133,11 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
       ...(inputs.storageStateJson !== undefined ? { storageStateJson: inputs.storageStateJson } : {}),
       // P2 healing is opt-in and proposal-only (never silently applied).
       ...(body.healWithAlternatives === true ? { healWithAlternatives: true as const } : {}),
+      // Observe mode: explicit artifact retention + slow-motion passthrough.
+      ...(body.artifacts !== undefined ? { artifacts: body.artifacts } : {}),
+      ...(body.slowMoMs !== undefined ? { slowMoMs: body.slowMoMs } : {}),
+      // Debug mode (≈ --debug): headed forced + PWDEBUG=1 in the runner.
+      ...(body.debug === true ? { debug: true as const } : {}),
       projectVariables,
       environmentVariables,
       trigger: 'manual',

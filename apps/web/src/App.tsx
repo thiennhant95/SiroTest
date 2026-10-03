@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ToastProvider } from "./components/ui";
 import { getToken } from "./lib/api";
+import { AppShell } from "./components/AppShell";
 import { ActionsPage } from "./pages/ActionsPage";
 import { BuilderPage } from "./pages/BuilderPage";
 import { FilesPage } from "./pages/FilesPage";
@@ -29,37 +30,47 @@ function RequireAuth({ children }: { children: JSX.Element }) {
   return getToken() ? children : <Navigate to="/login" replace />;
 }
 
+function Shell() {
+  return (
+    <RequireAuth>
+      <AppShell />
+    </RequireAuth>
+  );
+}
+
 export function App() {
   return (
     <ToastProvider>
       <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/projects" element={<RequireAuth><ProjectsPage /></RequireAuth>} />
-          <Route path="/projects/:id" element={<RequireAuth><ProjectDetailPage /></RequireAuth>} />
-          <Route path="/projects/:id/tests" element={<RequireAuth><ProjectTestsPage /></RequireAuth>} />
-          <Route path="/projects/:id/actions" element={<RequireAuth><ActionsPage /></RequireAuth>} />
-          <Route path="/projects/:id/profiles" element={<RequireAuth><ProfilesPage /></RequireAuth>} />
-          <Route path="/projects/:id/files" element={<RequireAuth><FilesPage /></RequireAuth>} />
-          <Route path="/projects/:id/schedules" element={<RequireAuth><SchedulesPage /></RequireAuth>} />
-          <Route path="/projects/:id/suites" element={<RequireAuth><SuitesPage /></RequireAuth>} />
-          <Route path="/suites/:sid" element={<RequireAuth><SuiteDetailPage /></RequireAuth>} />
-          <Route path="/suite-runs/:suiteRunId" element={<RequireAuth><SuiteRunDetailPage /></RequireAuth>} />
-          <Route path="/tests/:id" element={<RequireAuth><BuilderPage /></RequireAuth>} />
-          <Route path="/tests/:id/record" element={<RequireAuth><RecordPage /></RequireAuth>} />
-          <Route path="/tests/:id/healing" element={<RequireAuth><HealingPage /></RequireAuth>} />
-          <Route path="/tests/:id/visual" element={<RequireAuth><VisualPage /></RequireAuth>} />
-          <Route path="/projects/:id/ai" element={<RequireAuth><AiAssistantPage /></RequireAuth>} />
-          <Route path="/projects/:id/analytics" element={<RequireAuth><AnalyticsPage /></RequireAuth>} />
-          <Route path="/projects/:id/audit" element={<RequireAuth><AuditPage /></RequireAuth>} />
-          <Route path="/workers" element={<RequireAuth><WorkersPage /></RequireAuth>} />
-          <Route path="/plugins" element={<RequireAuth><PluginDocs /></RequireAuth>} />
-          <Route path="/runs/:id" element={<RequireAuth><RunDetailRoute /></RequireAuth>} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<Shell />}>
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:id" element={<ProjectDetailPage />} />
+          <Route path="/projects/:id/tests" element={<ProjectTestsPage />} />
+          <Route path="/projects/:id/actions" element={<ActionsPage />} />
+          <Route path="/projects/:id/profiles" element={<ProfilesPage />} />
+          <Route path="/projects/:id/files" element={<FilesPage />} />
+          <Route path="/projects/:id/schedules" element={<SchedulesPage />} />
+          <Route path="/projects/:id/suites" element={<SuitesPage />} />
+          <Route path="/suites/:sid" element={<SuiteDetailPage />} />
+          <Route path="/suite-runs/:suiteRunId" element={<SuiteRunDetailPage />} />
+          <Route path="/tests/:id" element={<BuilderPage />} />
+          <Route path="/tests/:id/record" element={<RecordPage />} />
+          <Route path="/tests/:id/healing" element={<HealingPage />} />
+          <Route path="/tests/:id/visual" element={<VisualPage />} />
+          <Route path="/projects/:id/ai" element={<AiAssistantPage />} />
+          <Route path="/projects/:id/analytics" element={<AnalyticsPage />} />
+          <Route path="/projects/:id/audit" element={<AuditPage />} />
+          <Route path="/workers" element={<WorkersPage />} />
+          <Route path="/plugins" element={<PluginDocs />} />
+          <Route path="/runs/:id" element={<RunDetailRoute />} />
           {/* Live-only fallback view (WS timeline + cancel); main view is RunDetailRoute. */}
-          <Route path="/runs/:id/live" element={<RequireAuth><RunPage /></RequireAuth>} />
-          <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
-          <Route path="/" element={<Navigate to="/projects" replace />} />
-          <Route path="*" element={<Navigate to="/projects" replace />} />
-        </Routes>
+          <Route path="/runs/:id/live" element={<RunPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
+        <Route path="/" element={<Navigate to="/projects" replace />} />
+        <Route path="*" element={<Navigate to="/projects" replace />} />
+      </Routes>
     </ToastProvider>
   );
 }

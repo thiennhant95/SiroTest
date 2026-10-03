@@ -102,7 +102,7 @@ export function Builder(): JSX.Element {
       void (async () => {
         try {
           const base = apiBase.replace(/\/$/, "");
-          const res = await fetch(`${base}/api/v1/tests/${testId}`, {
+          const res = await fetch(`${base}/tests/${testId}`, {
             method: "PATCH",
             headers: authHeaders(),
             body: JSON.stringify({

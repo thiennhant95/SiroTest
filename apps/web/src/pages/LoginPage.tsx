@@ -6,7 +6,7 @@ import { apiBase, setToken } from "../lib/api";
 type Mode = "session" | "register" | "dev";
 
 async function postJson(path: string, body: unknown): Promise<{ ok: boolean; status: number; json: any }> {
-  const res = await fetch(`${apiBase}/api/v1${path}`, {
+  const res = await fetch(`${apiBase}${path}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -68,11 +68,12 @@ export function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
       <div className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <div>
-          <h1 className="text-lg font-semibold">Playwright Studio</h1>
-          <p className="text-sm text-slate-500">
-            Đăng nhập để lấy session token (lưu ở localStorage, gửi kèm mọi API call).
-          </p>
+        <div className="flex items-center gap-2">
+          <span aria-hidden className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-indigo-600 text-base text-white">▶</span>
+          <div>
+            <h1 className="text-lg font-semibold leading-tight">Playwright Studio</h1>
+            <p className="text-xs text-slate-500">Low-code E2E · JSON là source of truth</p>
+          </div>
         </div>
         <Tabs<Mode>
           value={mode}

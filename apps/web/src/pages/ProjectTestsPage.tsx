@@ -11,6 +11,7 @@ export function ProjectTestsPage() {
   const [tags, setTags] = useState<Array<{ tag: string; count: number }>>([]);
   // Deep-link from Builder tag badges (?tag=…).
   const [tag, setTag] = useState(() => searchParams.get("tag") ?? "");
+  const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [specOpen, setSpecOpen] = useState(false);
@@ -38,6 +39,8 @@ export function ProjectTestsPage() {
     void load(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  const visible = (tests ?? []).filter((t) => t.name.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-6">
@@ -80,6 +83,13 @@ export function ProjectTestsPage() {
         <ImportSpecDialog projectId={projectId} open={specOpen} onClose={() => setSpecOpen(false)} />
       ) : null}
       <div className="flex items-center gap-2">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Tìm test theo tên…"
+          aria-label="Tìm test"
+          className="max-w-xs"
+        />
         <Select value={tag} onChange={(e) => { setTag(e.target.value); void load(e.target.value); }} aria-label="Filter by tag" className="max-w-xs">
           <option value="">All tags</option>
           {tags.map((t) => (
@@ -117,20 +127,22 @@ export function ProjectTestsPage() {
         <ErrorState message={error} onRetry={load} />
       ) : tests.length === 0 ? (
         <EmptyState title="Chưa có test" hint="Tạo test đầu tiên ở ô phía trên." />
+      ) : visible.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
+          Không có test nào khớp “{query.trim()}”. <button type="button" className="text-indigo-700 hover:underline" onClick={() => setQuery("")}>Xóa tìm kiếm</button>
+        </p>
       ) : (
         <ul className="space-y-2">
-          {tests.map((t) => (
-            <li key={t.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <div>
-                <Link to={`/tests/${t.id}`} className="text-sm font-semibold text-indigo-700 hover:underline">
+          {visible.map((t) => (
+            <li key={t.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-indigo-300">
+              <div className="min-w-0">
+                <Link to={`/tests/${t.id}`} className="block truncate text-sm font-semibold text-indigo-700 hover:underline">
                   {t.name}
                 </Link>
-                <p className="font-mono text-[11px] text-slate-400">{t.id}</p>
+                <p className="font-mono text-[11px] text-slate-400">{t.id.slice(0, 12)}…</p>
               </div>
-              <Link to={`/tests/${t.id}`}>
-                <Button size="sm" variant="outline">
-                  Open builder
-                </Button>
+              <Link to={`/tests/${t.id}`} className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-indigo-400 hover:text-indigo-700">
+                Open builder →
               </Link>
             </li>
           ))}
