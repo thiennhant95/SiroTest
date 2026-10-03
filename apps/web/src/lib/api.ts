@@ -149,7 +149,7 @@ export async function setPickMode(opts: {
 const API_BASE =
   ((import.meta.env.VITE_API_BASE as string | undefined) ??
     (import.meta.env.VITE_API_URL as string | undefined) ??
-    "http://localhost:3001/api/v1").replace(/\/$/, "");
+    "/api/v1").replace(/\/$/, "");
 
 function day6Headers(): Record<string, string> {
   const h = authHeaders();

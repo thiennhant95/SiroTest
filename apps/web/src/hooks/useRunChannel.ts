@@ -22,9 +22,19 @@ export interface WsRunEvent {
 const TERMINAL = new Set(['passed', 'failed', 'cancelled']);
 
 function wsUrl(): string {
-  const base = (import.meta.env.VITE_API_BASE as string | undefined) ?? 'http://localhost:3001/api/v1';
-  const origin = base.replace(/\/api\/v1\/?$/, '');
-  return `${origin.replace(/^http/, 'ws')}/ws`;
+  // Same-origin first (vite proxy in dev, same host in prod); explicit
+  // VITE_API_BASE only for split deployments.
+  const base = import.meta.env.VITE_API_BASE as string | undefined;
+  if (base) {
+    const origin = base.replace(/\/api\/v1\/?$/, '');
+    return `${origin.replace(/^http/, 'ws')}/ws`;
+  }
+  try {
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    return `${proto}://${window.location.host}/ws`;
+  } catch {
+    return 'ws://localhost:3001/ws';
+  }
 }
 
 /** Same credential as REST (localStorage vv_token or dev fallback) for ?token=. */

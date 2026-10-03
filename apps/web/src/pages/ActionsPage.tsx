@@ -49,7 +49,7 @@ export function ActionsPage() {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   const apiBaseOrigin = useMemo(
-    () => apiBase.replace(/\/api\/v1$/, "").replace(/\/$/, "") || "http://localhost:3001",
+    () => apiBase.replace(/\/api\/v1$/, "").replace(/\/$/, "") || window.location.origin,
     [],
   );
   const currentJson = useMemo(() => (draft ? JSON.stringify(draft) : ""), [draft]);
