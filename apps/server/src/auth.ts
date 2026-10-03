@@ -39,13 +39,17 @@ declare module 'fastify' {
  */
 export async function ensureUserRow(userId: string): Promise<void> {
   try {
-    await db().user.upsert({
-      where: { id: userId },
-      update: {},
-      create: { id: userId, email: `${userId}@stub.local`, authRef: 'stub', role: 'tester' },
+    // Read first: the common case (returning user) stays read-only, and we
+    // never issue an empty-update upsert (whose edge behavior varies).
+    // Lost creates race safely into P2002, which is swallowed below.
+    const existing = await db().user.findUnique({ where: { id: userId } });
+    if (existing) return;
+    await db().user.create({
+      data: { id: userId, email: `${userId}@stub.local`, authRef: 'stub', role: 'tester' },
     });
   } catch {
-    // DB hiccup: proceed — membership checks still enforce as before.
+    // DB hiccup or lost create race: proceed — membership checks still
+    // enforce as before.
   }
 }
 
