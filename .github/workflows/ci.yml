@@ -65,8 +65,20 @@ jobs:
       - name: Install Playwright chromium (with OS deps)
         run: npx playwright install --with-deps chromium
 
-      - name: Integration tests (isolated SQLite, real worker)
-        run: pnpm test:integration
+      - name: Integration P0 (isolated SQLite, real worker)
+        run: pnpm test:integration:p0
+        env:
+          DATABASE_URL: file:./prisma/integration-test.db
+          ALLOW_PRIVATE_TARGETS: 1
+
+      - name: Integration P1 (isolated SQLite, real worker)
+        run: pnpm test:integration:p1
+        env:
+          DATABASE_URL: file:./prisma/integration-test.db
+          ALLOW_PRIVATE_TARGETS: 1
+
+      - name: Integration P2 (isolated SQLite, real worker)
+        run: pnpm test:integration:p2
         env:
           DATABASE_URL: file:./prisma/integration-test.db
           ALLOW_PRIVATE_TARGETS: 1
