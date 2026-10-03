@@ -1,7 +1,7 @@
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import { toErrorBody } from './errors.js';
-import { authenticateWsToken } from './auth.js';
+import { authenticateWsTokenAsync } from './auth.js';
 import { JSON_BODY_LIMIT_BYTES } from './security.js';
 import { projectRoutes } from './routes/projects.js';
 import { testRoutes } from './routes/tests.js';
@@ -22,6 +22,7 @@ import { compilerRoutes } from './routes/compiler.js';
 import { healingRoutes } from './routes/healing.js';
 import { suggestionRoutes } from './routes/suggestions.js';
 import { aiRoutes } from './routes/ai.js';
+import { sessionRoutes } from './routes/session.js';
 import { visualRoutes } from './routes/visual.js';
 import { pluginRoutes } from './routes/plugins.js';
 import { fixtureRoutes } from './routes/fixture.js';
@@ -90,6 +91,7 @@ export async function buildApp() {
       await v1.register(aiRoutes);
       await v1.register(visualRoutes);
       await v1.register(pluginRoutes);
+      await v1.register(sessionRoutes);
     },
     { prefix: '/api/v1' },
   );
@@ -126,20 +128,22 @@ export async function buildApp() {
     }
   };
 
-  app.get('/ws', { websocket: true }, (socket, req) => {    const user = authenticateWsToken(req.query);
-    if (!user) {
-      // No cookie auth exists, so WS cannot rely on ambient credentials:
-      // close unauthenticated handshakes instead of leaking events.
-      socket.close(4401, 'Missing WS token (?token=)');
-      return;
-    }
-    const q = (req.query ?? {}) as Record<string, unknown>;
-    const peer: Peer = {
-      send: (m: string) => socket.send(m),
-      userId: user.id,
-      ...(typeof q['runId'] === 'string' ? { runId: q['runId'] } : {}),
-      ...(typeof q['sessionId'] === 'string' ? { sessionId: q['sessionId'] } : {}),
-    };
+  app.get('/ws', { websocket: true }, (socket, req) => {
+    void (async () => {
+      const user = await authenticateWsTokenAsync(req.query).catch(() => null);
+      if (!user) {
+        // No cookie auth exists, so WS cannot rely on ambient credentials:
+        // close unauthenticated handshakes instead of leaking events.
+        socket.close(4401, 'Missing WS token (?token=)');
+        return;
+      }
+      const q = (req.query ?? {}) as Record<string, unknown>;
+      const peer: Peer = {
+        send: (m: string) => socket.send(m),
+        userId: user.id,
+        ...(typeof q['runId'] === 'string' ? { runId: q['runId'] } : {}),
+        ...(typeof q['sessionId'] === 'string' ? { sessionId: q['sessionId'] } : {}),
+      };
     peers.add(peer);
     socket.on('message', (raw: Buffer) => {
       // Bridge ingest: { sessionId, evt } — evt is minimal BridgeEvent metadata.
@@ -175,7 +179,8 @@ export async function buildApp() {
         }
       } catch { /* ignore malformed frames */ }
     });
-    socket.on('close', () => { peers.delete(peer); });
+      socket.on('close', () => { peers.delete(peer); });
+    })();
   });
 
   return app;
