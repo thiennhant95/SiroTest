@@ -62,6 +62,15 @@ export interface BaseStep {
   // P1 reusable-action invocation (see ReusableAction below)
   actionId?: string;
   arguments?: Record<string, string>;
+  // P1 wave-2 (shapes mirror packages/test-model/src/types.ts)
+  fileId?: string;
+  saveAs?: string;
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+  expectedStatus?: number;
+  action?: string;
+  promptText?: string;
 }
 
 export type TestStep = BaseStep;
@@ -151,6 +160,21 @@ export interface RunRequest {
    * explicitly — never silently skipped.
    */
   actions?: ReusableAction[];
+  /**
+   * P1 wave-2 files: fileId -> absolute path map for `upload` steps.
+   * The runner injects it as `VV_FILE_PATHS` (alias `FILE_PATHS`) JSON;
+   * the spec resolves paths at run time (never inlined into code).
+   */
+  filePaths?: Record<string, string>;
+  /**
+   * P1 auth context: decrypted storageState JSON content. The runner
+   * materializes it as `storageState.json` in the isolated workDir and
+   * points the Playwright config at it; the file is removed with the
+   * workDir in step 8. Undefined (default) keeps a fresh context.
+   * How the server resolves/decrypts this value is agent B's scope —
+   * the runner only receives and materializes it.
+   */
+  storageStateJson?: string;
   /** project-level default timeout (ms) */
   projectDefaultTimeoutMs?: number;
   /** project-level non-secret variables */

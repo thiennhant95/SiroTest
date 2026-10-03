@@ -9,9 +9,9 @@ import { requireAuth, requireProjectAccess } from '../auth.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, runCreate } from '../schemas.js';
 import { checkAllowedHttpUrl, stripServerPaths } from '../security.js';
-import { loadProjectActions } from '../actions.js';
 import { db } from '../db.js';
 import { runEvent } from '../ws/events.js';
+import { resolveRunInputs } from '../run-inputs.js';
 import {
   markQueuedEmittedByRoute,
   prismaRunStore,
@@ -113,10 +113,12 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
       test.projectId,
       body.environmentId,
     );
-    // P1 actions: resolve the project's callees so the runner can inline
-    // `callAction` steps at compile time (definition already carries the
-    // callAction steps; no RunRequest shape change beyond this optional field).
-    const actions = await loadProjectActions(test.projectId);
+    // P1 actions/files/profiles: resolve callees + upload fileIds + explicit
+    // auth profile into runner inputs (fail fast with 400 before executing).
+    const inputs = await resolveRunInputs(test.projectId, definition, {
+      environmentId: body.environmentId,
+      ...(body.profileId !== undefined ? { profileId: body.profileId } : {}),
+    });
     const request: RunRequest = {
       runId: run.id,
       test: definition,
@@ -126,7 +128,9 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
       headed: body.headed,
       ...(validatedDataset.datasetId !== undefined ? { datasetId: validatedDataset.datasetId } : {}),
       ...(validatedDataset.rowIndex !== undefined ? { rowIndex: validatedDataset.rowIndex } : {}),
-      ...(actions.length > 0 ? { actions } : {}),
+      ...(inputs.actions.length > 0 ? { actions: inputs.actions } : {}),
+      ...(inputs.filePaths !== undefined ? { filePaths: inputs.filePaths } : {}),
+      ...(inputs.storageStateJson !== undefined ? { storageStateJson: inputs.storageStateJson } : {}),
       projectVariables,
       environmentVariables,
       trigger: 'manual',

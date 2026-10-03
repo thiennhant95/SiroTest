@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, api, type ProjectRecord, type TestRecord } from "../lib/api";
 import { EmptyState, ErrorState, Skeleton } from "../components/ui";
+import { ExportProjectButton, ImportSpecDialog } from "../components/ProjectTransfer";
 
 /**
  * /projects/:id — project detail (10-ui-ux/screens.md required route).
@@ -12,6 +13,7 @@ export function ProjectDetailPage() {
   const [project, setProject] = useState<ProjectRecord | null>(null);
   const [tests, setTests] = useState<TestRecord[] | null>(null);
   const [error, setError] = useState("");
+  const [specOpen, setSpecOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -92,12 +94,48 @@ export function ProjectDetailPage() {
           Suites
         </Link>
         <Link
+          to={`/projects/${id}/actions`}
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
+        >
+          Actions
+        </Link>
+        <Link
+          to={`/projects/${id}/profiles`}
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
+        >
+          Profiles
+        </Link>
+        <Link
+          to={`/projects/${id}/files`}
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
+        >
+          Files
+        </Link>
+        <Link
+          to={`/projects/${id}/schedules`}
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
+        >
+          Schedules
+        </Link>
+        <Link
           to="/settings"
           className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
         >
           Environments &amp; Settings
         </Link>
       </nav>
+      <div className="flex flex-wrap items-center gap-2">
+        <ExportProjectButton projectId={id} projectName={project?.name} />
+        <button
+          type="button"
+          onClick={() => setSpecOpen(true)}
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
+          title="Dán .spec.ts để tạo test draft"
+        >
+          📄 Import spec
+        </button>
+      </div>
+      <ImportSpecDialog projectId={id} open={specOpen} onClose={() => setSpecOpen(false)} />
       <section aria-label="Recent tests">
         <h2 className="mb-2 text-sm font-semibold text-slate-700">Tests gần đây</h2>
         {tests === null ? (

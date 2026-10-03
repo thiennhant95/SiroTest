@@ -99,42 +99,60 @@ function secretAwareValueExpr(step: TestStep): string {
   return templateExpr(value, 'value', step.id);
 }
 
-function locatorExpr(target: TestStep['target'], stepId: string): string {
+function locatorExpr(target: TestStep['target'], stepId: string, pageVar = 'page'): string {
   const primary: LocatorCandidate | undefined = target?.primary;
   if (!primary) throw new CompileError(stepId, `Step '${stepId}': missing target.primary`);
   switch (primary.strategy) {
     case 'role': {
       const opts = primary.name !== undefined ? `, { name: ${esc(primary.name)}${primary.exact ? ', exact: true' : ''} }` : '';
-      return `page.getByRole(${esc(primary.role)}${opts})`;
+      return `${pageVar}.getByRole(${esc(primary.role)}${opts})`;
     }
     case 'label':
-      return `page.getByLabel(${esc(primary.value)}${primary.exact ? ', { exact: true }' : ''})`;
+      return `${pageVar}.getByLabel(${esc(primary.value)}${primary.exact ? ', { exact: true }' : ''})`;
     case 'placeholder':
-      return `page.getByPlaceholder(${esc(primary.value)}${primary.exact ? ', { exact: true }' : ''})`;
+      return `${pageVar}.getByPlaceholder(${esc(primary.value)}${primary.exact ? ', { exact: true }' : ''})`;
     case 'testId':
-      return `page.getByTestId(${esc(primary.value)})`;
+      return `${pageVar}.getByTestId(${esc(primary.value)})`;
     case 'text':
-      return `page.getByText(${esc(primary.value)}${primary.exact ? ', { exact: true }' : ''})`;
+      return `${pageVar}.getByText(${esc(primary.value)}${primary.exact ? ', { exact: true }' : ''})`;
     case 'css':
-      return `page.locator(${esc(primary.value)})`;
+      return `${pageVar}.locator(${esc(primary.value)})`;
     case 'xpath':
-      return `page.locator(${esc(`xpath=${primary.value}`)})`;
+      return `${pageVar}.locator(${esc(`xpath=${primary.value}`)})`;
     default:
       throw new CompileError(stepId, `Step '${stepId}': unsupported locator strategy '${(primary as { strategy: string }).strategy}'`);
   }
 }
 
-function stepBody(step: TestStep): string {
-  const loc = () => locatorExpr(step.target, step.id);
+/**
+ * P1 wave-2 semantics (mirrors packages/playwright-compiler; runner keeps
+ * its own `[id]`-prefixed title dialect and `(process.env[…] ?? '')`
+ * template shape):
+ * - upload: run-time `VV_FILE_PATHS`/`FILE_PATHS` map lookup + explicit
+ *   throw when the fileId entry is missing; never inlines paths.
+ * - download with target: `waitForEvent('download')` + click + `saveAs`
+ *   (or `suggestedFilename()`); url-only: `page.evaluate(fetch)` (browser
+ *   cookies apply) + `node:fs/promises.writeFile`.
+ * - newTab/closeTab: deterministic `page`/`page2`/… tracking in
+ *   compileSpec; `closeTab` on the last tab fails explicitly.
+ * - handleDialog: one-time `once('dialog')` for the NEXT dialog.
+ * - apiRequest: `request` fixture; explicit throw on expectedStatus
+ *   mismatch; `saveAs` stores `await resp.text()` into
+ *   `process.env[saveAs]` for later `{{VAR}}` steps. Header/body values
+ *   use `{{VAR}}` lookups (never inlined secrets); the runner redacts
+ *   secret values from logs/result JSON via redactSecrets.
+ */
+function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string {
+  const loc = () => locatorExpr(step.target, step.id, pageVar);
   switch (step.type) {
     case 'goto':
-      return `await page.goto(${templateExpr(step.url ?? '', 'url', step.id)});`;
+      return `await ${pageVar}.goto(${templateExpr(step.url ?? '', 'url', step.id)});`;
     case 'reload':
-      return `await page.reload();`;
+      return `await ${pageVar}.reload();`;
     case 'goBack':
-      return `await page.goBack();`;
+      return `await ${pageVar}.goBack();`;
     case 'goForward':
-      return `await page.goForward();`;
+      return `await ${pageVar}.goForward();`;
     case 'click':
       return `await ${loc()}.click();`;
     case 'doubleClick':
@@ -145,7 +163,7 @@ function stepBody(step: TestStep): string {
       return `await ${loc()}.clear();`;
     case 'press':
       if (!step.key) throw new CompileError(step.id, `Step '${step.id}': press requires key`);
-      return step.target ? `await ${loc()}.press(${esc(step.key)});` : `await page.keyboard.press(${esc(step.key)});`;
+      return step.target ? `await ${loc()}.press(${esc(step.key)});` : `await ${pageVar}.keyboard.press(${esc(step.key)});`;
     case 'check':
       return `await ${loc()}.check();`;
     case 'uncheck':
@@ -161,10 +179,10 @@ function stepBody(step: TestStep): string {
     }
     case 'waitForTimeout': {
       const ms = step.milliseconds ?? 0;
-      return `await page.waitForTimeout(${Number(ms)}); // WARNING: fixed wait is discouraged`;
+      return `await ${pageVar}.waitForTimeout(${Number(ms)}); // WARNING: fixed wait is discouraged`;
     }
     case 'waitForURL':
-      return `await page.waitForURL(${templateExpr(step.url ?? step.expected ?? step.pattern ?? '', 'expected', step.id)});`;
+      return `await ${pageVar}.waitForURL(${templateExpr(step.url ?? step.expected ?? step.pattern ?? '', 'expected', step.id)});`;
     case 'assertVisible':
       return `await expect(${loc()}).toBeVisible();`;
     case 'assertHidden':
@@ -176,9 +194,9 @@ function stepBody(step: TestStep): string {
     case 'assertValue':
       return `await expect(${loc()}).toHaveValue(${templateExpr(step.expected ?? '', 'expected', step.id)});`;
     case 'assertURL':
-      return `await expect(page).toHaveURL(${templateExpr(step.expected ?? step.pattern ?? '', 'expected', step.id)});`;
+      return `await expect(${pageVar}).toHaveURL(${templateExpr(step.expected ?? step.pattern ?? '', 'expected', step.id)});`;
     case 'assertTitle':
-      return `await expect(page).toHaveTitle(${templateExpr(step.expected ?? '', 'expected', step.id)});`;
+      return `await expect(${pageVar}).toHaveTitle(${templateExpr(step.expected ?? '', 'expected', step.id)});`;
     case 'assertEnabled':
       return `await expect(${loc()}).toBeEnabled();`;
     case 'assertDisabled':
@@ -186,12 +204,136 @@ function stepBody(step: TestStep): string {
     case 'assertChecked':
       return `await expect(${loc()}).toBeChecked();`;
     case 'screenshot':
-      return `await page.screenshot({ path: require('node:path').join(__dirname, '..', 'screenshots', ${esc(`${step.id}.png`)}), fullPage: ${step.fullPage ? 'true' : 'false'} });`;
+      return `await ${pageVar}.screenshot({ path: require('node:path').join(__dirname, '..', 'screenshots', ${esc(`${step.id}.png`)}), fullPage: ${step.fullPage ? 'true' : 'false'} });`;
+    case 'upload': {
+      if (!step.fileId) throw new CompileError(step.id, `Step '${step.id}': upload requires fileId`);
+      const rec = step as unknown as Record<string, unknown>;
+      const target = rec['target'] as TestStep['target'];
+      if (!target?.primary) throw new CompileError(step.id, `Step '${step.id}': upload requires target.primary`);
+      const l = locatorExpr(target, step.id, pageVar);
+      return [
+        `const vvFile = (JSON.parse(process.env.VV_FILE_PATHS ?? process.env.FILE_PATHS ?? '{}') as Record<string, string>)[${esc(step.fileId)}];`,
+        `if (!vvFile) throw new Error(${esc(`upload '${step.id}': no file path for fileId '${step.fileId}' (runner injects VV_FILE_PATHS map)`)});`,
+        `await ${l}.setInputFiles(vvFile);`,
+      ].join('\n');
+    }
+    case 'download': {
+      const rec = step as unknown as Record<string, unknown>;
+      const target = rec['target'] as TestStep['target'] | undefined;
+      const url = typeof rec['url'] === 'string' && rec['url'] ? (rec['url'] as string) : undefined;
+      const saveAs = typeof rec['saveAs'] === 'string' && rec['saveAs'] ? (rec['saveAs'] as string) : undefined;
+      if (!target && !url) {
+        throw new CompileError(step.id, `Step '${step.id}': download requires at least one of 'target' or 'url' — failing compilation, never silently skipping`);
+      }
+      if (target) {
+        if (!target.primary) throw new CompileError(step.id, `Step '${step.id}': download requires target.primary`);
+        const l = locatorExpr(target, step.id, pageVar);
+        const saveExpr = saveAs ? esc(saveAs) : 'download.suggestedFilename()';
+        return [
+          `const downloadPromise = ${pageVar}.waitForEvent('download');`,
+          `await ${l}.click();`,
+          `const download = await downloadPromise;`,
+          `await download.saveAs(${saveExpr});`,
+        ].join('\n');
+      }
+      const outName = saveAs ?? `download-${step.id}`;
+      return [
+        `const vvBytes = await ${pageVar}.evaluate(async (vvUrl: string) => {`,
+        `  const vvRes = await fetch(vvUrl);`,
+        `  if (!vvRes.ok) throw new Error(${esc(`download '${step.id}' failed with status `)} + vvRes.status);`,
+        `  return [...new Uint8Array(await vvRes.arrayBuffer())];`,
+        `}, ${templateExpr(url!, 'url', step.id)});`,
+        `await (await import('node:fs/promises')).writeFile(${esc(outName)}, Buffer.from(vvBytes));`,
+      ].join('\n');
+    }
+    case 'newTab': {
+      if (!newPageVar) {
+        throw new CompileError(step.id, `Step '${step.id}': newTab requires a deterministic page name — compile via compileSpec() so tabs are named page/page2/... explicitly`);
+      }
+      const rec = step as unknown as Record<string, unknown>;
+      const url = typeof rec['url'] === 'string' && rec['url'] ? (rec['url'] as string) : undefined;
+      const lines = [`const ${newPageVar} = await context.newPage();`];
+      if (url) lines.push(`await ${newPageVar}.goto(${templateExpr(url, 'url', step.id)});`);
+      return lines.join('\n');
+    }
+    case 'closeTab':
+      return `await ${pageVar}.close();`;
+    case 'handleDialog': {
+      const rec = step as unknown as Record<string, unknown>;
+      const action = rec['action'];
+      if (action !== 'accept' && action !== 'dismiss') {
+        throw new CompileError(step.id, `Step '${step.id}': handleDialog requires action 'accept'|'dismiss'`);
+      }
+      const promptText = typeof rec['promptText'] === 'string' && rec['promptText'] ? (rec['promptText'] as string) : undefined;
+      if (action === 'accept') {
+        return promptText
+          ? `${pageVar}.once('dialog', async (dialog) => { await dialog.accept(${templateExpr(promptText, 'promptText', step.id)}); });`
+          : `${pageVar}.once('dialog', async (dialog) => { await dialog.accept(); });`;
+      }
+      return `${pageVar}.once('dialog', async (dialog) => { await dialog.dismiss(); });`;
+    }
+    case 'apiRequest':
+      return apiRequestBody(step);
     case 'callAction':
       throw new CompileError(step.id, `Step '${step.id}': callAction needs an actions context — pass { actions } to compileSpec() so the callee body can be inlined explicitly`);
     default:
       throw new CompileError(step.id, `Step '${step.id}': unsupported step type '${step.type}' — failing compilation, never silently skipping`);
   }
+}
+
+/** apiRequest -> `request` fixture call with explicit status check + saveAs. */
+function apiRequestBody(step: TestStep): string {
+  const rec = step as unknown as Record<string, unknown>;
+  const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+  const method = rec['method'];
+  if (typeof method !== 'string' || !methods.includes(method)) {
+    throw new CompileError(step.id, `Step '${step.id}': apiRequest requires method ${methods.join('|')}`);
+  }
+  const url = rec['url'];
+  if (typeof url !== 'string' || url.length === 0) {
+    throw new CompileError(step.id, `Step '${step.id}': apiRequest requires url`);
+  }
+  const headersRaw = rec['headers'];
+  let headersExpr: string | undefined;
+  if (headersRaw !== undefined) {
+    if (!headersRaw || typeof headersRaw !== 'object' || Array.isArray(headersRaw)) {
+      throw new CompileError(step.id, `Step '${step.id}': apiRequest headers must be a record of strings`);
+    }
+    const entries = Object.entries(headersRaw as Record<string, unknown>);
+    for (const [k, v] of entries) {
+      if (typeof v !== 'string') throw new CompileError(step.id, `Step '${step.id}': apiRequest header '${k}' must be a string (use {{VARIABLE}} for secrets)`);
+    }
+    const sorted = [...entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    headersExpr = `{ ${sorted.map(([k, v]) => `${esc(k)}: ${templateExpr(v as string, `headers.${k}`, step.id)}`).join(', ')} }`;
+  }
+  const bodyRaw = rec['body'];
+  let bodyExpr: string | undefined;
+  if (bodyRaw !== undefined) {
+    if (typeof bodyRaw !== 'string') throw new CompileError(step.id, `Step '${step.id}': apiRequest body must be a string (use {{VARIABLE}} for secrets)`);
+    bodyExpr = templateExpr(bodyRaw, 'body', step.id);
+  }
+  const expectedRaw = rec['expectedStatus'];
+  if (expectedRaw !== undefined && !(Number.isInteger(expectedRaw) && (expectedRaw as number) >= 100 && (expectedRaw as number) <= 599)) {
+    throw new CompileError(step.id, `Step '${step.id}': apiRequest expectedStatus must be an integer 100-599`);
+  }
+  const saveAsRaw = rec['saveAs'];
+  if (saveAsRaw !== undefined && !(typeof saveAsRaw === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(saveAsRaw))) {
+    throw new CompileError(step.id, `Step '${step.id}': apiRequest saveAs must match /^[A-Za-z_][A-Za-z0-9_]*$/`);
+  }
+  const fn = (method as string).toLowerCase();
+  const opts: string[] = [];
+  if (headersExpr) opts.push(`headers: ${headersExpr}`);
+  if (bodyExpr) opts.push(`data: ${bodyExpr}`);
+  const urlExpr = templateExpr(url as string, 'url', step.id);
+  const call = opts.length > 0 ? `await request.${fn}(${urlExpr}, { ${opts.join(', ')} })` : `await request.${fn}(${urlExpr})`;
+  const lines = [`const vvResp = ${call};`];
+  if (typeof expectedRaw === 'number') {
+    lines.push(`if (vvResp.status() !== ${Math.trunc(expectedRaw)}) throw new Error(${esc(`apiRequest '${step.id}': expected status ${Math.trunc(expectedRaw)} but got `)} + vvResp.status());`);
+  }
+  if (typeof saveAsRaw === 'string' && saveAsRaw) {
+    lines.push(`process.env[${esc(saveAsRaw)}] = await vvResp.text();`);
+  }
+  return lines.join('\n');
 }
 
 /**
@@ -277,7 +419,7 @@ function interpolateActionStep(step: TestStep, args: Record<string, string>): Te
 /** One `await test.step(...)` line-block; inner/outer share timeout + continueOnFailure handling. */
 function emitRunnerStep(
   titleExpr: string,
-  bodyLine: string,
+  body: string,
   opts: { timeoutMs?: number; continueOnFailure?: boolean; stepId: string },
   baseIndent: string,
 ): string[] {
@@ -286,11 +428,12 @@ function emitRunnerStep(
       ? `, { timeout: ${opts.timeoutMs} }`
       : '';
   const inner = `${baseIndent}  `;
-  let lines = [`${inner}${bodyLine}`];
+  const bodyLines = body.split('\n').map((line) => `${inner}${line}`);
+  let lines = bodyLines;
   if (opts.continueOnFailure === true) {
     lines = [
       `${inner}try {`,
-      `${inner}  ${bodyLine}`,
+      ...bodyLines.map((line) => (line.length > 0 ? `  ${line}` : line)),
       `${inner}} catch {`,
       `${inner}  // continueOnFailure: step ${opts.stepId} failed, continuing.`,
       `${inner}}`,
@@ -308,6 +451,7 @@ function emitCallAction(
   action: ReusableAction,
   baseIndent: string,
   dataset: boolean,
+  pageVar = 'page',
 ): string[] {
   const args = resolveActionArguments(caller, action);
   const title = `[${caller.id}] ${caller.name ?? action.name}`;
@@ -318,6 +462,9 @@ function emitCallAction(
     if (bodyStep.type === 'callAction') {
       throw new CompileError(caller.id, `Step '${caller.id}': cannot inline action '${action.name}' (${action.id}) — nested callAction (body step '${bodyStep.id}') is rejected, action bodies must be P0 steps`);
     }
+    if (bodyStep.type === 'newTab' || bodyStep.type === 'closeTab') {
+      throw new CompileError(caller.id, `Step '${caller.id}': cannot inline action '${action.name}' (${action.id}) — body step '${bodyStep.id}' (${bodyStep.type}) manages tabs, multi-tab state never crosses the action boundary`);
+    }
     // Runner convention: disabled steps are omitted (no StepRecord exists for
     // body steps, so there is nothing to mark skipped).
     if (!bodyStep.enabled) continue;
@@ -327,7 +474,7 @@ function emitCallAction(
     const childTitle = interpolated.name ?? interpolated.type;
     const childExpr = dataset ? `\`${escTemplate(childTitle)} #\${_vvIteration + 1}\`` : esc(childTitle);
     inner.push(
-      ...emitRunnerStep(childExpr, stepBody(interpolated), {
+      ...emitRunnerStep(childExpr, stepBody(interpolated, pageVar), {
         timeoutMs: interpolated.timeoutMs,
         continueOnFailure: interpolated.continueOnFailure,
         stepId: interpolated.id,
@@ -362,12 +509,22 @@ export function compileSpec(
 ): string {
   const dataset = resolveCompileDataset(test, opts?.datasetId);
   const enabled = test.steps.filter((s) => s.enabled);
+  const needsContext = enabled.some((s) => s.type === 'newTab');
+  const needsRequest = enabled.some((s) => {
+    if (s.type === 'apiRequest') return true;
+    if (s.type === 'callAction') {
+      const action = typeof s.actionId === 'string' ? lookupAction(opts?.actions, s.actionId) : undefined;
+      return !!action?.steps.some((b) => b.enabled !== false && b.type === 'apiRequest');
+    }
+    return false;
+  });
+  const fixtures = ['page', ...(needsContext ? ['context'] : []), ...(needsRequest ? ['request'] : [])].join(', ');
   const lines: string[] = [
     `// Generated by runner compiler ${RUNNER_COMPILER_VERSION} — do not edit.`,
     `// Test: ${test.name} (${test.id})`,
     `import { test, expect } from '@playwright/test';`,
     ``,
-    `test(${esc(test.name)}, async ({ page }) => {`,
+    `test(${esc(test.name)}, async ({ ${fixtures} }) => {`,
   ];
   if (opts?.testTimeoutMs) lines.push(`  test.setTimeout(${opts.testTimeoutMs});`);
   const pad = dataset ? '  ' : '';
@@ -378,7 +535,36 @@ export function compileSpec(
     lines.push(`  for (let _vvIteration = 0; _vvIteration < (VV_ROWS.length ? VV_ROWS.length : 1); _vvIteration++) {`);
     lines.push(`    const row: Record<string, string> = VV_ROWS[_vvIteration] ?? {};`);
   }
+  // P1 wave-2 tab tracking mirrors the package compiler: deterministic
+  // `page`/`page2`/… stack; `closeTab` on the last tab fails explicitly.
+  const pageStack: string[] = ['page'];
+  let pageCounter = 1;
+  const emitTopLevel = (step: TestStep, body: string): void => {
+    const title = `[${step.id}] ${step.name ?? step.type}`;
+    const titleExpr = dataset ? `\`${escTemplate(title)} #\${_vvIteration + 1}\`` : esc(title);
+    lines.push(`${pad}  await test.step(${titleExpr}, async () => {`);
+    for (const raw of body.split('\n')) lines.push(`${pad}    ${raw}`);
+    if (step.timeoutMs) lines.push(`${pad}  }, { timeout: ${step.timeoutMs} });`);
+    else lines.push(`${pad}  });`);
+  };
   for (const step of enabled) {
+    if (step.type === 'newTab') {
+      pageCounter += 1;
+      const newPageVar = pageCounter === 2 ? 'page2' : `page${pageCounter}`;
+      const currentPage = pageStack[pageStack.length - 1];
+      emitTopLevel(step, stepBody(step, currentPage, newPageVar));
+      pageStack.push(newPageVar);
+      continue;
+    }
+    if (step.type === 'closeTab') {
+      if (pageStack.length <= 1) {
+        throw new CompileError(step.id, `Step '${step.id}': closeTab cannot close the last remaining tab — at least one page must stay open`);
+      }
+      const currentPage = pageStack[pageStack.length - 1];
+      emitTopLevel(step, stepBody(step, currentPage));
+      pageStack.pop();
+      continue;
+    }
     if (step.type === 'callAction') {
       const actionId = step.actionId;
       const action = typeof actionId === 'string' ? lookupAction(opts?.actions, actionId) : undefined;
@@ -387,15 +573,10 @@ export function compileSpec(
           ? `Step '${step.id}': callAction references unknown action '${actionId}' — pass it via compileSpec(test, { actions })`
           : `Step '${step.id}': callAction requires actionId`);
       }
-      lines.push(...emitCallAction(step, action, `${pad}  `, dataset !== undefined));
+      lines.push(...emitCallAction(step, action, `${pad}  `, dataset !== undefined, pageStack[pageStack.length - 1]));
       continue;
     }
-    const title = `[${step.id}] ${step.name ?? step.type}`;
-    const titleExpr = dataset ? `\`${escTemplate(title)} #\${_vvIteration + 1}\`` : esc(title);
-    lines.push(`${pad}  await test.step(${titleExpr}, async () => {`);
-    lines.push(`${pad}    ${stepBody(step)}`);
-    if (step.timeoutMs) lines.push(`${pad}  }, { timeout: ${step.timeoutMs} });`);
-    else lines.push(`${pad}  });`);
+    emitTopLevel(step, stepBody(step, pageStack[pageStack.length - 1]));
   }
   if (dataset) lines.push(`  }`);
   lines.push(`});`, ``);
@@ -427,7 +608,7 @@ function resolveCompileDataset(
 
 /** Interpolated fields share the canonical compiler's INTERPOLATED_FIELDS set. */
 function assertNoRowRefs(test: TestDefinition): void {
-  const fields = ['url', 'value', 'key', 'expected', 'pattern'] as const;
+  const fields = ['url', 'value', 'key', 'expected', 'pattern', 'body', 'headers', 'promptText'] as const;
   const walk = (v: unknown): boolean => {
     if (typeof v === 'string') return findRowRefs(v).length > 0;
     if (Array.isArray(v)) return v.some(walk);
@@ -470,10 +651,20 @@ export interface RunConfigOptions {
   screenshot: 'on' | 'off' | 'only-on-failure';
   video: 'on' | 'off' | 'retain-on-failure';
   outputDir: string;
+  /**
+   * P1 auth context: relative filename of the materialized storageState
+   * JSON inside the isolated workDir (e.g. `storageState.json`). When
+   * undefined (default) the config keeps `storageState: undefined` —
+   * byte-identical to P0 (fresh context per run, never reused).
+   */
+  storageStateFile?: string;
 }
 
 /** Playwright config for the isolated run: per-run context + custom reporter. */
 export function compileConfig(opts: RunConfigOptions): string {
+  const storageStateLine = opts.storageStateFile
+    ? `    contextOptions: { storageState: ${esc(opts.storageStateFile)} }, // P1 auth context materialized per run`
+    : `    contextOptions: { storageState: undefined }, // fresh context per run, never reused`;
   return [
     `// Generated by runner compiler ${RUNNER_COMPILER_VERSION} — isolated run ${opts.runId}.`,
     `import { defineConfig, devices } from '@playwright/test';`,
@@ -491,7 +682,7 @@ export function compileConfig(opts: RunConfigOptions): string {
     `    trace: ${esc(opts.trace)},`,
     `    screenshot: ${esc(opts.screenshot)},`,
     `    video: ${esc(opts.video)},`,
-    `    contextOptions: { storageState: undefined }, // fresh context per run, never reused`,
+    storageStateLine,
     `  },`,
     `  projects: [{ name: ${esc(opts.runId)}, use: { ...devices['Desktop Chrome'] } }],`,
     `  reporter: [[${esc(opts.reporterPath)}, { runId: ${esc(opts.runId)} }]],`,

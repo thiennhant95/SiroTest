@@ -4,11 +4,14 @@ import { ToastProvider as LegacyToastProvider } from "./components/Toast";
 import { getToken } from "./lib/api";
 import { ActionsPage } from "./pages/ActionsPage";
 import { BuilderPage } from "./pages/BuilderPage";
+import { FilesPage } from "./pages/FilesPage";
 import { LoginPage } from "./pages/LoginPage";
+import { ProfilesPage } from "./pages/ProfilesPage";
 import { ProjectDetailPage } from "./pages/ProjectDetailPage";
 import { ProjectTestsPage } from "./pages/ProjectTestsPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { RecordPage } from "./pages/RecordPage";
+import { SchedulesPage } from "./pages/SchedulesPage";
 import { RunDetailRoute } from "./pages/RunDetailPage";
 import { RunPage } from "./pages/RunPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -30,6 +33,9 @@ export function App() {
           <Route path="/projects/:id" element={<RequireAuth><ProjectDetailPage /></RequireAuth>} />
           <Route path="/projects/:id/tests" element={<RequireAuth><ProjectTestsPage /></RequireAuth>} />
           <Route path="/projects/:id/actions" element={<RequireAuth><ActionsPage /></RequireAuth>} />
+          <Route path="/projects/:id/profiles" element={<RequireAuth><ProfilesPage /></RequireAuth>} />
+          <Route path="/projects/:id/files" element={<RequireAuth><FilesPage /></RequireAuth>} />
+          <Route path="/projects/:id/schedules" element={<RequireAuth><SchedulesPage /></RequireAuth>} />
           <Route path="/projects/:id/suites" element={<RequireAuth><SuitesPage /></RequireAuth>} />
           <Route path="/suites/:sid" element={<RequireAuth><SuiteDetailPage /></RequireAuth>} />
           <Route path="/suite-runs/:suiteRunId" element={<RequireAuth><SuiteRunDetailPage /></RequireAuth>} />

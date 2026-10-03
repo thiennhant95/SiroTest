@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button, EmptyState, ErrorState, Skeleton, useToast } from "../components/ui";
+import { ImportProjectButton } from "../components/ProjectTransfer";
 import { ApiError, api, type ProjectRecord } from "../lib/api";
 
 export function ProjectsPage() {
@@ -27,10 +28,11 @@ export function ProjectsPage() {
     <main className="mx-auto max-w-4xl space-y-4 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Projects</h1>
-        <div className="flex gap-2">
+        <div className="flex items-start gap-2">
           <Link to="/settings" className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm hover:bg-slate-50">
             Settings
           </Link>
+          <ImportProjectButton onImported={() => void load()} />
         <Button size="sm" variant="outline" onClick={() => toast.push("info", "Tạo project: dùng API POST /api/v1/projects (UI sẽ bổ sung).")}>
           + New project
         </Button>

@@ -197,6 +197,39 @@ const callActionStep = baseStep.extend({
   arguments: z.record(z.string()).optional(),
 });
 
+// ------------------------------------------------------- P1 wave 2 steps ---
+
+const uploadStep = baseStep.extend({
+  type: z.literal("upload"),
+  target: locatorSpecSchema,
+  fileId: z.string().min(1),
+});
+const downloadStep = baseStep.extend({
+  type: z.literal("download"),
+  target: locatorSpecSchema.optional(),
+  url: z.string().min(1).optional(),
+  saveAs: z.string().min(1).max(255).optional(),
+});
+const newTabStep = baseStep.extend({
+  type: z.literal("newTab"),
+  url: z.string().min(1).optional(),
+});
+const closeTabStep = baseStep.extend({ type: z.literal("closeTab") });
+const handleDialogStep = baseStep.extend({
+  type: z.literal("handleDialog"),
+  action: z.enum(["accept", "dismiss"]),
+  promptText: z.string().max(5000).optional(),
+});
+const apiRequestStep = baseStep.extend({
+  type: z.literal("apiRequest"),
+  method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]),
+  url: z.string().min(1),
+  headers: z.record(z.string()).optional(),
+  body: z.string().max(200000).optional(),
+  expectedStatus: z.number().int().min(100).max(599).optional(),
+  saveAs: z.string().min(1).max(120).regex(/^[A-Za-z_][A-Za-z0-9_]*$/).optional(),
+});
+
 export const testStepSchema = z.discriminatedUnion("type", [
   gotoStep,
   reloadStep,
@@ -226,6 +259,12 @@ export const testStepSchema = z.discriminatedUnion("type", [
   assertCheckedStep,
   screenshotStep,
   callActionStep,
+  uploadStep,
+  downloadStep,
+  newTabStep,
+  closeTabStep,
+  handleDialogStep,
+  apiRequestStep,
 ]).superRefine((val, ctx) => {
   // Cross-field rules live here (not on individual options) because
   // z.discriminatedUnion options must stay plain ZodObjects — .refine()
@@ -240,6 +279,12 @@ export const testStepSchema = z.discriminatedUnion("type", [
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "assertURL requires at least one of 'expected' or 'pattern'",
+    });
+  }
+  if (val.type === "download" && val.target === undefined && val.url === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "download requires at least one of 'target' or 'url'",
     });
   }
 });

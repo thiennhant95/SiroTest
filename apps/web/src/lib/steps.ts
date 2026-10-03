@@ -156,6 +156,13 @@ export const STEP_CATALOG: StepMeta[] = [
   { type: "screenshot", label: "Take screenshot", icon: "📷", group: "Utility", description: "Chụp ảnh màn hình", keywords: ["screenshot", "chụp", "ảnh", "capture", "photo"], hasTarget: false, make: () => ({ fullPage: false }) },
   // -- P1 reusable action invocation (business keyword; body inlines at compile time) --
   { type: "callAction", label: "Call action", icon: "🔁", group: "Utility", description: "Gọi reusable action (business keyword)", keywords: ["call", "action", "reusable", "gọi", "keyword", "business", "tái sử dụng"], hasTarget: false, make: () => ({ actionId: "", arguments: {} }) },
+  // -- P1 wave 2: files / tabs / dialogs / API (shapes mirror packages/test-model) --
+  { type: "upload", label: "Upload file", icon: "📤", group: "Interaction", description: "Tải file lên qua ô input", keywords: ["upload", "tải lên", "tai len", "file", "input", "setinputfiles", "đính kèm", "dinh kem"], hasTarget: true, make: () => ({ target: target(), fileId: "" }) },
+  { type: "download", label: "Download file", icon: "📥", group: "Utility", description: "Bấm để tải file / tải trực tiếp từ URL", keywords: ["download", "tải xuống", "tai xuong", "save", "lưu", "luu", "tải file", "tai file"], hasTarget: true, make: () => ({ url: "", saveAs: "" }) },
+  { type: "newTab", label: "Open new tab", icon: "🗗", group: "Navigation", description: "Mở tab mới (kèm URL tùy chọn)", keywords: ["new tab", "tab mới", "tab moi", "mở tab", "mo tab", "window", "popup"], hasTarget: false, make: () => ({ url: "" }) },
+  { type: "closeTab", label: "Close tab", icon: "✕", group: "Navigation", description: "Đóng tab hiện tại", keywords: ["close tab", "đóng tab", "dong tab", "close", "window", "đóng"], hasTarget: false, make: () => ({}) },
+  { type: "handleDialog", label: "Handle dialog", icon: "💬", group: "Utility", description: "Xử lý hộp thoại alert/confirm/prompt kế tiếp", keywords: ["dialog", "hộp thoại", "hop thoai", "alert", "confirm", "prompt", "accept", "dismiss", "popup"], hasTarget: false, make: () => ({ action: "accept" }) },
+  { type: "apiRequest", label: "API request", icon: "🌐", group: "Utility", description: "Gọi HTTP API và kiểm tra status", keywords: ["api", "request", "http", "get", "post", "put", "patch", "delete", "rest", "gọi api", "goi api"], hasTarget: false, make: () => ({ method: "GET", url: "", expectedStatus: 200 }) },
 ];
 
 export const STEP_META: Record<string, StepMeta> = Object.fromEntries(
@@ -261,6 +268,30 @@ export function businessName(step: BuilderStep): string {
       const args = step.arguments as Record<string, string> | undefined;
       const n = args ? Object.keys(args).length : 0;
       return `Call action ${aid ? `“${aid.slice(0, 24)}”` : "(chưa chọn)"}${n > 0 ? ` (${n} arg${n > 1 ? "s" : ""})` : ""}`;
+    }
+    case "upload":
+      return `Upload ${typeof step.fileId === "string" && step.fileId ? `file “${String(step.fileId).slice(0, 18)}”` : "file"} to ${t}`;
+    case "download": {
+      const u = typeof step.url === "string" ? step.url : "";
+      const s = typeof step.saveAs === "string" ? step.saveAs : "";
+      if (u) return `Download ${u}${s ? ` → ${s}` : ""}`;
+      return `Download via ${t}${s ? ` → ${s}` : ""}`;
+    }
+    case "newTab": {
+      const u = typeof step.url === "string" ? step.url : "";
+      return u ? `Open new tab ${u}` : "Open new tab";
+    }
+    case "closeTab":
+      return "Close tab";
+    case "handleDialog": {
+      const a = typeof step.action === "string" ? step.action : "accept";
+      const p = typeof step.promptText === "string" && step.promptText ? ` “${step.promptText}”` : "";
+      return `Handle dialog: ${a}${p}`;
+    }
+    case "apiRequest": {
+      const m = typeof step.method === "string" ? step.method : "GET";
+      const u = typeof step.url === "string" ? step.url : "";
+      return `${m} ${u || "(chưa nhập URL)"}`;
     }
     default:
       return STEP_META[step.type]?.label ?? step.type;
@@ -441,6 +472,38 @@ export function toPlaywrightPreview(def: BuilderDefinition): string {
       case "callAction":
         lines.push(`  // call action '${String(s.actionId ?? "")}' (inlined at compile time);`);
         break;
+      case "upload":
+        lines.push(`  await ${loc}.setInputFiles('${String(s.fileId ?? "").replace(/'/g, "\\'")}'); // file store id`);
+        break;
+      case "download": {
+        const url = typeof s.url === "string" ? s.url : "";
+        const saveAs = typeof s.saveAs === "string" && s.saveAs ? ` // save as ${s.saveAs}` : "";
+        if (url) lines.push(`  // download from URL${saveAs}\n  await page.goto('${url.replace(/'/g, "\\'")}');${saveAs}`);
+        else lines.push(`  const downloadPromise = page.waitForEvent('download');\n  await ${loc}.click();\n  const download = await downloadPromise;${saveAs}`);
+        break;
+      }
+      case "newTab": {
+        const url = typeof s.url === "string" ? s.url : "";
+        if (url) lines.push(`  const page1 = await context.newPage();\n  await page1.goto('${url.replace(/'/g, "\\'")}');`);
+        else lines.push(`  const page1 = await context.newPage();`);
+        break;
+      }
+      case "closeTab":
+        lines.push(`  await page.close(); // fails explicitly when it is the last tab`);
+        break;
+      case "handleDialog": {
+        const action = s.action === "dismiss" ? "dismiss" : "accept";
+        const prompt = typeof s.promptText === "string" && s.promptText ? `, "${s.promptText.replace(/"/g, '\\"')}"` : "";
+        lines.push(`  page.once('dialog', (d) => d.${action}(${prompt.startsWith(", ") ? prompt.slice(2) : ""})); // next dialog only`);
+        break;
+      }
+      case "apiRequest": {
+        const method = typeof s.method === "string" ? s.method : "GET";
+        const url = typeof s.url === "string" ? s.url : "";
+        const exp = typeof s.expectedStatus === "number" ? ` // expect ${s.expectedStatus}` : "";
+        lines.push(`  await request.${method.toLowerCase()}('${url.replace(/'/g, "\\'")}');${exp}`);
+        break;
+      }
       default:
         lines.push(`  // unknown step: ${s.type}`);
     }

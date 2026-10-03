@@ -45,9 +45,14 @@ function exactOption(exact?: boolean): string | null {
 /**
  * Compile the PRIMARY locator candidate to a `page.…` expression string.
  * Pure + deterministic: same input -> same output. Throws on unknown strategy.
+ *
+ * P1 wave-2: `pageVar` selects the page handle the locator runs on
+ * (`page` by default; `page2`, `page3`, … after `newTab` steps). The P0
+ * default keeps byte-identical output when no `newTab` step is present.
  */
-export function locatorToExpression(spec: LocatorSpec): string {
+export function locatorToExpression(spec: LocatorSpec, pageVar = 'page'): string {
   const c = spec.primary;
+  const root = pageVar;
   switch (c.strategy) {
     case 'role': {
       const opts: string[] = [];
@@ -55,27 +60,27 @@ export function locatorToExpression(spec: LocatorSpec): string {
       const ex = exactOption(c.exact);
       if (ex) opts.push(ex);
       const tail = opts.length > 0 ? `, { ${opts.join(', ')} }` : '';
-      return `page.getByRole(${stringLiteral(c.role)}${tail})`;
+      return `${root}.getByRole(${stringLiteral(c.role)}${tail})`;
     }
     case 'label': {
       const ex = exactOption(c.exact);
-      return `page.getByLabel(${stringLiteral(c.value)}${ex ? `, { ${ex} }` : ''})`;
+      return `${root}.getByLabel(${stringLiteral(c.value)}${ex ? `, { ${ex} }` : ''})`;
     }
     case 'placeholder': {
       const ex = exactOption(c.exact);
-      return `page.getByPlaceholder(${stringLiteral(c.value)}${ex ? `, { ${ex} }` : ''})`;
+      return `${root}.getByPlaceholder(${stringLiteral(c.value)}${ex ? `, { ${ex} }` : ''})`;
     }
     case 'testId':
-      return `page.getByTestId(${stringLiteral(c.value)})`;
+      return `${root}.getByTestId(${stringLiteral(c.value)})`;
     case 'text': {
       const ex = exactOption(c.exact);
-      return `page.getByText(${stringLiteral(c.value)}${ex ? `, { ${ex} }` : ''})`;
+      return `${root}.getByText(${stringLiteral(c.value)}${ex ? `, { ${ex} }` : ''})`;
     }
     case 'css':
-      return `page.locator(${stringLiteral(c.value)})`;
+      return `${root}.locator(${stringLiteral(c.value)})`;
     case 'xpath': {
       const v = c.value.startsWith('xpath=') ? c.value : `xpath=${c.value}`;
-      return `page.locator(${stringLiteral(v)})`;
+      return `${root}.locator(${stringLiteral(v)})`;
     }
     default:
       throw new UnsupportedLocatorError((c as { strategy: string }).strategy);

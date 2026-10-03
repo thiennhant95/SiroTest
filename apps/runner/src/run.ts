@@ -234,6 +234,35 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
   try {
     validateTestDefinition(req.test);
     datasetRows = resolveDatasetRows(req.test, req.datasetId, req.rowIndex);
+    // P1 wave-2 run inputs fail fast (before any workspace/spawn).
+    if (req.filePaths !== undefined) {
+      if (!req.filePaths || typeof req.filePaths !== 'object' || Array.isArray(req.filePaths)) {
+        throw new ValidationError([
+          { code: 'FILE_PATHS_INVALID', message: 'filePaths must be a record of fileId -> absolute path' },
+        ]);
+      }
+      for (const [k, v] of Object.entries(req.filePaths)) {
+        if (typeof v !== 'string' || v.length === 0) {
+          throw new ValidationError([
+            { code: 'FILE_PATHS_INVALID', message: `filePaths['${k}'] must be a non-empty absolute path` },
+          ]);
+        }
+      }
+    }
+    if (req.storageStateJson !== undefined) {
+      if (typeof req.storageStateJson !== 'string' || req.storageStateJson.length === 0) {
+        throw new ValidationError([
+          { code: 'STORAGE_STATE_INVALID', message: 'storageStateJson must be a non-empty JSON string' },
+        ]);
+      }
+      try {
+        JSON.parse(req.storageStateJson);
+      } catch {
+        throw new ValidationError([
+          { code: 'STORAGE_STATE_INVALID', message: 'storageStateJson must be valid JSON' },
+        ]);
+      }
+    }
   } catch (err) {
     // Name fallback: under tsx dev/loader conditions validate.js can exist
     // as dual ESM/CJS instances (see datasets.ts re-export note) — the
@@ -289,6 +318,15 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     const testTimeoutMs = resolveTestTimeout(test, req.projectDefaultTimeoutMs);
     const reporterPath = deps.reporterPath ?? process.env.REPORTER_PATH ?? defaultReporterPath();
     const eventsPath = join(ws.workDir, 'events.jsonl');
+    // P1 auth context: materialize the decrypted storageState JSON as
+    // `storageState.json` in the isolated workDir (config points at the
+    // relative filename; step 8 removes the whole workDir). Validated as
+    // JSON in step 1 — written verbatim here, never logged.
+    let storageStateFile: string | undefined;
+    if (req.storageStateJson !== undefined) {
+      await writeWorkFile(ws.workDir, 'storageState.json', req.storageStateJson);
+      storageStateFile = 'storageState.json';
+    }
     const specSource = compileSpec(test, {
       testTimeoutMs,
       datasetId: req.datasetId,
@@ -310,6 +348,9 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
       screenshot: req.artifacts?.screenshot ?? 'only-on-failure',
       video: req.artifacts?.video ?? 'retain-on-failure',
       outputDir: join(ws.workDir, 'output'),
+      // P1 auth context: materialized per run, removed with the workDir in
+      // step 8. Undefined keeps the P0 fresh-context default.
+      ...(storageStateFile !== undefined ? { storageStateFile } : {}),
     });
     await writeWorkFile(ws.workDir, 'run.spec.ts', specSource);
     await writeWorkFile(ws.workDir, 'playwright.config.ts', configSource);
@@ -337,6 +378,12 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
       // row when the array is empty. Size-capped in datasets.ts (fail fast).
       ...(req.datasetId !== undefined
         ? { [VV_DATASET_ROWS_ENV]: buildDatasetEnvValue(datasetRows) }
+        : {}),
+      // P1 wave-2 files: fileId -> absolute path map for `upload` steps.
+      // Injected under both the namespaced and legacy keys (the spec
+      // prefers VV_FILE_PATHS, falls back to FILE_PATHS).
+      ...(req.filePaths !== undefined
+        ? { VV_FILE_PATHS: JSON.stringify(req.filePaths), FILE_PATHS: JSON.stringify(req.filePaths) }
         : {}),
       RUN_STEPS_META_JSON: JSON.stringify(
         test.steps.map((s) => ({

@@ -47,7 +47,12 @@ export async function ensureIntegrationDb(opts: { reset?: boolean } = {}): Promi
   if (!needsPush) {
     try {
       const probe = new PrismaClient();
-      await probe.$queryRaw`SELECT 1 AS one FROM "Project" LIMIT 1`;
+      // Probe every table the suites touch: a DB pushed before a schema
+      // wave (e.g. missing AuthProfile/FileAsset/Schedule) must re-push
+      // instead of failing at runtime with P2021.
+      for (const t of ['"Project"', '"TestSuite"', '"Action"', '"AuthProfile"', '"FileAsset"', '"Schedule"']) {
+        await probe.$queryRawUnsafe(`SELECT 1 AS one FROM ${t} LIMIT 1`);
+      }
       await probe.$disconnect();
     } catch {
       needsPush = true;

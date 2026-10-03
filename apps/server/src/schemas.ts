@@ -52,6 +52,8 @@ export const runCreate = z.object({
   datasetId: z.string().min(1).optional(),
   /** P1 data-driven: single 0-based row (requires datasetId). */
   rowIndex: z.number().int().nonnegative().optional(),
+  /** P1 wave-2: explicit auth profile (storage state); never auto-applied. */
+  profileId: z.string().min(1).optional(),
 });
 
 /** P1 dataset import (CSV/JSON text → embedded definition.datasets). */
@@ -86,6 +88,8 @@ export const suiteRunCreate = z.object({
   // Desired parallelism, clamped to the server queue capacity (RunQueue(2)).
   // 2 = enqueue all at once (queue caps concurrency); 1 = strict sequential.
   parallel: z.number().int().min(1).max(2).default(2),
+  /** P1 wave-2: explicit auth profile (storage state); never auto-applied. */
+  profileId: z.string().min(1).optional(),
 });
 
 // P1 — reusable actions (mirrors test-model reusableActionSchema; the
@@ -123,6 +127,123 @@ export const variableUpdate = z.object({
   key: variableKey.optional(),
   value: z.string().max(8000).optional(),
   isSecret: z.boolean().optional(),
+});
+
+// P1 wave-2 — auth profiles (storageState encrypted at rest, masked on read).
+export const profileCreate = z.object({
+  name: z.string().min(1).max(200),
+  environmentId: z.string().min(1).nullable().optional(),
+  // Accepts a parsed object OR a JSON string; shape-checked in routes/profiles.ts
+  // (must carry cookies[]/origins[] like a Playwright storageState).
+  storageStateJson: z.unknown(),
+});
+export const profileUpdate = z.object({
+  name: z.string().min(1).max(200).optional(),
+  environmentId: z.string().min(1).nullable().optional(),
+  storageStateJson: z.unknown().optional(),
+});
+
+// P1 wave-2 — file library (JSON {name, contentBase64, mimeType}; no multipart).
+export const fileUpload = z.object({
+  name: z.string().min(1).max(255),
+  contentBase64: z.string().min(1).max(15 * 1024 * 1024),
+  mimeType: z.string().min(1).max(127).optional(),
+});
+
+// P1 wave-2 — schedules (exactly one of suiteId/testId; cron validated in route).
+export const scheduleCreate = z.object({
+  suiteId: z.string().min(1).optional(),
+  testId: z.string().min(1).optional(),
+  environmentId: z.string().min(1),
+  cron: z.string().min(1).max(100),
+  enabled: z.boolean().optional(),
+  retries: z.number().int().min(0).max(5).optional(),
+});
+export const scheduleUpdate = z.object({
+  suiteId: z.string().min(1).nullable().optional(),
+  testId: z.string().min(1).nullable().optional(),
+  environmentId: z.string().min(1).optional(),
+  cron: z.string().min(1).max(100).optional(),
+  enabled: z.boolean().optional(),
+  retries: z.number().int().min(0).max(5).optional(),
+});
+
+// P1 wave-2 — Playwright spec importer (feasible TS subset, see spec-importer.ts).
+export const specImport = z.object({
+  code: z.string().min(1).max(512 * 1024),
+  name: z.string().min(1).max(200).optional(),
+});
+
+// P1 wave-2 — project export/import payload (portable, ids remapped on import).
+const exportEnvironment = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  baseUrl: z.string().nullable().optional(),
+  isDefault: z.boolean().optional(),
+});
+const exportVariable = z.object({
+  key: z.string().min(1),
+  environmentId: z.string().min(1).nullable().optional(),
+  isSecret: z.boolean(),
+  // Non-secrets carry `value`; secrets carry `hasValue: true` and NO value.
+  value: z.string().optional(),
+  hasValue: z.boolean().optional(),
+});
+const exportTest = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().nullable().optional(),
+  status: z.string().optional(),
+  definition: z.record(z.unknown()),
+});
+const exportAction = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().nullable().optional(),
+  parameters: z.array(z.record(z.unknown())).optional(),
+  steps: z.array(z.record(z.unknown())),
+});
+const exportSuite = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().nullable().optional(),
+  // Ordered member TEST ids (old ids; remapped on import).
+  testIds: z.array(z.string().min(1)).max(200),
+});
+const exportSchedule = z.object({
+  suiteId: z.string().min(1).nullable().optional(),
+  testId: z.string().min(1).nullable().optional(),
+  environmentId: z.string().min(1),
+  cron: z.string().min(1),
+  enabled: z.boolean().optional(),
+  retries: z.number().int().min(0).max(5).optional(),
+});
+const exportFile = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  mimeType: z.string().nullable().optional(),
+  contentBase64: z.string().max(15 * 1024 * 1024),
+});
+export const projectExportPayload = z.object({
+  version: z.literal(1),
+  project: z.object({
+    name: z.string().min(1).max(120),
+    description: z.string().max(2000).nullable().optional(),
+    baseUrl: z.string().nullable().optional(),
+  }),
+  environments: z.array(exportEnvironment).max(100),
+  variables: z.array(exportVariable).max(500),
+  tests: z.array(exportTest).max(500),
+  actions: z.array(exportAction).max(500),
+  suites: z.array(exportSuite).max(200),
+  schedules: z.array(exportSchedule).max(200),
+  files: z.array(exportFile).max(200),
+});
+export type ProjectExportPayload = z.infer<typeof projectExportPayload>;
+
+export const projectImport = z.object({
+  name: z.string().min(1).max(120).optional(),
+  payload: projectExportPayload,
 });
 
 export function parseOrThrow<T>(schema: z.ZodSchema<T>, data: unknown): T {
