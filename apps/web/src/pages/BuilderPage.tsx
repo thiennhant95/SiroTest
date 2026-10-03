@@ -7,6 +7,7 @@ import { EnvironmentsPanel } from "../components/EnvironmentsPanel";
 import { Inspector } from "../components/Inspector";
 import { RunModal } from "../components/RunModal";
 import { StepCard } from "../components/StepCard";
+import { SuggestionsPanel } from "../components/SuggestionsPanel";
 import { VariablesTab } from "../components/VariablesTab";
 import {
   Badge,
@@ -35,7 +36,7 @@ import {
 import { CodeTab } from "./builder/CodeTab";
 import { HistoryTab } from "./builder/HistoryTab";
 
-type BottomTab = "steps" | "variables" | "datasets" | "runs" | "code" | "history";
+type BottomTab = "steps" | "variables" | "datasets" | "runs" | "code" | "history" | "suggest";
 type SaveState = "saved" | "saving" | "error";
 
 /**
@@ -592,6 +593,7 @@ export function BuilderPage() {
               { value: "runs", label: "Runs" },
               { value: "code", label: "Code" },
               { value: "history", label: "History" },
+              { value: "suggest", label: "Suggest" },
             ]}
           />
         </div>
@@ -637,6 +639,9 @@ export function BuilderPage() {
           ) : null}
           {bottomTab === "code" ? <CodeTab testId={id!} testName={definition.name} /> : null}
           {bottomTab === "history" ? <HistoryTab testId={id!} /> : null}
+          {bottomTab === "suggest" ? (
+            <SuggestionsPanel testId={id!} onApplied={() => void load()} />
+          ) : null}
         </div>
       </footer>
 

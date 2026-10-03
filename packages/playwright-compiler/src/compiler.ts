@@ -177,6 +177,31 @@ export const FILE_PATHS_ENV = 'VV_FILE_PATHS';
 /** Legacy alias also honoured at run time (runner injects both). */
 export const FILE_PATHS_ENV_ALIAS = 'FILE_PATHS';
 
+/**
+ * P2 — visual regression + plugin steps (additive; P0 output stays
+ * byte-identical when no P2 step is present).
+ *
+ * - `visualCheck` screenshots an element (or the viewport) into the run
+ *   artifact dir and compares it against a server-injected baseline via the
+ *   isolated-workdir helper `./vv-visual-compare.cjs` (materialized by the
+ *   runner; pure self-written PNG codec, no new dependency).
+ * - `plugin:<name>` steps call `./vv-plugins.cjs` (materialized by the
+ *   runner from the trusted `PLUGINS_DIR` registry); an unregistered type
+ *   fails at run time with `PLUGIN_NOT_FOUND`, or at compile time when the
+ *   registry snapshot is passed via `CompileOptions.plugins`.
+ */
+export const P2_STEP_TYPES: readonly string[] = ['visualCheck'];
+
+/** Step types must be globally unique and namespaced: `plugin:<name>`. */
+export const PLUGIN_TYPE_PATTERN = /^plugin:[A-Za-z0-9][A-Za-z0-9_.-]*$/;
+
+/** Env key carrying the baseline map (JSON name -> absolute path). */
+export const BASELINES_ENV = 'VV_BASELINES';
+/** When `'1'`, visual checks capture the actual as the new baseline (pass). */
+export const UPDATE_BASELINES_ENV = 'VV_UPDATE_BASELINES';
+/** Allowed fraction of differing pixels when `threshold` is omitted. */
+export const VISUAL_DEFAULT_THRESHOLD = 0.05;
+
 function asRecord(step: TestStep): Record<string, unknown> {
   return step as Record<string, unknown>;
 }
@@ -290,6 +315,10 @@ export function defaultStepName(step: TestStep): string {
       const n = typeof r['name'] === 'string' && r['name'] ? (r['name'] as string) : step.id;
       return `Screenshot ${n}`;
     }
+    case 'visualCheck': {
+      const n = typeof r['name'] === 'string' && r['name'] ? (r['name'] as string) : step.id;
+      return `Visual check ${n}`;
+    }
     case 'callAction': {
       const actionId = typeof r['actionId'] === 'string' ? (r['actionId'] as string) : '';
       return `Call action ${actionId}`;
@@ -349,6 +378,10 @@ export function defaultStepName(step: TestStep): string {
  *   `process.env[saveAs]` for later `{{VAR}}` steps in the same process.
  */
 export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string[] {
+  // P2 plugin steps dispatch before the literal switch (prefix-matched).
+  if (typeof step.type === 'string' && PLUGIN_TYPE_PATTERN.test(step.type)) {
+    return compilePluginStepBody(step, pageVar);
+  }
   switch (step.type) {
     case 'goto': {
       const url = requiredString(step, 'url');
@@ -506,6 +539,9 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
       if (r['fullPage'] === true) opts.push('fullPage: true');
       return [`await ${pageVar}.screenshot({ ${opts.join(', ')} });`];
     }
+    case 'visualCheck': {
+      return compileVisualCheckBody(step, pageVar);
+    }
     case 'upload': {
       const fileId = requiredString(step, 'fileId');
       const loc = locatorToExpression(requiredTarget(step), pageVar);
@@ -593,6 +629,95 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
     default:
       throw new UnsupportedStepError(step.id, step.type);
   }
+}
+
+/**
+ * Deterministic artifact filename for a visual baseline name.
+ * Mirror of `sanitizeVisualFileName` in apps/runner (keep the two in sync —
+ * the runner's stub tests assert identical outputs for the same inputs).
+ */
+export function sanitizeVisualFileName(name: string): string {
+  const safe = name.replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 120);
+  return `visual-${safe.length > 0 ? safe : 'check'}.png`;
+}
+
+function requiredVisualName(step: TestStep): string {
+  const r = asRecord(step);
+  const name = r['name'];
+  if (typeof name !== 'string' || name.length === 0 || name.length > 200) {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (visualCheck): field "name" must be a non-empty string (max 200 chars)`,
+    );
+  }
+  return name;
+}
+
+function requiredVisualThreshold(step: TestStep): number {
+  const r = asRecord(step);
+  const threshold = r['threshold'];
+  if (threshold === undefined) return VISUAL_DEFAULT_THRESHOLD;
+  if (typeof threshold !== 'number' || !Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (visualCheck): field "threshold" must be a number in [0, 1]`,
+    );
+  }
+  return threshold;
+}
+
+/**
+ * P2 visual regression: screenshot into the run artifact dir, then diff
+ * against the server-injected baseline map (`VV_BASELINES`) via the
+ * isolated-workdir helper. `VV_UPDATE_BASELINES=1` captures instead of
+ * comparing (the server promotes the artifact to a baseline afterwards).
+ */
+function compileVisualCheckBody(step: TestStep, pageVar: string): string[] {
+  const name = requiredVisualName(step);
+  const threshold = requiredVisualThreshold(step);
+  const fileName = sanitizeVisualFileName(name);
+  const r = asRecord(step);
+  const target = r['target'] as LocatorSpec | undefined;
+  const shotTarget = target ? locatorToExpression(requiredTarget(step), pageVar) : pageVar;
+  return [
+    `const vvVisualPath = (await import('node:path')).join(process.env.RUN_ARTIFACT_DIR ?? '.', 'screenshots', ${stringLiteral(fileName)});`,
+    `await ${shotTarget}.screenshot({ path: vvVisualPath });`,
+    `await (await import('./vv-visual-compare.cjs')).compareVisualFromEnv({ name: ${stringLiteral(name)}, actualPath: vvVisualPath, threshold: ${JSON.stringify(threshold)} });`,
+  ];
+}
+
+/**
+ * P2 plugin step: call the registered helper with validated string params.
+ * Param VALUES support the same `{{VARIABLE}}` / `{{row.*}}` interpolation
+ * as every other step (compiled to `process.env.*` / `row[...]` lookups —
+ * secrets are never inlined). Unknown plugin types fail here only when the
+ * registry snapshot is passed via `CompileOptions.plugins`; otherwise the
+ * workdir helper throws `PLUGIN_NOT_FOUND` at run time (never silent).
+ */
+function compilePluginStepBody(step: TestStep, pageVar: string): string[] {
+  const r = asRecord(step);
+  const rawParams = r['params'];
+  let params: Record<string, string>;
+  if (rawParams === undefined) {
+    params = {};
+  } else if (rawParams && typeof rawParams === 'object' && !Array.isArray(rawParams)) {
+    params = {};
+    for (const [k, v] of Object.entries(rawParams as Record<string, unknown>)) {
+      if (typeof v !== 'string') {
+        throw new InvalidDefinitionError(
+          `Step "${step.id}" (${step.type}): param "${k}" must be a string (use {{VARIABLE}} for secrets)`,
+        );
+      }
+      params[k] = v;
+    }
+  } else {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (${step.type}): field "params" must be a record of strings`,
+    );
+  }
+  const entries = Object.entries(params).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const paramsExpr = `{ ${entries.map(([k, v]) => `${stringLiteral(k)}: ${compileValueExpression(v)}`).join(', ')} }`;
+  return [
+    `await (await import('./vv-plugins.cjs')).runPluginStep(${stringLiteral(step.type)}, ${paramsExpr}, ${pageVar}, { stepId: ${stringLiteral(step.id)} });`,
+  ];
 }
 
 function compileApiRequestBody(step: TestStep): string[] {
@@ -729,6 +854,25 @@ export interface CompileOptions {
    * same actions + same compiler version ⇒ byte-identical output.
    */
   actions?: ActionsContext;
+  /**
+   * P2 plugin registry snapshot (step type -> compile info). When provided,
+   * a `plugin:*` step whose type is absent fails compilation here with
+   * `PLUGIN_NOT_FOUND`; when omitted, the check moves to run time (the
+   * workdir helper throws the same explicit error — never silently skipped).
+   */
+  plugins?: Record<string, PluginCompileInfo>;
+}
+
+/**
+ * Minimal per-type compile info for a registered plugin step (structural
+ * mirror of the SDK `PluginStepSchema` — kept local so this package has no
+ * runtime dependency on `@playwright-studio/action-sdk`).
+ */
+export interface PluginCompileInfo {
+  schema?: {
+    required?: string[];
+    properties?: Record<string, { type: string; maxLength?: number; default?: string; secret?: boolean }>;
+  };
 }
 
 /**
@@ -929,6 +1073,44 @@ function emitCallActionBlock(
   ];
 }
 
+/**
+ * Fail fast for plugin steps when the registry snapshot is available:
+ * unknown type -> PLUGIN_NOT_FOUND; missing required param / plaintext
+ * secret literal -> InvalidDefinitionError (a secret literal would otherwise
+ * be inlined into generated code). Without the snapshot these checks move to
+ * the run-time workdir helper (same explicit errors, never silent).
+ */
+function assertPluginStep(step: TestStep, plugins?: Record<string, PluginCompileInfo>): void {
+  if (!plugins) return;
+  const info = Object.prototype.hasOwnProperty.call(plugins, step.type) ? plugins[step.type] : undefined;
+  if (!info) {
+    throw new UnsupportedStepError(
+      step.id,
+      step.type,
+      `PLUGIN_NOT_FOUND: step "${step.id}" references unregistered plugin step "${step.type}" — install the plugin (PLUGINS_DIR) and enable it (ALLOW_PLUGINS=1, Developer/Admin review)`,
+    );
+  }
+  const schema = info.schema;
+  if (!schema) return;
+  const raw = asRecord(step)['params'];
+  const params = (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>;
+  for (const req of schema.required ?? []) {
+    if (typeof params[req] !== 'string') {
+      throw new InvalidDefinitionError(
+        `Step "${step.id}" (${step.type}): missing required param "${req}"`,
+      );
+    }
+  }
+  for (const [k, decl] of Object.entries(schema.properties ?? {})) {
+    const v = params[k];
+    if (typeof v === 'string' && decl.secret === true && !hasVariable(v)) {
+      throw new InvalidDefinitionError(
+        `Step "${step.id}" (${step.type}): secret param "${k}" must be a {{VARIABLE}} reference so the secret is resolved at run time, never inlined`,
+      );
+    }
+  }
+}
+
 export function compileTest(def: TestDefinition, opts?: CompileOptions): string {
   validateDefinition(def);
   const dataset = resolveDataset(def, opts?.datasetId);
@@ -1044,6 +1226,9 @@ export function compileTest(def: TestDefinition, opts?: CompileOptions): string 
       out.push(...emitCallActionBlock(step, action, `${pad}  `, dataset !== undefined, currentPage));
       return;
     }
+    if (typeof step.type === 'string' && PLUGIN_TYPE_PATTERN.test(step.type)) {
+      assertPluginStep(step, opts?.plugins);
+    }
     out.push(
       ...emitTestStepBlock(
         step,
@@ -1092,8 +1277,9 @@ export function resolveDataset(def: TestDefinition, datasetId?: string): DataSet
  *
  * P1 wave-2 adds `body`/`headers` (apiRequest) and `promptText`
  * (handleDialog); `url` already covers goto/newTab/download/apiRequest.
+ * P2 adds `params` (plugin steps — record of strings).
  */
-const INTERPOLATED_FIELDS = ['url', 'value', 'key', 'expected', 'pattern', 'body', 'headers', 'promptText'] as const;
+const INTERPOLATED_FIELDS = ['url', 'value', 'key', 'expected', 'pattern', 'body', 'headers', 'promptText', 'params'] as const;
 
 function collectInterpolatedStrings(step: TestStep): string[] {
   const rec = step as Record<string, unknown>;

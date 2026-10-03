@@ -201,10 +201,25 @@ const P1_STEP_TYPES: readonly string[] = [
   'apiRequest',
 ];
 
+/** P2 step types (mirrors `P2_STEP_TYPES` in packages/test-model/src/types.ts). */
+const P2_STEP_TYPES: readonly string[] = ['visualCheck'];
+
 export const SUPPORTED_STEP_TYPES: ReadonlySet<string> = new Set([
   ...P0_STEP_TYPES,
   ...P1_STEP_TYPES,
+  ...P2_STEP_TYPES,
 ]);
+
+/**
+ * Plugin step types (`plugin:<name>`) are allowlisted by PATTERN (exact set is
+ * registry-dependent). Unknown plugin steps still fail at compile/run time
+ * with PLUGIN_NOT_FOUND — never silently skipped.
+ */
+export function isSupportedStepType(type: unknown): boolean {
+  if (typeof type !== 'string') return false;
+  if (SUPPORTED_STEP_TYPES.has(type)) return true;
+  return type.startsWith('plugin:') && type.length > 'plugin:'.length;
+}
 
 export interface DefinitionIssue {
   code: string;
@@ -251,7 +266,7 @@ export function validateDefinitionForStore(def: unknown): DefinitionIssue[] {
       seen.add(rec['id'] as string);
     }
     const type = rec['type'];
-    if (typeof type !== 'string' || !SUPPORTED_STEP_TYPES.has(type)) {
+    if (typeof type !== 'string' || !isSupportedStepType(type)) {
       // P0: arbitrary custom code (customCode/eval/…) is disabled for ALL roles.
       issues.push({ code: 'STEP_TYPE_UNSUPPORTED', message: `${where}.type '${String(type)}' is not allowed (custom code is disabled in P0)` });
     }

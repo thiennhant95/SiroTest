@@ -47,7 +47,12 @@ export const SUPPORTED_STEP_TYPES: ReadonlySet<string> = new Set([
   'closeTab',
   'handleDialog',
   'apiRequest',
+  // P2: visual regression (plugin:* steps match by prefix below)
+  'visualCheck',
 ]);
+
+/** P2 plugin step types are namespaced `plugin:<name>` (globally unique). */
+export const PLUGIN_STEP_PATTERN = /^plugin:[A-Za-z0-9][A-Za-z0-9_.-]*$/;
 
 const SUPPORTED_LOCATOR_STRATEGIES: ReadonlySet<string> = new Set([
   'role',
@@ -112,7 +117,7 @@ function validateStep(step: TestStep, index: number, issues: ValidationIssue[]):
   if (typeof step.id !== 'string' || step.id.length === 0) {
     issues.push({ code: 'STEP_ID_MISSING', message: `${where}.id is required`, stepId: String(step.id ?? '') });
   }
-  if (typeof step.type !== 'string' || !SUPPORTED_STEP_TYPES.has(step.type)) {
+  if (typeof step.type !== 'string' || (!SUPPORTED_STEP_TYPES.has(step.type) && !PLUGIN_STEP_PATTERN.test(step.type))) {
     issues.push({
       code: 'STEP_TYPE_UNSUPPORTED',
       message: `${where}.type '${String(step.type)}' is not in the P0 step catalog`,
@@ -240,6 +245,38 @@ function validateStep(step: TestStep, index: number, issues: ValidationIssue[]):
     }
     if (step.saveAs !== undefined && !(typeof step.saveAs === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(step.saveAs))) {
       issues.push({ code: 'STEP_API_SAVEAS_INVALID', message: `${where} of type 'apiRequest' requires saveAs to match /^[A-Za-z_][A-Za-z0-9_]*$/`, stepId: step.id });
+    }
+  }
+  // ---- P2 field checks (explicit failures, never silent skips) ----
+  if (step.type === 'visualCheck') {
+    const rec = step as unknown as Record<string, unknown>;
+    if (typeof step.name !== 'string' || step.name.length === 0 || step.name.length > 200) {
+      issues.push({ code: 'STEP_VISUAL_NAME_MISSING', message: `${where} of type 'visualCheck' requires name (1-200 chars)`, stepId: step.id });
+    }
+    const threshold = rec['threshold'];
+    if (threshold !== undefined && !(typeof threshold === 'number' && Number.isFinite(threshold) && threshold >= 0 && threshold <= 1)) {
+      issues.push({ code: 'STEP_VISUAL_THRESHOLD_INVALID', message: `${where} of type 'visualCheck' requires threshold in [0, 1]`, stepId: step.id });
+    }
+    if (step.target !== undefined) {
+      const primary = (step.target as { primary?: unknown } | undefined)?.primary;
+      if (!isRecord(primary) || typeof (primary as Record<string, unknown>).strategy !== 'string') {
+        issues.push({ code: 'STEP_TARGET_MISSING', message: `${where} requires target.primary`, stepId: step.id });
+      } else if (!SUPPORTED_LOCATOR_STRATEGIES.has(String((primary as Record<string, unknown>).strategy))) {
+        issues.push({
+          code: 'LOCATOR_STRATEGY_UNSUPPORTED',
+          message: `${where}.target.primary.strategy '${String((primary as Record<string, unknown>).strategy)}' is not supported`,
+          stepId: step.id,
+        });
+      }
+    }
+  }
+  if (typeof step.type === 'string' && PLUGIN_STEP_PATTERN.test(step.type)) {
+    const rec = step as unknown as Record<string, unknown>;
+    const params = rec['params'];
+    if (params !== undefined) {
+      if (!isRecord(params) || !Object.values(params).every((v) => typeof v === 'string')) {
+        issues.push({ code: 'STEP_PLUGIN_PARAMS_INVALID', message: `${where} of type '${step.type}' requires params to be a record of strings`, stepId: step.id });
+      }
     }
   }
 }

@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "npm run build && node --test dist/tests/compiler.test.js dist/tests/datasets.test.js dist/tests/actions.test.js dist/tests/p1-wave2.test.js",
+    "test": "npm run build && node --test dist/tests/compiler.test.js dist/tests/datasets.test.js dist/tests/actions.test.js dist/tests/p1-wave2.test.js dist/tests/p2-visual-plugins.test.js",
     "golden": "npm run build && node dist/scripts/compile-example.js"
   },
   "peerDependencies": {

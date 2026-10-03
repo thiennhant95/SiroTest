@@ -59,6 +59,9 @@ jobs:
       - name: Runner + recorder unit tests (no browser)
         run: pnpm --filter @playwright-studio/runner test && pnpm --filter @vv/recorder test
 
+      - name: Server unit tests + P2 package tests (no browser)
+        run: pnpm test:server-unit && pnpm --filter @vv/ai test && pnpm --filter @playwright-studio/action-sdk test && pnpm --filter @playwright-studio/cli test
+
       - name: Install Playwright chromium (with OS deps)
         run: npx playwright install --with-deps chromium
 

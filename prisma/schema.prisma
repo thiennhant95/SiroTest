@@ -21,6 +21,7 @@ model User {
   versions  TestVersion[]
   actions   Action[]
   members   ProjectMember[]
+  auditLogs AuditLog[]
 }
 
 model Project {
@@ -37,6 +38,9 @@ model Project {
   actions     Action[]
   files       FileAsset[]
   authProfiles AuthProfile[]
+  baselines   Baseline[]
+  healingProposals HealingProposal[]
+  auditLogs   AuditLog[]
   suites      TestSuite[]
   schedules   Schedule[]
   runs        Run[]
@@ -95,6 +99,8 @@ model Test {
   versions       TestVersion[]
   runs           Run[]
   suites         SuiteTest[]
+  baselines      Baseline[]
+  healingProposals HealingProposal[]
 }
 
 model TestVersion {
@@ -189,6 +195,73 @@ model Schedule {
   suite         TestSuite? @relation(fields: [suiteId], references: [id], onDelete: Cascade)
 }
 
+// P2 — visual regression baselines (screenshots under storage/baselines/).
+model Baseline {
+  id        String   @id @default(cuid())
+  projectId String
+  testId    String
+  name      String   // baseline name (unique per test)
+  path      String   // storage-relative path; never absolute server path to client
+  width     Int?
+  height    Int?
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  test      Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  @@unique([testId, name])
+}
+
+// P2 — explicit, reviewable locator healing proposals. A proposal is created
+// when a stored alternative locator succeeds where the primary failed; it
+// NEVER applies silently — a human approves (rewrites the step primary and
+// demotes the old primary to alternatives) or rejects it.
+model HealingProposal {
+  id          String   @id @default(cuid())
+  projectId   String
+  testId      String
+  stepId      String   // step id inside definition_json
+  runId       String   // evidence run
+  fromLocator String   // JSON of the failing primary candidate
+  toLocator   String   // JSON of the succeeding alternative candidate
+  evidence    String?  // JSON: { matchCount, preview, durationMs }
+  status      String   @default("pending") // pending | approved | rejected
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  decidedAt   DateTime?
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  test        Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+}
+
+// P2 — audit log (who did what, when). Written by mutating routes.
+model AuditLog {
+  id        String   @id @default(cuid())
+  projectId String?
+  userId    String?
+  action    String   // e.g. test.create, run.cancel, healing.approve
+  entityType String?
+  entityId  String?
+  details   String?  // JSON, redacted (never secrets)
+  createdAt DateTime @default(now())
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([projectId, createdAt])
+}
+
+// P2 — distributed worker registry (DB job-claim protocol, no extra infra).
+// The in-process queue stays the default; remote workers register, send
+// heartbeats and claim queued runs by worker id.
+model Worker {
+  id              String    @id @default(cuid())
+  name            String    @unique
+  status          String    @default("online") // online | draining | offline
+  capacity        Int       @default(2)
+  lastHeartbeatAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  runs            Run[]
+}
+
 model SuiteTest {
   suiteId   String
   testId    String
@@ -212,6 +285,8 @@ model Run {
   // P1 — data-driven: datasetId + rowIndex selected at trigger time.
   datasetId    String?
   rowIndex     Int?
+  // P2 — distributed worker that claimed the run (null = local in-process).
+  workerId     String?
   startedAt    DateTime?
   finishedAt   DateTime?
   durationMs   Int?
@@ -220,6 +295,7 @@ model Run {
   test         Test      @relation(fields: [testId], references: [id], onDelete: Cascade)
   environment  Environment? @relation(fields: [environmentId], references: [id], onDelete: SetNull)
   suite        TestSuite? @relation(fields: [suiteId], references: [id], onDelete: SetNull)
+  worker       Worker?   @relation(fields: [workerId], references: [id], onDelete: SetNull)
   steps        RunStep[]
   artifacts    Artifact[]
 }

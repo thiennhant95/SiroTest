@@ -319,6 +319,7 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
       triggeredBy: req.user!.id,
       retriesLeft: body.retries ?? 0,
       ...(body.profileId !== undefined ? { profileId: body.profileId } : {}),
+      ...(body.healWithAlternatives === true ? { healWithAlternatives: true as const } : {}),
     };
 
     if (body.parallel === 1) {

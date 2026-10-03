@@ -31,6 +31,30 @@ type CompileDataSet = NonNullable<TestDefinition['datasets']>[number];
 
 export const RUNNER_COMPILER_VERSION = 'p0-runner-1';
 
+/**
+ * P2 — visual regression + plugin steps (additive mirror of
+ * packages/playwright-compiler; this file keeps its own `[id]` title dialect
+ * and `(process.env[…] ?? '')` template shape, so P0 output is byte-identical
+ * when no P2 step is present).
+ *
+ * - `visualCheck` screenshots into the artifact dir and diffs via the
+ *   workdir helper `./vv-visual-compare.cjs` (pure self-written PNG codec,
+ *   see visual-compare.ts — no new dependency).
+ * - `plugin:<name>` steps call `./vv-plugins.cjs`, materialized from the
+ *   trusted registry; unknown types fail with PLUGIN_NOT_FOUND (compile time
+ *   when `opts.plugins` is passed, run time otherwise — never silent).
+ */
+export const VISUAL_DEFAULT_THRESHOLD = 0.05;
+
+/** P2 plugin step types are namespaced `plugin:<name>` (globally unique). */
+export const PLUGIN_STEP_PATTERN = /^plugin:[A-Za-z0-9][A-Za-z0-9_.-]*$/;
+
+/** Deterministic artifact filename (must match the package compiler exactly). */
+export function sanitizeVisualFileName(name: string): string {
+  const safe = String(name).replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 120);
+  return `visual-${safe.length > 0 ? safe : 'check'}.png`;
+}
+
 export class CompileError extends Error {
   readonly code = 'COMPILE_UNSUPPORTED_STEP';
   readonly stepId?: string;
@@ -143,6 +167,10 @@ function locatorExpr(target: TestStep['target'], stepId: string, pageVar = 'page
  *   secret values from logs/result JSON via redactSecrets.
  */
 function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string {
+  // P2 plugin steps dispatch before the literal switch (prefix-matched).
+  if (typeof step.type === 'string' && PLUGIN_STEP_PATTERN.test(step.type)) {
+    return pluginStepBody(step, pageVar);
+  }
   const loc = () => locatorExpr(step.target, step.id, pageVar);
   switch (step.type) {
     case 'goto':
@@ -205,6 +233,8 @@ function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string
       return `await expect(${loc()}).toBeChecked();`;
     case 'screenshot':
       return `await ${pageVar}.screenshot({ path: require('node:path').join(__dirname, '..', 'screenshots', ${esc(`${step.id}.png`)}), fullPage: ${step.fullPage ? 'true' : 'false'} });`;
+    case 'visualCheck':
+      return visualCheckBody(step, pageVar);
     case 'upload': {
       if (!step.fileId) throw new CompileError(step.id, `Step '${step.id}': upload requires fileId`);
       const rec = step as unknown as Record<string, unknown>;
@@ -278,6 +308,90 @@ function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string
       throw new CompileError(step.id, `Step '${step.id}': callAction needs an actions context — pass { actions } to compileSpec() so the callee body can be inlined explicitly`);
     default:
       throw new CompileError(step.id, `Step '${step.id}': unsupported step type '${step.type}' — failing compilation, never silently skipping`);
+  }
+}
+
+/** P2 visual regression: screenshot into the artifact dir, then diff via the workdir helper. */
+function visualCheckBody(step: TestStep, pageVar: string): string {
+  const rec = step as unknown as Record<string, unknown>;
+  const name = rec['name'];
+  if (typeof name !== 'string' || name.length === 0 || name.length > 200) {
+    throw new CompileError(step.id, `Step '${step.id}': visualCheck requires name (1-200 chars)`);
+  }
+  const thresholdRaw = rec['threshold'];
+  const threshold = thresholdRaw === undefined ? VISUAL_DEFAULT_THRESHOLD : thresholdRaw;
+  if (typeof threshold !== 'number' || !Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
+    throw new CompileError(step.id, `Step '${step.id}': visualCheck threshold must be a number in [0, 1]`);
+  }
+  const fileName = sanitizeVisualFileName(name);
+  const target = rec['target'] as TestStep['target'] | undefined;
+  const shotTarget = target ? locatorExpr(target, step.id, pageVar) : pageVar;
+  if (target && !target.primary) {
+    throw new CompileError(step.id, `Step '${step.id}': visualCheck requires target.primary`);
+  }
+  return [
+    `const vvVisualPath = require('node:path').join(process.env.RUN_ARTIFACT_DIR ?? '.', 'screenshots', ${esc(fileName)});`,
+    `await ${shotTarget}.screenshot({ path: vvVisualPath });`,
+    `await require('./vv-visual-compare.cjs').compareVisualFromEnv({ name: ${esc(name)}, actualPath: vvVisualPath, threshold: ${JSON.stringify(threshold)} });`,
+  ].join('\n');
+}
+
+/** P2 plugin step: call the registered helper with templated string params. */
+function pluginStepBody(step: TestStep, pageVar: string): string {
+  const rec = step as unknown as Record<string, unknown>;
+  const rawParams = rec['params'];
+  let params: Record<string, string>;
+  if (rawParams === undefined) {
+    params = {};
+  } else if (rawParams && typeof rawParams === 'object' && !Array.isArray(rawParams)) {
+    params = {};
+    for (const [k, v] of Object.entries(rawParams as Record<string, unknown>)) {
+      if (typeof v !== 'string') {
+        throw new CompileError(step.id, `Step '${step.id}': ${step.type} param '${k}' must be a string (use {{VARIABLE}} for secrets)`);
+      }
+      params[k] = v;
+    }
+  } else {
+    throw new CompileError(step.id, `Step '${step.id}': ${step.type} params must be a record of strings`);
+  }
+  const entries = Object.entries(params).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const paramsExpr = `{ ${entries.map(([k, v]) => `${esc(k)}: ${templateExpr(v, `params.${k}`, step.id)}`).join(', ')} }`;
+  return `await require('./vv-plugins.cjs').runPluginStep(${esc(step.type)}, ${paramsExpr}, ${pageVar}, { stepId: ${esc(step.id)} });`;
+}
+
+/**
+ * Fail fast for plugin steps when the registry snapshot is available
+ * (mirror of the package compiler's assertPluginStep): unknown type ->
+ * PLUGIN_NOT_FOUND; missing required param / plaintext secret literal ->
+ * CompileError. Without the snapshot these move to the run-time helper.
+ */
+export interface PluginCompileInfo {
+  schema?: {
+    required?: string[];
+    properties?: Record<string, { type: string; maxLength?: number; default?: string; secret?: boolean }>;
+  };
+}
+
+function assertPluginStep(step: TestStep, plugins?: Record<string, PluginCompileInfo>): void {
+  if (!plugins) return;
+  const info = Object.prototype.hasOwnProperty.call(plugins, step.type) ? plugins[step.type] : undefined;
+  if (!info) {
+    throw new CompileError(step.id, `Step '${step.id}': PLUGIN_NOT_FOUND — plugin step '${step.type}' is not registered (install under PLUGINS_DIR, enable with ALLOW_PLUGINS=1 after Developer/Admin review)`);
+  }
+  const schema = info.schema;
+  if (!schema) return;
+  const raw = (step as unknown as Record<string, unknown>)['params'];
+  const params = (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>;
+  for (const req of schema.required ?? []) {
+    if (typeof params[req] !== 'string') {
+      throw new CompileError(step.id, `Step '${step.id}': ${step.type} is missing required param '${req}'`);
+    }
+  }
+  for (const [k, decl] of Object.entries(schema.properties ?? {})) {
+    const v = params[k];
+    if (typeof v === 'string' && decl.secret === true && findTemplateVars(v).length === 0) {
+      throw new CompileError(step.id, `Step '${step.id}': ${step.type} secret param '${k}' must be a {{VARIABLE}} reference so the secret is resolved at run time, never inlined`);
+    }
   }
 }
 
@@ -505,7 +619,7 @@ function emitCallAction(
 /** Deterministic spec source for one enabled-steps test. Disabled steps are omitted (reporter marks them skipped). */
 export function compileSpec(
   test: TestDefinition,
-  opts?: { testTimeoutMs?: number; datasetId?: string; actions?: ActionsContext },
+  opts?: { testTimeoutMs?: number; datasetId?: string; actions?: ActionsContext; plugins?: Record<string, PluginCompileInfo> },
 ): string {
   const dataset = resolveCompileDataset(test, opts?.datasetId);
   const enabled = test.steps.filter((s) => s.enabled);
@@ -576,6 +690,11 @@ export function compileSpec(
       lines.push(...emitCallAction(step, action, `${pad}  `, dataset !== undefined, pageStack[pageStack.length - 1]));
       continue;
     }
+    // P2 plugin fail-fast when the registry snapshot is available (otherwise
+    // the workdir helper throws PLUGIN_NOT_FOUND at run time — never silent).
+    if (typeof step.type === 'string' && PLUGIN_STEP_PATTERN.test(step.type)) {
+      assertPluginStep(step, opts?.plugins);
+    }
     emitTopLevel(step, stepBody(step, pageStack[pageStack.length - 1]));
   }
   if (dataset) lines.push(`  }`);
@@ -608,7 +727,7 @@ function resolveCompileDataset(
 
 /** Interpolated fields share the canonical compiler's INTERPOLATED_FIELDS set. */
 function assertNoRowRefs(test: TestDefinition): void {
-  const fields = ['url', 'value', 'key', 'expected', 'pattern', 'body', 'headers', 'promptText'] as const;
+  const fields = ['url', 'value', 'key', 'expected', 'pattern', 'body', 'headers', 'promptText', 'params'] as const;
   const walk = (v: unknown): boolean => {
     if (typeof v === 'string') return findRowRefs(v).length > 0;
     if (Array.isArray(v)) return v.some(walk);
