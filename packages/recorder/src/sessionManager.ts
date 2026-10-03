@@ -6,10 +6,11 @@
 import { nanoid } from 'nanoid';
 import { captureBridgeEvent } from './capture.js';
 import { StepNormalizer } from './normalize.js';
+import type { RecorderBrowser } from './browser.js';
 import type { BridgeEvent, CapturedStep, RecorderSession } from './types.js';
 
 export interface SessionEvents {
-  onEvent?: (evt: { type: string; session: RecorderSession; step?: CapturedStep }) => void;
+  onEvent?: (evt: { type: string; session: RecorderSession; step?: CapturedStep; data?: unknown }) => void;
 }
 
 export interface StartParams {
@@ -24,6 +25,8 @@ export class RecorderSessionManager {
   /** key `${userId}:${testId}` -> session (P0 single-session rule) */
   private sessions = new Map<string, RecorderSession>();
   private normalizers = new Map<string, StepNormalizer>();
+  /** Live browser refs (never serialized into RecorderSession/WS payloads). */
+  private browsers = new Map<string, RecorderBrowser>();
   private events: SessionEvents;
 
   constructor(events: SessionEvents = {}) {
@@ -102,6 +105,7 @@ export class RecorderSessionManager {
     this.events.onEvent?.({ type: 'recorder.stopped', session: s });
     this.sessions.delete(this.key(s.userId, s.testId));
     this.normalizers.delete(sessionId);
+    void this.closeBrowser(sessionId, 'session-stopped');
     return s;
   }
 
@@ -114,6 +118,54 @@ export class RecorderSessionManager {
     s.interruptReason = reason;
     s.updatedAt = Date.now();
     this.events.onEvent?.({ type: 'recorder.interrupted', session: s });
+    // Release the browser handle too (a dead-but-lingering Chromium child
+    // keeps the host process alive forever — the classic suite hang).
+    void this.closeBrowser(sessionId, reason);
+    return s;
+  }
+
+  // ------------------------------------------------------- live browser ---
+
+  /** Attach a launched browser to a session (refs stay out of payloads). */
+  attachBrowser(sessionId: string, browser: RecorderBrowser): void {
+    this.require(sessionId);
+    this.browsers.set(sessionId, browser);
+  }
+
+  getBrowser(sessionId: string): RecorderBrowser | undefined {
+    return this.browsers.get(sessionId);
+  }
+
+  /**
+   * Steps finalized so far PLUS the trailing pending step still held by the
+   * normalizer for collapse (e.g. a click awaiting a possible fill). Live UIs
+   * should render both; persistence only ever stores flushed steps.
+   */
+  pendingSteps(sessionId: string): CapturedStep[] {
+    return [...(this.normalizers.get(sessionId)?.draft ?? [])];
+  }
+
+  hasLiveBrowser(sessionId: string): boolean {
+    return this.browsers.has(sessionId);
+  }
+
+  async closeBrowser(sessionId: string, reason = 'session-stopped'): Promise<void> {
+    const b = this.browsers.get(sessionId);
+    this.browsers.delete(sessionId);
+    if (b) await b.close(reason).catch(() => undefined);
+  }
+
+  /**
+   * Complete a pick-mode click: resolve candidates (already done by the
+   * caller), turn pick mode off and emit `recorder.locatorPicked` with the
+   * picked locator payload. Emits a step only in assertion flow via
+   * addAssertion (caller decides).
+   */
+  completePick(sessionId: string, picked: { candidate: unknown; alternatives?: unknown[]; preview?: string }): RecorderSession {
+    const s = this.require(sessionId);
+    s.pickMode = 'off';
+    s.updatedAt = Date.now();
+    this.events.onEvent?.({ type: 'recorder.locatorPicked', session: s, data: picked });
     return s;
   }
 
@@ -146,6 +198,19 @@ export class RecorderSessionManager {
 
   /** Main ingest path from WS bridge messages. */
   ingest(sessionId: string, raw: unknown): CapturedStep | null {
+    return this.ingestResolved(sessionId, raw, undefined);
+  }
+
+  /**
+   * Ingest with an optional server-resolved locator (live-browser path).
+   * The locator is attached to the finalized CapturedStep as
+   * `{ primary, alternatives }` for TestDefinition persistence.
+   */
+  ingestResolved(
+    sessionId: string,
+    raw: unknown,
+    locator?: { primary: unknown; alternatives?: unknown[] },
+  ): CapturedStep | null {
     const s = this.require(sessionId);
     if (s.status === 'stopped' || s.status === 'interrupted') return null;
     if (s.status === 'paused') {
@@ -156,6 +221,7 @@ export class RecorderSessionManager {
       includeHover: s.includeHover,
     });
     if (!captured) return null;
+    if (locator) captured.locator = { primary: locator.primary, alternatives: locator.alternatives ?? [] };
     const norm = this.normalizers.get(sessionId) ?? new StepNormalizer();
     this.normalizers.set(sessionId, norm);
     const finalized = norm.push(captured);

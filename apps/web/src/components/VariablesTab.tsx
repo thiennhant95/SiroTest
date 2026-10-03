@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { api, type Variable } from '../lib/api';
+import { ApiError, api, type Variable } from '../lib/api';
 import { interpolatePreview, codePreviewFor, secretKeysOf, SECRET_MASK } from '../lib/variables';
-import { DataTable } from './ui';
+import { Button, DataTable, Dialog, Field, Input, useToast } from './ui';
 
 interface Props {
   projectId: string;
@@ -18,12 +18,18 @@ interface Props {
  * CRUD, secret badge, password input, interpolate preview + redacted code preview.
  */
 export function VariablesTab({ projectId, envId, envName, variables, onChanged, onSecretTyped }: Props) {
+  const toast = useToast();
   const [key, setKey] = useState('');
   const [value, setValue] = useState('');
   const [isSecret, setIsSecret] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [sample, setSample] = useState('{{BASE_URL}}/login — user {{USERNAME}}');
+  // Inline edit (Dialog pattern from ProfilesPage): value-only, secrets stay write-only.
+  const [editing, setEditing] = useState<Variable | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [editError, setEditError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const scoped = useMemo(
     () => variables.filter((v) => v.environmentId === envId || v.environmentId === null),
@@ -51,6 +57,33 @@ export function VariablesTab({ projectId, envId, envName, variables, onChanged, 
     if (!confirm('Delete this variable?')) return;
     await api.del(`/variables/${id}`);
     onChanged();
+  }
+
+  function openEdit(v: Variable) {
+    setEditing(v);
+    // Secrets are write-only: never prefill plaintext (server masks them as null).
+    setEditValue(v.isSecret ? '' : (v.value ?? ''));
+    setEditError('');
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+    setSaving(true);
+    setEditError('');
+    try {
+      await api.patch(`/variables/${editing.id}`, { value: editValue });
+      // Secret plaintext must not linger: report for log-redaction, then clear.
+      if (editing.isSecret && editValue) onSecretTyped?.(editValue);
+      setEditing(null);
+      setEditValue('');
+      toast.push('success', `Đã lưu biến “${editing.key}”.`);
+      onChanged();
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : 'Lưu thất bại';
+      setEditError(msg);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -81,10 +114,41 @@ export function VariablesTab({ projectId, envId, envName, variables, onChanged, 
           },
           {
             key: 'id', header: '',
-            render: (v) => <button type="button" onClick={() => void remove(v.id)}>Delete</button>,
+            render: (v) => (
+              <span style={{ display: 'flex', gap: 8 }}>
+                <button type="button" onClick={() => openEdit(v)}>Edit</button>
+                <button type="button" onClick={() => void remove(v.id)}>Delete</button>
+              </span>
+            ),
           },
         ]}
       />
+
+      <Dialog open={editing !== null} onClose={() => setEditing(null)} title={editing ? `Sửa biến “${editing.key}”` : 'Sửa biến'}>
+        <div className="space-y-3">
+          <Field
+            label={editing?.isSecret ? 'Giá trị secret mới (để trống = giữ nguyên)' : 'Giá trị'}
+            hint={editing?.isSecret ? 'Secret write-only — giá trị cũ không bao giờ hiện lại.' : undefined}
+          >
+            <Input
+              type={editing?.isSecret ? 'password' : 'text'}
+              autoComplete="off"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              placeholder={editing?.isSecret ? 'secret mới (không hiện lại)' : 'value'}
+            />
+          </Field>
+          {editError ? (
+            <p role="alert" className="text-xs text-red-700">{editError}</p>
+          ) : null}
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="outline" onClick={() => setEditing(null)}>Hủy</Button>
+            <Button size="sm" disabled={saving} onClick={() => void saveEdit()}>
+              {saving ? 'Đang lưu…' : 'Save'}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
 
       <h4>Add variable to {envName || 'selected environment'}</h4>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>

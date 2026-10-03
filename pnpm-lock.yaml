@@ -185,9 +185,15 @@ importers:
 
   packages/recorder:
     dependencies:
+      '@playwright-vv/locator-engine':
+        specifier: workspace:*
+        version: link:../locator-engine
       nanoid:
         specifier: ^5.0.0
         version: 5.1.16
+      playwright-core:
+        specifier: ^1.63.0
+        version: 1.63.0
     devDependencies:
       typescript:
         specifier: ^5.5.0

@@ -29,7 +29,7 @@ import type { LocatorCandidate, TestStep } from './types.js';
 
 /** WS event name for a healing proposal discovered post-failure. */
 /* eslint-disable @typescript-eslint/naming-convention -- event contract */
-export const STEP_HEALED_EVENT = 'step.healed';
+export const STEP_HEALED_EVENT = 'step.healed' as const;
 /* eslint-enable @typescript-eslint/naming-convention */
 
 /**

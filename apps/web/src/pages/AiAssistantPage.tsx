@@ -1,18 +1,12 @@
 /**
- * AiAssistantPage — P2 AI assistant (3 tabs). NEW file; App.tsx/BuilderPage.tsx untouched.
- *
- * WIRING CONTRACT (for a follow-up change owned by the UI agent):
- *   // apps/web/src/App.tsx (add ONE line, no other edits):
- *   import { AiAssistantPage } from "./pages/AiAssistantPage";
- *   <Route path="/projects/:id/ai" element={<RequireAuth><AiAssistantPage /></RequireAuth>} />
- *
- *   // Deep-link from BuilderPage (optional, no edits required here):
- *   // <AiAssistantPage testId={testId} onInsertSteps={(steps) => insertAtCursor(steps)} />
+ * AiAssistantPage — P2 AI assistant (3 tabs). Wired in App.tsx at
+ * `/projects/:id/ai`, and embeddable in BuilderPage with `testId` +
+ * `onInsertSteps` (insert previewed steps at the cursor).
  *
  * PROPS CONTRACT:
  *   onInsertSteps?: (steps) => void — Builder passes a callback that inserts
- *     previewed steps at the cursor. When omitted, the "Chèn vào Builder"
- *     buttons render disabled with an explanatory tooltip (preview-only mode).
+ *     previewed steps at the cursor. When omitted (standalone route), the
+ *     "Chèn vào Builder" buttons are HIDDEN (preview-only mode).
  *   testId?: string — pre-fills the cleanup tab (cleanup-by-test).
  *   runId?: string  — pre-fills the explain tab (explain-by-run).
  *   initialTab?: 'compose' | 'explain' | 'cleanup'.
@@ -40,7 +34,7 @@ import {
   type ExplainResponse,
   type NlToStepsResponse,
 } from "../api/ai";
-import { ApiError } from "../lib/api";
+import { ApiError, isNotImplemented } from "../lib/api";
 
 export type AiTab = "compose" | "explain" | "cleanup";
 
@@ -101,13 +95,17 @@ function ComposeTab({ onInsertSteps }: { onInsertSteps?: (steps: AiStep[]) => vo
   const [text, setText] = useState('Mở trang https://example.com\nNhấn nút "Login"');
   const [result, setResult] = useState<NlToStepsResponse | null>(null);
   const [error, setError] = useState("");
+  const [unsupported, setUnsupported] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const run = async () => {
-    setLoading(true); setError("");
+    setLoading(true); setError(""); setUnsupported(false);
     try {
       setResult(await aiApi.nlToSteps(text));
-    } catch (e) { setError(errMsg(e)); } finally { setLoading(false); }
+    } catch (e) {
+      if (isNotImplemented(e)) setUnsupported(true);
+      else setError(errMsg(e));
+    } finally { setLoading(false); }
   };
 
   return (
@@ -118,7 +116,14 @@ function ComposeTab({ onInsertSteps }: { onInsertSteps?: (steps: AiStep[]) => vo
       <Button onClick={run} disabled={loading || text.trim().length === 0}>
         {loading ? "Đang tạo…" : "Tạo steps"}
       </Button>
-      {error ? <ErrorState message={error} onRetry={run} /> : null}
+      {unsupported ? (
+        <EmptyState
+          title="Backend chưa hỗ trợ AI (API 404)"
+          hint="UI đã sẵn sàng theo contract POST /ai/nl-to-steps. Đợi backend P2 rồi thử lại."
+        />
+      ) : error ? (
+        <ErrorState message={error} onRetry={run} />
+      ) : null}
       {result ? (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
@@ -143,15 +148,25 @@ function ComposeTab({ onInsertSteps }: { onInsertSteps?: (steps: AiStep[]) => vo
               </ul>
             </div>
           ) : null}
-          <Button
-            variant="secondary"
-            disabled={!onInsertSteps || result.steps.length === 0}
-            title={onInsertSteps ? "Chèn steps vào Builder" : "Chưa wire với Builder — xem contract ở đầu file (prop onInsertSteps)"}
-            onClick={() => onInsertSteps?.(result.steps)}
-          >
-            Chèn vào Builder
-          </Button>
+          {onInsertSteps ? (
+            <Button
+              variant="secondary"
+              disabled={result.steps.length === 0}
+              onClick={() => onInsertSteps(result.steps)}
+            >
+              Chèn vào Builder
+            </Button>
+          ) : (
+            <p className="text-[11px] text-slate-500">
+              Preview-only — mở từ Builder để chèn steps trực tiếp.
+            </p>
+          )}
         </div>
+      ) : null}
+      {!onInsertSteps && !result ? (
+        <p className="text-[11px] text-slate-500">
+          Preview-only — mở từ Builder để chèn steps trực tiếp.
+        </p>
       ) : null}
     </div>
   );
@@ -165,17 +180,21 @@ function ExplainTab({ initialRunId }: { initialRunId?: string }) {
   const [stepType, setStepType] = useState("");
   const [result, setResult] = useState<ExplainResponse | null>(null);
   const [error, setError] = useState("");
+  const [unsupported, setUnsupported] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const run = async () => {
-    setLoading(true); setError("");
+    setLoading(true); setError(""); setUnsupported(false);
     try {
       setResult(await aiApi.explain({
         ...(runId.trim() ? { runId: runId.trim() } : {}),
         ...(errorText.trim() ? { errorSummary: errorText.trim() } : {}),
         ...(stepType.trim() ? { stepType: stepType.trim() } : {}),
       }));
-    } catch (e) { setError(errMsg(e)); } finally { setLoading(false); }
+    } catch (e) {
+      if (isNotImplemented(e)) setUnsupported(true);
+      else setError(errMsg(e));
+    } finally { setLoading(false); }
   };
 
   const exp = result?.explanation ?? null;
@@ -194,7 +213,14 @@ function ExplainTab({ initialRunId }: { initialRunId?: string }) {
       <Button onClick={run} disabled={loading || (!runId.trim() && !errorText.trim())}>
         {loading ? "Đang phân tích…" : "Giải thích lỗi"}
       </Button>
-      {error ? <ErrorState message={error} onRetry={run} /> : null}
+      {unsupported ? (
+        <EmptyState
+          title="Backend chưa hỗ trợ AI (API 404)"
+          hint="UI đã sẵn sàng theo contract POST /ai/explain. Đợi backend P2 rồi thử lại."
+        />
+      ) : error ? (
+        <ErrorState message={error} onRetry={run} />
+      ) : null}
       {result && exp ? (
         <div className="space-y-3 rounded-lg border border-slate-200 p-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -229,10 +255,11 @@ function CleanupTab({ testId, onInsertSteps }: { testId?: string; onInsertSteps?
   const [useTest, setUseTest] = useState(Boolean(testId));
   const [result, setResult] = useState<CleanupResponse | null>(null);
   const [error, setError] = useState("");
+  const [unsupported, setUnsupported] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const run = async () => {
-    setLoading(true); setError("");
+    setLoading(true); setError(""); setUnsupported(false);
     try {
       if (useTest) {
         if (!tid.trim()) throw new Error("Nhập testId.");
@@ -242,7 +269,10 @@ function CleanupTab({ testId, onInsertSteps }: { testId?: string; onInsertSteps?
         if (!Array.isArray(parsed)) throw new Error("JSON phải là mảng steps.");
         setResult(await aiApi.cleanupBySteps(parsed));
       }
-    } catch (e) { setError(errMsg(e)); } finally { setLoading(false); }
+    } catch (e) {
+      if (isNotImplemented(e)) setUnsupported(true);
+      else setError(errMsg(e));
+    } finally { setLoading(false); }
   };
 
   return (
@@ -261,7 +291,14 @@ function CleanupTab({ testId, onInsertSteps }: { testId?: string; onInsertSteps?
         </Field>
       )}
       <Button onClick={run} disabled={loading}>{loading ? "Đang dọn…" : "Dọn recording"}</Button>
-      {error ? <ErrorState message={error} onRetry={run} /> : null}
+      {unsupported ? (
+        <EmptyState
+          title="Backend chưa hỗ trợ AI (API 404)"
+          hint="UI đã sẵn sàng theo contract POST /ai/cleanup. Đợi backend P2 rồi thử lại."
+        />
+      ) : error ? (
+        <ErrorState message={error} onRetry={run} />
+      ) : null}
       {result ? (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
@@ -288,14 +325,19 @@ function CleanupTab({ testId, onInsertSteps }: { testId?: string; onInsertSteps?
             rows={result.steps}
             emptyText="Không còn step nào."
           />
-          <Button
-            variant="secondary"
-            disabled={!onInsertSteps || result.steps.length === 0}
-            title={onInsertSteps ? "Đưa steps đã dọn vào Builder (bạn vẫn phải Save)" : "Chưa wire với Builder — xem contract ở đầu file (prop onInsertSteps)"}
-            onClick={() => onInsertSteps?.(result.steps)}
-          >
-            Đưa vào Builder
-          </Button>
+          {onInsertSteps ? (
+            <Button
+              variant="secondary"
+              disabled={result.steps.length === 0}
+              onClick={() => onInsertSteps(result.steps)}
+            >
+              Đưa vào Builder
+            </Button>
+          ) : (
+            <p className="text-[11px] text-slate-500">
+              Preview-only — mở từ Builder để chèn steps trực tiếp.
+            </p>
+          )}
         </div>
       ) : null}
     </div>

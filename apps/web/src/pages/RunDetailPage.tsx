@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, traceViewerUrl } from "../api/client";
+import { ApiError, api as studioApi } from "../lib/api";
 import { useRunChannel } from "../hooks/useRunChannel";
 import { locatorPreview, type BuilderStep } from "../lib/steps";
 import { sampleRun } from "../mocks/sampleRun";
 import type { RunDetail, UserRole } from "../types";
 import { formatDuration, formatTime, shortError } from "../lib/format";
-import { EmptyState, ErrorState, RoleSwitch, RunStatusBadge, Skeleton } from "../components/ui";
-import { useToast } from "../components/Toast";
+import { EmptyState, ErrorState, RoleSwitch, RunStatusBadge, Skeleton, useToast } from "../components/ui";
 
 function useRun(runId: string) {
   const [run, setRun] = useState<RunDetail | null>(null);
@@ -40,13 +40,14 @@ function useRun(runId: string) {
 }
 
 export function RunDetailPage({ runId }: { runId: string }) {  const { run, loading, error, reload } = useRun(runId);
-  const { notify } = useToast();
+  const toast = useToast();
   const [role, setRole] = useState<UserRole>(
     () => (localStorage.getItem("vv-role") as UserRole) || "tester",
   );
   const [showRaw, setShowRaw] = useState(false);
   const [rerunning, setRerunning] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [downloadingJUnit, setDownloadingJUnit] = useState(false);
   const [defSteps, setDefSteps] = useState<Map<string, BuilderStep>>(new Map());
 
   // Live WS subscription (08-api/websocket-events.md): informational only —
@@ -118,14 +119,14 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
     setCancelling(true);
     try {
       if (run.id === sampleRun.id) {
-        notify("Bản demo không gọi server (không hủy thật)");
+        toast.push("info", "Bản demo không gọi server (không hủy thật)");
       } else {
         await api.cancelRun(run.id);
-        notify("Đã gửi yêu cầu hủy run");
+        toast.push("success", "Đã gửi yêu cầu hủy run");
         await reload();
       }
     } catch (e) {
-      notify(e instanceof Error ? e.message : "Hủy run thất bại", "err");
+      toast.push("error", e instanceof Error ? e.message : "Hủy run thất bại");
     } finally {
       setCancelling(false);
     }
@@ -136,15 +137,31 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
     setRerunning(true);
     try {
       if (run.id === sampleRun.id) {
-        notify("Đã xếp hàng chạy lại bản demo (không gọi server)");
+        toast.push("info", "Đã xếp hàng chạy lại bản demo (không gọi server)");
       } else {
         await api.rerun(run.testId, run.environmentId ?? "env_staging", run.browser);
-        notify("Đã chạy lại — xem tiến trình ở tab Lượt chạy");
+        toast.push("success", "Đã chạy lại — xem tiến trình ở tab Lượt chạy");
       }
     } catch (e) {
-      notify(e instanceof Error ? e.message : "Chạy lại thất bại", "err");
+      toast.push("error", e instanceof Error ? e.message : "Chạy lại thất bại");
     } finally {
       setRerunning(false);
+    }
+  };
+
+  const downloadJUnit = async () => {
+    if (!run || run.id === sampleRun.id) {
+      toast.push("info", "Bản demo không có JUnit trên server");
+      return;
+    }
+    setDownloadingJUnit(true);
+    try {
+      await studioApi.downloadJUnit("run", run.id);
+      toast.push("success", "Đã tải JUnit XML.");
+    } catch (e) {
+      toast.push("error", e instanceof ApiError ? e.message : "Tải JUnit thất bại");
+    } finally {
+      setDownloadingJUnit(false);
     }
   };
 
@@ -272,6 +289,11 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
                 />
               </summary>
               <div className="step-body">
+                <StepTypeDetail
+                  stepId={s.stepId}
+                  def={s.stepId ? defSteps.get(s.stepId) : undefined}
+                  testId={run.testId}
+                />
                 {s.error ? (
                   <>
                     <p>
@@ -389,14 +411,99 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
         <button type="button" className="btn" onClick={() => void reload()}>
           Tải lại kết quả
         </button>
+        <button
+          type="button"
+          className="btn"
+          disabled={downloadingJUnit || run.status === "running" || run.status === "queued"}
+          onClick={() => void downloadJUnit()}
+        >
+          {downloadingJUnit ? "Đang tải JUnit…" : "⬇ JUnit XML"}
+        </button>
       </div>
     </section>
   );
 }
 
+/**
+ * Per-type step summary from the stored definition (generic fallback when
+ * the type has no dedicated branch). Rendered for every timeline row —
+ * failed or passed — so reviewers see method+URL, thresholds, file names…
+ * without opening the Builder.
+ */
+function StepTypeDetail({ stepId, def, testId }: { stepId?: string; def?: BuilderStep; testId: string }) {
+  if (!def) {
+    return (
+      <p className="muted small">
+        {stepId ? <>Step <code>{stepId}</code> không còn trong definition hiện tại.</> : "Không rõ step definition."}
+      </p>
+    );
+  }
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  switch (def.type) {
+    case "download": {
+      const url = str(def.url);
+      const saveAs = str(def.saveAs);
+      return (
+        <p className="muted small">
+          Download {url ? <>từ <code>{url}</code></> : "qua click + chờ sự kiện download"}
+          {saveAs ? <> → artifact <code>{saveAs}</code> (mục Bằng chứng bên dưới)</> : null}.
+        </p>
+      );
+    }
+    case "apiRequest": {
+      const method = str(def.method) || "GET";
+      const url = str(def.url) || "(chưa nhập URL)";
+      const exp = typeof def.expectedStatus === "number" ? def.expectedStatus : null;
+      const saveAs = str(def.saveAs);
+      return (
+        <p className="muted small">
+          <code>{method}</code> <code>{url}</code>
+          {exp !== null ? <> · expect status <code>{exp}</code></> : null}
+          {saveAs ? <> · lưu response vào <code>{saveAs}</code></> : null}.
+        </p>
+      );
+    }
+    case "visualCheck": {
+      const name = str(def.name) || "(chưa đặt tên)";
+      const threshold = typeof def.threshold === "number" ? def.threshold : 0.05;
+      return (
+        <p className="muted small">
+          So với baseline <code>{name}</code> · ngưỡng {(threshold * 100).toFixed(1)}% ·{" "}
+          <Link to={`/tests/${testId}/visual`}>mở trang Visual</Link>.
+        </p>
+      );
+    }
+    case "upload": {
+      const fileId = str(def.fileId);
+      return (
+        <p className="muted small">
+          Upload file {fileId ? <><code>{fileId}</code> (file library)</> : "(chưa chọn file)"}.
+        </p>
+      );
+    }
+    case "newTab": {
+      const url = str(def.url);
+      return <p className="muted small">Mở tab mới{url ? <> → <code>{url}</code></> : null}; các step sau dùng tab này.</p>;
+    }
+    case "closeTab":
+      return <p className="muted small">Đóng tab hiện tại (lỗi explicit nếu là tab cuối).</p>;
+    case "handleDialog": {
+      const action = str(def.action) === "dismiss" ? "Dismiss" : "Accept";
+      const promptText = str(def.promptText);
+      return (
+        <p className="muted small">
+          Xử lý dialog kế tiếp: <code>{action}</code>
+          {promptText ? <> · nhập <code>{promptText}</code></> : null}.
+        </p>
+      );
+    }
+    default:
+      return null;
+  }
+}
+
 /** Router-bound wrapper for `/runs/:id` (keeps RunDetailPage prop-based for tests/mocks). */
-export function RunDetailRoute() {
-  const { id } = useParams();
+export function RunDetailRoute() {  const { id } = useParams();
   if (!id) {
     return (
       <section className="page">

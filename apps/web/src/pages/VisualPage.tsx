@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
+import { isNotFoundError } from "../lib/api";
 import {
   Button,
   EmptyState,
@@ -8,12 +9,11 @@ import {
   Field,
   Input,
   Skeleton,
+  useToast,
 } from "../components/ui";
 
 /**
- * P2 visual regression page (route contract: `/tests/:id/visual` — see the
- * registration snippet in the P2 handover; App.tsx is intentionally untouched
- * by this change).
+ * P2 visual regression page (`/tests/:id/visual`, wired in App.tsx).
  *
  * - Baselines list (metadata + baseline image, never server paths).
  * - Side-by-side baseline / actual / diff for a selected run (artifact images
@@ -112,9 +112,11 @@ function ArtifactImage({ runId, artifactId, label }: { runId: string; artifactId
 
 export function VisualPage() {
   const { id: testId } = useParams();
+  const toast = useToast();
   const [baselines, setBaselines] = useState<BaselineMeta[] | null>(null);
   const [steps, setSteps] = useState<VisualStepInfo[]>([]);
   const [error, setError] = useState("");
+  const [unsupported, setUnsupported] = useState(false);
   const [runId, setRunId] = useState("");
   const [promoteName, setPromoteName] = useState("");
   const [envId, setEnvId] = useState("");
@@ -126,8 +128,14 @@ export function VisualPage() {
   const load = useCallback(async () => {
     if (!testId) return;
     setError("");
+    setUnsupported(false);
     try {
       const res = await fetch(`${apiBase()}/tests/${testId}/baselines`, { headers: authHeaders() });
+      if (res.status === 404) {
+        setUnsupported(true);
+        setBaselines([]);
+        return;
+      }
       if (!res.ok) throw new Error(`Baselines HTTP ${res.status}`);
       setBaselines((await res.json()) as BaselineMeta[]);
       const test = await api.getTest(testId);
@@ -144,8 +152,13 @@ export function VisualPage() {
       }
       setSteps(found);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không tải được baselines");
-      setBaselines([]);
+      if (isNotFoundError(e)) {
+        setUnsupported(true);
+        setBaselines([]);
+      } else {
+        setError(e instanceof Error ? e.message : "Không tải được baselines");
+        setBaselines([]);
+      }
     }
   }, [testId]);
 
@@ -177,11 +190,15 @@ export function VisualPage() {
         body: JSON.stringify({ name: promoteName.trim(), runId: runId.trim() }),
       });
       if (!res.ok) throw new Error(`Promote HTTP ${res.status}: ${await res.text()}`);
-      setNotice(`Đã promote “${promoteName.trim()}” thành baseline.`);
+      const msg = `Đã promote “${promoteName.trim()}” thành baseline.`;
+      setNotice(msg);
+      toast.push("success", msg);
       setPromoteName("");
       await load();
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Promote thất bại");
+      const msg = e instanceof Error ? e.message : "Promote thất bại";
+      setNotice(msg);
+      toast.push("error", msg);
     } finally {
       setBusy(false);
     }
@@ -200,9 +217,13 @@ export function VisualPage() {
       if (!res.ok) throw new Error(`Visual run HTTP ${res.status}: ${await res.text()}`);
       const run = (await res.json()) as { id: string };
       setRunId(run.id);
-      setNotice(`Đã xếp hàng capture run ${run.id} — promote từng ảnh sau khi run PASS.`);
+      const msg = `Đã xếp hàng capture run ${run.id} — promote từng ảnh sau khi run PASS.`;
+      setNotice(msg);
+      toast.push("success", msg);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Trigger run thất bại");
+      const msg = e instanceof Error ? e.message : "Trigger run thất bại";
+      setNotice(msg);
+      toast.push("error", msg);
     } finally {
       setBusy(false);
     }
@@ -217,10 +238,14 @@ export function VisualPage() {
         { method: "DELETE", headers: authHeaders() },
       );
       if (!res.ok) throw new Error(`Delete HTTP ${res.status}`);
-      setNotice(`Đã xóa baseline “${name}”.`);
+      const msg = `Đã xóa baseline “${name}”.`;
+      setNotice(msg);
+      toast.push("success", msg);
       await load();
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Xóa thất bại");
+      const msg = e instanceof Error ? e.message : "Xóa thất bại";
+      setNotice(msg);
+      toast.push("error", msg);
     }
   }
 
@@ -248,7 +273,14 @@ export function VisualPage() {
         <Link to={testId ? `/tests/${testId}` : "/projects"}>← Về Builder</Link>
       </nav>
       <h1>Visual regression</h1>
-      {error && <ErrorState message={error} onRetry={() => void load()} />}
+      {unsupported ? (
+        <EmptyState
+          title="Backend chưa hỗ trợ visual baselines (API 404)"
+          hint="UI đã sẵn sàng theo contract GET /tests/:id/baselines. Đợi backend P2 rồi reload."
+        />
+      ) : error ? (
+        <ErrorState message={error} onRetry={() => void load()} />
+      ) : null}
       {notice && <p role="status">{notice}</p>}
 
       <h2>visualCheck steps (threshold từ definition)</h2>

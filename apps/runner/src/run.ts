@@ -102,6 +102,7 @@ export async function cancelRun(runId: string, deps: Pick<RunDependencies, 'stor
           durationMs: step.startedAt ? at - step.startedAt : 0,
           errorMessage: 'Cancelled by user',
         });
+        deps.publish(buildEvent('step.skipped', runId, { stepId: step.stepId, status: 'skipped' }));
       }
     }
     await deps.store.updateRun(runId, { status: 'cancelled', finishedAt: at });
@@ -549,7 +550,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
           if (!attempt) continue;
           healing.push(attempt);
           publish(
-            buildEvent(STEP_HEALED_EVENT as RunEventName, runId, {
+            buildEvent(STEP_HEALED_EVENT, runId, {
               stepId: attempt.stepId,
               status: 'failed',
               evidence: { fromLocator: attempt.fromLocator, ...attempt.evidence },

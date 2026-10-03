@@ -43,6 +43,8 @@ export interface BuilderDefinition {
   description?: string;
   browser: "chromium" | "firefox" | "webkit";
   baseUrl?: string;
+  /** P1 — free-form tags (filter in test list; PATCH definition.tags). */
+  tags?: string[];
   variables?: Record<string, string>;
   /** P1 — embedded data tables for data-driven runs (CSV/JSON import). */
   datasets?: BuilderDataSet[];
@@ -163,7 +165,45 @@ export const STEP_CATALOG: StepMeta[] = [
   { type: "closeTab", label: "Close tab", icon: "✕", group: "Navigation", description: "Đóng tab hiện tại", keywords: ["close tab", "đóng tab", "dong tab", "close", "window", "đóng"], hasTarget: false, make: () => ({}) },
   { type: "handleDialog", label: "Handle dialog", icon: "💬", group: "Utility", description: "Xử lý hộp thoại alert/confirm/prompt kế tiếp", keywords: ["dialog", "hộp thoại", "hop thoai", "alert", "confirm", "prompt", "accept", "dismiss", "popup"], hasTarget: false, make: () => ({ action: "accept" }) },
   { type: "apiRequest", label: "API request", icon: "🌐", group: "Utility", description: "Gọi HTTP API và kiểm tra status", keywords: ["api", "request", "http", "get", "post", "put", "patch", "delete", "rest", "gọi api", "goi api"], hasTarget: false, make: () => ({ method: "GET", url: "", expectedStatus: 200 }) },
+  // -- P2 visual regression (target OPTIONAL: whole viewport when omitted) --
+  { type: "visualCheck", label: "Visual check", icon: "📸", group: "Assertion", description: "So ảnh với baseline đã lưu", keywords: ["visual", "baseline", "regression", "screenshot", "compare", "so sánh", "ảnh", "giao diện", "hồi quy"], hasTarget: true, make: () => ({ name: "", threshold: 0.05 }) },
+  // -- P2 plugin step fallback (manual type; dynamic per-plugin entries come from GET /plugins) --
+  { type: "plugin:", label: "Plugin step…", icon: "🔌", group: "Utility", description: "Step từ plugin (nhập type đầy đủ plugin:…)", keywords: ["plugin", "custom", "extension", "sdk", "mở rộng"], hasTarget: false, make: () => ({ params: {} }) },
 ];
+
+/** A step type is plugin-provided when it uses the `plugin:` prefix. */
+export function isPluginStepType(type: string): boolean {
+  return type.startsWith("plugin:") && type.length > "plugin:".length;
+}
+
+/**
+ * Build dynamic catalog entries from GET /plugins metadata (PluginDocs shape).
+ * Unknown/custom types still work via the static `plugin:` fallback entry.
+ */
+export function pluginCatalogEntries(plugins: Array<{
+  name: string;
+  steps: Array<{ type: string; description?: string }>;
+}>): StepMeta[] {
+  return plugins.flatMap((p) =>
+    p.steps.map((s) => ({
+      type: s.type,
+      label: s.type,
+      icon: "🔌",
+      group: "Utility" as StepGroup,
+      description: s.description ?? `Plugin ${p.name}`,
+      keywords: ["plugin", p.name, s.type],
+      hasTarget: false,
+      make: () => ({ params: {} }),
+    })),
+  );
+}
+
+/** Create a step for an arbitrary (e.g. plugin:) type without a catalog entry. */
+export function createCustomStep(type: string): BuilderStep {
+  const t = type.trim();
+  if (!isPluginStepType(t)) throw new Error(`Unknown step type: ${type}`);
+  return { id: uid(), type: t, enabled: true, params: {} };
+}
 
 export const STEP_META: Record<string, StepMeta> = Object.fromEntries(
   STEP_CATALOG.map((m) => [m.type, m]),
@@ -293,8 +333,19 @@ export function businessName(step: BuilderStep): string {
       const u = typeof step.url === "string" ? step.url : "";
       return `${m} ${u || "(chưa nhập URL)"}`;
     }
+    case "visualCheck": {
+      const n = typeof step.name === "string" && step.name ? `“${step.name}”` : "(chưa đặt tên baseline)";
+      const th = typeof step.threshold === "number" ? ` · ${(step.threshold * 100).toFixed(1)}%` : "";
+      const scope = (step as { target?: unknown }).target ? ` · ${t}` : " · whole page";
+      return `Visual check ${n}${th}${scope}`;
+    }
     default:
-      return STEP_META[step.type]?.label ?? step.type;
+      if (isPluginStepType(step.type)) {
+        const params = step.params as Record<string, unknown> | undefined;
+        const n = params ? Object.keys(params).length : 0;
+        return `${step.type}${n > 0 ? ` (${n} param${n > 1 ? "s" : ""})` : ""}`;
+      }
+      return STEP_META[step.type]?.label ?? "Custom step";
   }
 }
 
@@ -469,9 +520,13 @@ export function toPlaywrightPreview(def: BuilderDefinition): string {
       case "screenshot":
         lines.push(`  await page.screenshot({ fullPage: ${s.fullPage ? "true" : "false"} });`);
         break;
-      case "callAction":
-        lines.push(`  // call action '${String(s.actionId ?? "")}' (inlined at compile time);`);
+      case "callAction": {
+        const aid = typeof s.actionId === "string" ? s.actionId : "";
+        const args = s.arguments as Record<string, unknown> | undefined;
+        const keys = args ? Object.keys(args) : [];
+        lines.push(`  // call action '${aid}' (inlined at compile time)${keys.length > 0 ? ` with ${keys.length} arg(s): ${keys.join(", ")}` : ""};`);
         break;
+      }
       case "upload":
         lines.push(`  await ${loc}.setInputFiles('${String(s.fileId ?? "").replace(/'/g, "\\'")}'); // file store id`);
         break;
@@ -499,13 +554,33 @@ export function toPlaywrightPreview(def: BuilderDefinition): string {
       }
       case "apiRequest": {
         const method = typeof s.method === "string" ? s.method : "GET";
-        const url = typeof s.url === "string" ? s.url : "";
-        const exp = typeof s.expectedStatus === "number" ? ` // expect ${s.expectedStatus}` : "";
-        lines.push(`  await request.${method.toLowerCase()}('${url.replace(/'/g, "\\'")}');${exp}`);
+        const url = typeof s.url === "string" ? s.url.replace(/'/g, "\\'") : "";
+        const headers = s.headers as Record<string, string> | undefined;
+        const headerEntries = headers ? Object.entries(headers) : [];
+        const body = typeof s.body === "string" && s.body ? `, data: ${JSON.stringify(s.body)}` : "";
+        const headerArg = headerEntries.length > 0 ? `, headers: ${JSON.stringify(Object.fromEntries(headerEntries))}` : "";
+        const exp = typeof s.expectedStatus === "number" ? s.expectedStatus : undefined;
+        const saveAs = typeof s.saveAs === "string" && s.saveAs ? s.saveAs : "";
+        lines.push(`  const resp = await request.${method.toLowerCase()}('${url}'${headerArg}${body});`);
+        if (exp !== undefined) lines.push(`  expect(resp.status()).toBe(${exp}); // fail explicit khi sai status`);
+        lines.push(`  ${saveAs ? `const ${saveAs} = await resp.text(); // run variable` : "await resp.text();"}`);
+        break;
+      }
+      case "visualCheck": {
+        const vname = typeof s.name === "string" && s.name ? s.name.replace(/'/g, "\\'") : "visual";
+        const threshold = typeof s.threshold === "number" ? s.threshold : 0.05;
+        const vloc = loc ? `${loc}` : "page";
+        lines.push(`  await expect(${vloc}).toHaveScreenshot('${vname}.png', { maxDiffPixelRatio: ${threshold} });`);
         break;
       }
       default:
-        lines.push(`  // unknown step: ${s.type}`);
+        if (typeof s.type === "string" && s.type.startsWith("plugin:")) {
+          const params = s.params as Record<string, unknown> | undefined;
+          lines.push(`  // ${s.type} is a server-side plugin step (ALLOW_PLUGINS=1) — no client preview;`);
+          lines.push(`  // executed by plugin code with params ${JSON.stringify(params ?? {})}.`);
+        } else {
+          lines.push(`  // unknown step: ${s.type}`);
+        }
     }
   }
   lines.push(`});`);

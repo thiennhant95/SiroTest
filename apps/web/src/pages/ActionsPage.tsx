@@ -22,7 +22,7 @@ import {
   type ActionParameter,
   type ActionRecord,
 } from "../lib/api";
-import { createStep, type BuilderStep } from "../lib/steps";
+import { createCustomStep, createStep, isPluginStepType, type BuilderStep } from "../lib/steps";
 
 /**
  * P1 reusable actions page (/projects/:id/actions).
@@ -106,14 +106,21 @@ export function ActionsPage() {
   };
 
   const addStep = (type: string) => {
-    const step = createStep(type) as unknown as ActionRecord["steps"][number];
+    let step: BuilderStep;
+    try {
+      step = createStep(type);
+    } catch {
+      if (!isPluginStepType(type)) throw new Error(`Unknown step type: ${type}`);
+      step = createCustomStep(type);
+    }
+    const typed = step as unknown as ActionRecord["steps"][number];
     updateSteps((steps) => {
-      if (insertAt == null) return [...steps, step];
+      if (insertAt == null) return [...steps, typed];
       const next = [...steps];
-      next.splice(Math.max(0, Math.min(insertAt, next.length)), 0, step);
+      next.splice(Math.max(0, Math.min(insertAt, next.length)), 0, typed);
       return next;
     });
-    setSelectedStepId(step.id);
+    setSelectedStepId(typed.id);
     setPaletteOpen(false);
     setInsertAt(null);
   };

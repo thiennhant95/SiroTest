@@ -212,6 +212,9 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
           where: { id: s.id },
           data: { status: 'skipped', finishedAt: now, errorMessage: s.errorMessage ?? 'Cancelled by user' },
         });
+        // Live clients track per-step progress: tell them this step settled
+        // as skipped (DB stays authoritative — clients refetch on run.cancelled).
+        broadcast('step.skipped', id, { stepId: s.stepId, status: 'skipped' });
       }
     }
     const updated = await db().run.update({

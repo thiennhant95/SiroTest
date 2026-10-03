@@ -315,10 +315,10 @@ export const api = {
     day6req<Environment[]>(`/projects/${projectId}/environments`),
   listVariables: (projectId: string) =>
     day6req<Variable[]>(`/projects/${projectId}/variables`),
-  createRun: (testId: string, opts: { environmentId: string; browser?: string; headed?: boolean; datasetId?: string; rowIndex?: number }) =>
+  createRun: (testId: string, opts: { environmentId: string; browser?: string; headed?: boolean; datasetId?: string; rowIndex?: number; profileId?: string; healWithAlternatives?: boolean }) =>
     day6req<{ id: string; status: string }>(`/tests/${testId}/runs`, {
       method: "POST",
-      body: JSON.stringify({ environmentId: opts.environmentId, browser: opts.browser ?? "chromium", headed: opts.headed ?? false, ...(opts.datasetId ? { datasetId: opts.datasetId } : {}), ...(opts.rowIndex !== undefined ? { rowIndex: opts.rowIndex } : {}) }),
+      body: JSON.stringify({ environmentId: opts.environmentId, browser: opts.browser ?? "chromium", headed: opts.headed ?? false, ...(opts.datasetId ? { datasetId: opts.datasetId } : {}), ...(opts.rowIndex !== undefined ? { rowIndex: opts.rowIndex } : {}), ...(opts.profileId ? { profileId: opts.profileId } : {}), ...(opts.healWithAlternatives === true ? { healWithAlternatives: true } : {}) }),
     }),
   /* P1 datasets (definition-embedded): import CSV/JSON text, delete a table. */
   importDataset: (testId: string, payload: { format: "csv" | "json"; name?: string; content: string }) =>
@@ -393,7 +393,7 @@ export const api = {
     day6req<Array<{ tag: string; count: number }>>(`/projects/${projectId}/tags`),
   runSuite: (
     suiteId: string,
-    opts: { environmentId: string; browser?: string; headed?: boolean; retries?: number; parallel?: number; profileId?: string },
+    opts: { environmentId: string; browser?: string; headed?: boolean; retries?: number; parallel?: number; profileId?: string; healWithAlternatives?: boolean },
   ) =>
     day6req<{ suiteRunId: string; runs?: Array<{ id: string; testId: string }> }>(
       `/suites/${suiteId}/runs`,
@@ -406,6 +406,7 @@ export const api = {
           retries: opts.retries ?? 0,
           parallel: opts.parallel ?? 2,
           ...(opts.profileId ? { profileId: opts.profileId } : {}),
+          ...(opts.healWithAlternatives === true ? { healWithAlternatives: true } : {}),
         }),
       },
     ),
@@ -610,6 +611,8 @@ export interface RunStep {
   status: string;
   errorMessage?: string | null;
   durationMs?: number | null;
+  /** P2 healing evidence surfaced live (proposal itself via GET healing). */
+  healEvidence?: unknown;
 }
 /** P1 — embedded dataset table (rows are plaintext; secrets stay in variables). */
 export interface DataSet {
@@ -686,6 +689,16 @@ export interface ScheduleRun {
 /** True when the backend route does not exist yet (parallel P1 agents). */
 export function isNotImplemented(e: unknown): boolean {
   return e instanceof ApiError && (e.status === 404 || e.code === "NOT_FOUND" || e.code === "ROUTE_NOT_FOUND");
+}
+/**
+ * 404 detector for clients that throw plain Errors (p2api, raw fetch):
+ * matches `ApiError` 404s plus messages like "API 404: …" / "HTTP 404: …".
+ */
+export function isNotFoundError(e: unknown): boolean {
+  if (isNotImplemented(e)) return true;
+  if (e instanceof ApiError) return false;
+  const msg = e instanceof Error ? `${e.message}` : typeof e === "string" ? e : "";
+  return /(^|[^0-9])404([^0-9]|$)|NOT_FOUND|ROUTE_NOT_FOUND/.test(msg);
 }
 export interface Run {
   id: string;

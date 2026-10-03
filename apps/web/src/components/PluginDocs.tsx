@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { EmptyState, ErrorState, Skeleton } from "./ui";
 
 /**
- * P2 plugin docs component (embed in a docs route such as `/plugins` — see
- * the P2 handover for the registration snippet; App.tsx is untouched here).
+ * P2 plugin docs component (route `/plugins`, wired in App.tsx).
  *
  * Lists loaded plugins + contributed steps from GET /api/v1/plugins and
  * documents the authoring contract (manifest shape, security model, compile
@@ -80,13 +79,15 @@ module.exports = definePlugin({
 export function PluginDocs() {
   const [data, setData] = useState<PluginsResponse | null>(null);
   const [error, setError] = useState("");
+  const [unsupported, setUnsupported] = useState(false);
 
   const load = useCallback(async () => {
     setError("");
+    setUnsupported(false);
     try {
       const res = await fetch(`${apiBase()}/plugins`, { headers: authHeaders() });
       if (res.status === 404) {
-        setError("Plugin API chưa được đăng ký (xem P2 handover: 2 dòng trong app.ts).");
+        setUnsupported(true);
         setData(null);
         return;
       }
@@ -102,6 +103,19 @@ export function PluginDocs() {
     void load();
   }, [load]);
 
+  if (unsupported) {
+    return (
+      <section className="page" aria-label="Plugin/action SDK">
+        <h1>Plugin / action SDK (P2)</h1>
+        <EmptyState
+          title="Backend chưa hỗ trợ plugins (API 404)"
+          hint="UI đã sẵn sàng theo contract GET /plugins. Cần backend đăng ký pluginRoutes rồi reload."
+        />
+        <h2>Cách viết plugin</h2>
+        <pre className="vv-code">{AUTHORING_SAMPLE}</pre>
+      </section>
+    );
+  }
   if (error) return <ErrorState message={error} onRetry={() => void load()} />;
   if (!data) return <Skeleton lines={5} label="Đang tải plugins…" />;
 

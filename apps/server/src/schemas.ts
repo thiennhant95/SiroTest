@@ -34,6 +34,8 @@ export const envUpdate = envCreate.partial();
 export const recorderStart = z.object({
   baseUrl: z.string().url().optional(),
   includeHover: z.boolean().optional(),
+  /** Headed browser for human interaction (default true; headless for CI). */
+  headed: z.boolean().optional(),
 });
 export const locatorTest = z.object({
   candidate: z.record(z.unknown()), // LocatorCandidate per test-definition.md
@@ -94,6 +96,14 @@ export const suiteRunCreate = z.object({
   profileId: z.string().min(1).optional(),
   /** P2 healing: try stored alternatives on locator failure (proposal-only). */
   healWithAlternatives: z.boolean().optional(),
+  /**
+   * P1 data-driven for suites: applied to every member that carries this
+   * dataset (validated per member — a member without it fails the trigger
+   * with 400 instead of running the wrong data).
+   */
+  datasetId: z.string().min(1).optional(),
+  /** Single 0-based row (requires datasetId). */
+  rowIndex: z.number().int().nonnegative().optional(),
 });
 
 // P1 — reusable actions (mirrors test-model reusableActionSchema; the
@@ -162,6 +172,12 @@ export const scheduleCreate = z.object({
   cron: z.string().min(1).max(100),
   enabled: z.boolean().optional(),
   retries: z.number().int().min(0).max(5).optional(),
+  browser: z.enum(['chromium', 'firefox', 'webkit']).optional(),
+  headed: z.boolean().optional(),
+  profileId: z.string().min(1).optional(),
+  datasetId: z.string().min(1).optional(),
+  rowIndex: z.number().int().nonnegative().optional(),
+  healWithAlternatives: z.boolean().optional(),
 });
 export const scheduleUpdate = z.object({
   suiteId: z.string().min(1).nullable().optional(),
@@ -170,6 +186,12 @@ export const scheduleUpdate = z.object({
   cron: z.string().min(1).max(100).optional(),
   enabled: z.boolean().optional(),
   retries: z.number().int().min(0).max(5).optional(),
+  browser: z.enum(['chromium', 'firefox', 'webkit']).optional(),
+  headed: z.boolean().optional(),
+  profileId: z.string().min(1).nullable().optional(),
+  datasetId: z.string().min(1).nullable().optional(),
+  rowIndex: z.number().int().nonnegative().nullable().optional(),
+  healWithAlternatives: z.boolean().optional(),
 });
 
 // P1 wave-2 — Playwright spec importer (feasible TS subset, see spec-importer.ts).

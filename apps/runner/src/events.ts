@@ -12,9 +12,11 @@ export type RunEventName =
   | 'step.started'
   | 'step.passed'
   | 'step.failed'
+  | 'step.skipped'
   | 'run.passed'
   | 'run.failed'
-  | 'run.cancelled';
+  | 'run.cancelled'
+  | 'step.healed';
 
 export interface RunEvent {
   event: RunEventName;
@@ -26,13 +28,10 @@ export interface RunEvent {
   error?: string;
   /**
    * P2 — healing evidence for `step.healed` (see healing.ts HealEvidence).
-   * Kept off the `RunEventName` union on purpose: the union is the P0 WS
-   * contract consumed by `apps/server/src/ws/events.ts` + `runner-store.ts`,
-   * which forward only the P0 fields. `step.healed` is emitted through this
-   * publisher with a cast in run.ts (never silently applied — proposal only)
-   * and full evidence travels in the `runTest()` return value for the server
-   * to persist as `HealingProposal` rows. Server WS passthrough for the new
-   * name + this field is a documented 3-line wiring item (owner: server).
+   * The name is a first-class union member; like all WS events it is
+   * informational only (DB authoritative). Proposal persistence travels in
+   * the `runTest()` return value for the server to store as reviewable
+   * `HealingProposal` rows — never silently applied.
    */
   evidence?: unknown;
 }

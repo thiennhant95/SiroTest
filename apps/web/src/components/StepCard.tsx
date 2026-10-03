@@ -69,8 +69,8 @@ export function StepCard({
           <span className="block truncate text-sm font-medium text-slate-800">
             {businessName(step)}
           </span>
-          <span className="block truncate text-[11px] text-slate-500">
-            {meta?.label ?? step.type}
+          <span className="block truncate text-[11px] text-slate-500" title={meta ? undefined : `type: ${step.type} · id: ${step.id}`}>
+            {meta?.label ?? "Custom step"}
             {target ? ` · ${targetSummary(target)}` : ""}
           </span>
         </span>

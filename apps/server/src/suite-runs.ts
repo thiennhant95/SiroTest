@@ -21,17 +21,13 @@ import { db } from './db.js';
 import { stripServerPaths } from './security.js';
 import { maybeCreateHealingProposals, resolveRunInputs } from './run-inputs.js';
 import {
+  broadcastRunEvent as broadcast,
   markQueuedEmittedByRoute,
   prismaRunStore,
   resolveRunVariables,
   runQueue,
   workerPublish,
 } from './runner-store.js';
-
-function broadcast(type: string, runId: string, extra: Record<string, unknown> = {}): void {
-  const send = (globalThis as { __vvWsBroadcast?: (e: string, p: unknown) => void }).__vvWsBroadcast;
-  send?.(type, { runId, at: Date.now(), ...extra });
-}
 
 /** Suite-run ids cancelled via POST /suite-runs/:id/cancel: pending retries stop. */
 const cancelledSuiteRuns = new Set<string>();
@@ -100,6 +96,10 @@ export interface EnqueueSuiteMemberOptions {
   profileId?: string;
   /** P2 healing: try stored alternatives on locator failure (proposal-only). */
   healWithAlternatives?: boolean;
+  /** P1 data-driven: suite-level selection (validated per member by the route). */
+  datasetId?: string;
+  /** Single 0-based row (requires datasetId). */
+  rowIndex?: number;
 }
 
 type RunTest = typeof runTestFn;
@@ -155,6 +155,9 @@ export async function enqueueSuiteMember(
       ...(inputs.storageStateJson !== undefined ? { storageStateJson: inputs.storageStateJson } : {}),
       // P2 healing is opt-in and proposal-only (never silently applied).
       ...(opts.healWithAlternatives === true ? { healWithAlternatives: true as const } : {}),
+      // P1 data-driven selection (route-validated per member beforehand).
+      ...(opts.datasetId !== undefined ? { datasetId: opts.datasetId } : {}),
+      ...(opts.rowIndex !== undefined ? { rowIndex: opts.rowIndex } : {}),
       projectVariables,
       environmentVariables,
       trigger: opts.trigger,

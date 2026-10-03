@@ -3,14 +3,16 @@ import { api, type Run } from '../lib/api';
 
 /**
  * WS client for run events (08-api/websocket-events.md).
- * - Subscribes to run.queued/started/step.started/passed/failed/run.passed/failed/cancelled.
+ * - Subscribes to run.queued/started/step.started/passed/failed/skipped/healed
+ *   and run.passed/failed/cancelled.
  * - Every payload MUST carry runId; frames without it are ignored.
  * - Events are informational only: on (re)connect we refetch GET /runs/:id (DB authoritative).
  */
 
 export type RunEventType =
   | 'run.queued' | 'run.started' | 'step.started' | 'step.passed'
-  | 'step.failed' | 'run.passed' | 'run.failed' | 'run.cancelled';
+  | 'step.failed' | 'step.skipped' | 'step.healed'
+  | 'run.passed' | 'run.failed' | 'run.cancelled';
 
 export interface WsRunEvent {
   event: RunEventType;
@@ -106,9 +108,13 @@ export function useRunChannel(runId: string | null) {
   function applyEvent(_runId: string, event: string, payload: Record<string, unknown>) {
     if (event === 'run.queued' || event === 'run.started') {
       setRun((r) => (r ? { ...r, status: event === 'run.queued' ? 'queued' : 'running' } : r));
-    } else if (event === 'step.started' || event === 'step.passed' || event === 'step.failed') {
+    } else if (event === 'step.started' || event === 'step.passed' || event === 'step.failed' || event === 'step.skipped') {
       const stepId = String(payload.stepId ?? '');
-      const status = event === 'step.started' ? 'running' : event === 'step.passed' ? 'passed' : 'failed';
+      const status =
+        event === 'step.started' ? 'running'
+        : event === 'step.passed' ? 'passed'
+        : event === 'step.skipped' ? 'skipped'
+        : 'failed';
       setRun((r) => {
         if (!r) return r;
         const steps = [...(r.steps ?? [])];
@@ -119,6 +125,17 @@ export function useRunChannel(runId: string | null) {
         return { ...r, status: r.status === 'queued' ? 'running' : r.status, steps };
       });
       if (event === 'step.failed') void refetch();
+    } else if (event === 'step.healed') {
+      // Proposal-only evidence (P2 healing never auto-applies): surface it on
+      // the failed step; the authoritative proposal lives in GET healing.
+      const stepId = String(payload.stepId ?? '');
+      setRun((r) => {
+        if (!r) return r;
+        const steps = [...(r.steps ?? [])];
+        const i = steps.findIndex((s) => s.stepId === stepId);
+        if (i >= 0) steps[i] = { ...steps[i], healEvidence: payload['evidence'] ?? null };
+        return { ...r, steps };
+      });
     } else if (event === 'run.passed' || event === 'run.failed' || event === 'run.cancelled') {
       void refetch(); // terminal: DB authoritative
     }

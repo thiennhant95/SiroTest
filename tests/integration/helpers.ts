@@ -50,9 +50,15 @@ export async function ensureIntegrationDb(opts: { reset?: boolean } = {}): Promi
       // Probe every table the suites touch: a DB pushed before a schema
       // wave (e.g. missing AuthProfile/FileAsset/Schedule) must re-push
       // instead of failing at runtime with P2021.
-      for (const t of ['"Project"', '"TestSuite"', '"Action"', '"AuthProfile"', '"FileAsset"', '"Schedule"']) {
+      for (const t of ['"Project"', '"TestSuite"', '"Action"', '"AuthProfile"', '"FileAsset"', '"Schedule"', '"Baseline"', '"HealingProposal"', '"AuditLog"', '"Worker"']) {
         await probe.$queryRawUnsafe(`SELECT 1 AS one FROM ${t} LIMIT 1`);
       }
+      // Probe newer COLUMNS too: a table can exist while missing columns
+      // added later (push is additive and keeps rows, so re-push is safe).
+      await probe.$queryRawUnsafe(
+        'SELECT browser, headed, profileId, datasetId, rowIndex, healWithAlternatives FROM "Schedule" LIMIT 1',
+      );
+      await probe.$queryRawUnsafe('SELECT suiteId, suiteRunId, datasetId, rowIndex, workerId FROM "Run" LIMIT 1');
       await probe.$disconnect();
     } catch {
       needsPush = true;

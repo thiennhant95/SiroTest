@@ -29,6 +29,7 @@ export function RunModal({ testId, suiteId, envs, envId, datasets = [], projectI
   const [profilesUnsupported, setProfilesUnsupported] = useState(false);
   const [retries, setRetries] = useState(0);
   const [parallel, setParallel] = useState(2);
+  const [healWithAlternatives, setHealWithAlternatives] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -84,15 +85,17 @@ export function RunModal({ testId, suiteId, envs, envId, datasets = [], projectI
           retries: Math.max(0, Math.min(5, retries)),
           parallel: parallel === 1 ? 1 : 2,
           ...(profileId ? { profileId } : {}),
+          ...(healWithAlternatives ? { healWithAlternatives: true } : {}),
         });
         (onSuiteStarted ?? onStarted)(res.suiteRunId);
         return;
       }
-      const run = await api.post<{ id: string }>(`/tests/${testId}/runs`, {
+      const run = await api.createRun(testId, {
         environmentId, browser, headed,
         ...(datasetId ? { datasetId } : {}),
         ...(row !== undefined ? { rowIndex: row } : {}),
         ...(profileId ? { profileId } : {}),
+        ...(healWithAlternatives ? { healWithAlternatives: true } : {}),
       });
       onStarted(run.id);
     } catch (e) {
@@ -161,6 +164,9 @@ export function RunModal({ testId, suiteId, envs, envId, datasets = [], projectI
         )}
         <label style={row}>
           <input type="checkbox" checked={headed} onChange={(e) => setHeaded(e.target.checked)} /> headed
+        </label>
+        <label style={row} title="Chỉ đề xuất alternatives khi locator hỏng (ghi evidence để review ở Healing) — KHÔNG tự áp dụng">
+          <input type="checkbox" checked={healWithAlternatives} onChange={(e) => setHealWithAlternatives(e.target.checked)} /> Thử alternatives khi locator hỏng (đề xuất, không tự áp dụng)
         </label>
         {suiteId ? (
           <>

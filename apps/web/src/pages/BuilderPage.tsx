@@ -28,8 +28,10 @@ import {
 import { ApiError, api, apiBase, parseDefinition, type Environment, type Variable } from "../lib/api";
 import type { BuilderStep as AssertionBuilderStep, StepTestResult } from "../builder/types";
 import {
+  createCustomStep,
   createStep,
   demoDefinition,
+  isPluginStepType,
   type BuilderDefinition,
   type BuilderStep,
 } from "../lib/steps";
@@ -227,7 +229,14 @@ export function BuilderPage() {
   };
 
   const addStep = (type: string) => {
-    const step = createStep(type);
+    // Manual `plugin:*` types bypass the static catalog (schema comes from GET /plugins).
+    let step: BuilderStep;
+    try {
+      step = createStep(type);
+    } catch {
+      if (!isPluginStepType(type)) throw new Error(`Unknown step type: ${type}`);
+      step = createCustomStep(type);
+    }
     updateSteps((steps) => {
       if (!insertAt) return [...steps, step];
       const next = [...steps];
@@ -304,8 +313,8 @@ export function BuilderPage() {
         : "Run revision đã lưu.";
 
   const envName = environments.find((e) => e.id === envId)?.name ?? "";
-  const defTags: string[] = Array.isArray((definition as unknown as { tags?: unknown } | null)?.tags)
-    ? ((definition as unknown as { tags: string[] }).tags.filter((t) => typeof t === "string"))
+  const defTags: string[] = Array.isArray(definition?.tags)
+    ? definition.tags!.filter((t): t is string => typeof t === "string")
     : [];
 
   // -- render states --
@@ -355,10 +364,34 @@ export function BuilderPage() {
           className="max-w-xs font-semibold"
         />
         {defTags.map((t) => (
-          <Link key={t} to={projectId && projectId !== "demo" ? `/projects/${projectId}/tests` : "/projects"} title={`Tests tagged ${t}`}>
-            <Badge tone="slate">#{t}</Badge>
-          </Link>
+          <span key={t} className="inline-flex items-center gap-1" title={`Tests tagged ${t}`}>
+            <Link to={projectId && projectId !== "demo" ? `/projects/${projectId}/tests?tag=${encodeURIComponent(t)}` : "/projects"}>
+              <Badge tone="slate">#{t}</Badge>
+            </Link>
+            <button
+              type="button"
+              aria-label={`Remove tag ${t}`}
+              title={`Gỡ tag ${t} (autosave PATCH definition.tags)`}
+              className="text-xs text-slate-400 hover:text-red-600"
+              onClick={() =>
+                setDefinition((d) => (d ? { ...d, tags: (d.tags ?? []).filter((x) => x !== t) } : d))
+              }
+            >
+              ×
+            </button>
+          </span>
         ))}
+        <TagsEditor
+          disabled={offline}
+          onAdd={(t) =>
+            setDefinition((d) => {
+              if (!d) return d;
+              const cur = d.tags ?? [];
+              if (cur.includes(t)) return d;
+              return { ...d, tags: [...cur, t] };
+            })
+          }
+        />
         <Select aria-label="Environment" value={envId} onChange={(e) => setEnvId(e.target.value)} className="w-44">
           <option value="">Environment…</option>
           {environments.map((e) => (
@@ -715,6 +748,60 @@ export function BuilderPage() {
 }
 
 // ------------------------------------------------------------- autosave badge ---
+
+function TagsEditor({ disabled, onAdd }: { disabled?: boolean; onAdd: (tag: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState("");
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="text-xs text-slate-500 hover:text-indigo-700 hover:underline"
+        disabled={disabled}
+        title={disabled ? "Offline — bật server để lưu tags" : "Thêm tag (autosave PATCH definition.tags)"}
+        onClick={() => setOpen(true)}
+      >
+        + Tag
+      </button>
+    );
+  }
+  return (
+    <form
+      className="inline-flex items-center gap-1"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const t = value.trim().replace(/\s+/g, "-").slice(0, 32);
+        if (!t) return;
+        onAdd(t);
+        setValue("");
+        setOpen(false);
+      }}
+    >
+      <Input
+        autoFocus
+        aria-label="New tag"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="tag…"
+        className="h-6 w-24 text-xs"
+      />
+      <Button size="sm" type="submit" variant="outline" className="h-6 px-2 text-xs">
+        Add
+      </Button>
+      <button
+        type="button"
+        aria-label="Cancel add tag"
+        className="text-xs text-slate-400 hover:text-slate-700"
+        onClick={() => {
+          setOpen(false);
+          setValue("");
+        }}
+      >
+        ×
+      </button>
+    </form>
+  );
+}
 
 function AutosaveBadge({
   state,

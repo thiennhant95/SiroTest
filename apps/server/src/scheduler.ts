@@ -166,6 +166,29 @@ export function isValidCron(cron: string): boolean {
   return parseCron(cron) !== null;
 }
 
+const CRON_FIELD_NAMES = ['minute', 'hour', 'day-of-month', 'month', 'day-of-week'] as const;
+
+/**
+ * Single-source cron validation with a human reason (route maps to
+ * CRON_INVALID). Same parser the ticker uses — route and ticker can never
+ * disagree about what a valid expression is.
+ */
+export function cronIssue(cron: string): string | null {
+  const fields = cron.trim().split(/\s+/);
+  if (fields.length !== 5) {
+    return `cron must have exactly 5 fields (minute hour dom month dow), got ${fields.length}`;
+  }
+  for (let i = 0; i < 5; i++) {
+    const r = CRON_RANGES[i]!;
+    const parsed = parseCronField(fields[i]!, r.min, r.max, i === 4);
+    if (parsed === null) {
+      const shownMax = i === 4 ? '0-6 (7 = Sunday alias)' : `${r.min}-${r.max}`;
+      return `cron field ${i + 1} (${CRON_FIELD_NAMES[i]}, "${fields[i]}") is out of range ${shownMax} or malformed`;
+    }
+  }
+  return null;
+}
+
 /** True when `cron` fires at `at` (server-local time). Invalid crons → false. */
 export function matchesCron(cron: string, at: Date): boolean {
   const parsed = parseCron(cron);
@@ -240,6 +263,12 @@ export interface ScheduleRow extends ScheduleLike {
   testId: string | null;
   environmentId: string;
   retries: number;
+  browser: string;
+  headed: boolean;
+  profileId: string | null;
+  datasetId: string | null;
+  rowIndex: number | null;
+  healWithAlternatives: boolean;
   nextRunAt: Date | null;
   createdBy: string;
 }
@@ -328,8 +357,8 @@ async function fireSuiteSchedule(s: ScheduleRow): Promise<string> {
       enqueueSuiteMember(runTest, {
         projectId: suite.projectId,
         environmentId: s.environmentId,
-        browser: 'chromium',
-        headed: false,
+        browser: (s.browser === 'firefox' || s.browser === 'webkit' ? s.browser : 'chromium') as 'chromium' | 'firefox' | 'webkit',
+        headed: s.headed,
         trigger: 'suite',
         suiteId: s.suiteId!,
         suiteRunId,
@@ -337,6 +366,10 @@ async function fireSuiteSchedule(s: ScheduleRow): Promise<string> {
         retriesLeft: Math.max(0, Math.min(5, s.retries)),
         testId: t!.id,
         definitionJson: t!.definitionJson,
+        ...(s.profileId ? { profileId: s.profileId } : {}),
+        ...(s.healWithAlternatives ? { healWithAlternatives: true as const } : {}),
+        ...(s.datasetId ? { datasetId: s.datasetId } : {}),
+        ...(s.rowIndex !== null && s.rowIndex !== undefined ? { rowIndex: s.rowIndex } : {}),
       }),
     ),
   );
@@ -367,14 +400,33 @@ async function fireTestSchedule(s: ScheduleRow): Promise<string> {
   const urlCheck = checkAllowedHttpUrl(env.baseUrl ?? project?.baseUrl ?? null);
   if (!urlCheck.ok) throw new Error(`run target rejected: ${urlCheck.reason}`);
   const definition = JSON.parse(test.definitionJson) as Parameters<typeof runTest>[0]['test'];
+  // Schedule-level data selection honours the same rules as manual triggers:
+  // unknown dataset / bad row fails THIS firing explicitly (never wrong data).
+  if (s.datasetId) {
+    const datasets = (Array.isArray((definition as { datasets?: unknown }).datasets)
+      ? (definition as { datasets: Array<{ id?: unknown; rows?: unknown }> }).datasets
+      : []);
+    const found = datasets.find((d) => d.id === s.datasetId);
+    if (!found) throw new Error(`dataset '${s.datasetId}' does not exist in test ${test.id}`);
+    if (s.rowIndex !== null && s.rowIndex !== undefined) {
+      const n = Array.isArray(found.rows) ? found.rows.length : 0;
+      if (!Number.isInteger(s.rowIndex) || s.rowIndex < 0 || s.rowIndex >= n) {
+        throw new Error(`rowIndex ${s.rowIndex} out of range for dataset '${s.datasetId}' (${n} row(s))`);
+      }
+    }
+  } else if (s.rowIndex !== null && s.rowIndex !== undefined) {
+    throw new Error('rowIndex requires datasetId');
+  }
   const run = await db().run.create({
     data: {
       projectId: test.projectId,
       testId: test.id,
       environmentId: s.environmentId,
-      browser: 'chromium',
+      browser: s.browser,
       status: 'queued',
       trigger: 'schedule',
+      ...(s.datasetId ? { datasetId: s.datasetId } : {}),
+      ...(s.rowIndex !== null && s.rowIndex !== undefined ? { rowIndex: s.rowIndex } : {}),
     },
   });
   broadcastRunEvent('run.queued', run.id, { testId: test.id });
@@ -382,16 +434,23 @@ async function fireTestSchedule(s: ScheduleRow): Promise<string> {
   const { projectVariables, environmentVariables } = await resolveRunVariables(test.projectId, s.environmentId);
   // Same P1 inputs as route-triggered runs (actions + upload files). No
   // profile: schedules carry no profile column in P1 (documented).
-  const inputs = await resolveRunInputs(test.projectId, definition, { environmentId: s.environmentId });
+  const inputs = await resolveRunInputs(test.projectId, definition, {
+    environmentId: s.environmentId,
+    ...(s.profileId ? { profileId: s.profileId } : {}),
+  });
   const request: Parameters<typeof runTest>[0] = {
     runId: run.id,
     test: definition,
     projectId: test.projectId,
     environmentId: s.environmentId,
-    browser: 'chromium',
-    headed: false,
+    browser: (s.browser === 'firefox' || s.browser === 'webkit' ? s.browser : 'chromium') as 'chromium' | 'firefox' | 'webkit',
+    headed: s.headed,
+    ...(s.datasetId ? { datasetId: s.datasetId } : {}),
+    ...(s.rowIndex !== null && s.rowIndex !== undefined ? { rowIndex: s.rowIndex } : {}),
     ...(inputs.actions.length > 0 ? { actions: inputs.actions } : {}),
     ...(inputs.filePaths !== undefined ? { filePaths: inputs.filePaths } : {}),
+    ...(inputs.storageStateJson !== undefined ? { storageStateJson: inputs.storageStateJson } : {}),
+    ...(s.healWithAlternatives ? { healWithAlternatives: true as const } : {}),
     projectVariables,
     environmentVariables,
     trigger: 'schedule',
@@ -444,6 +503,12 @@ export function defaultSchedulerDeps(log: SchedulerLogger = consoleLogger()): Sc
         cron: r.cron,
         enabled: r.enabled,
         retries: r.retries,
+        browser: r.browser,
+        headed: r.headed,
+        profileId: r.profileId,
+        datasetId: r.datasetId,
+        rowIndex: r.rowIndex,
+        healWithAlternatives: r.healWithAlternatives,
         lastRunAt: r.lastRunAt,
         nextRunAt: r.nextRunAt,
         createdBy: r.createdBy,

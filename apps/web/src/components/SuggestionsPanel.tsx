@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { p2api, type SuggestedAssertion } from "../api/p2";
+import { isNotFoundError } from "../lib/api";
+import { EmptyState, ErrorState, Skeleton, useToast } from "./ui";
 
 /**
  * P2 — suggested assertions from observed page (deterministic rules, NO AI).
- *
- * CONTRACT (this file is NEW and NOT wired into BuilderPage.tsx — owner: web wiring):
- *   Props: { testId: string; sessionId?: string; onApplied?: (r: { versionNumber: number }) => void }
- *   Proposed mount point: BuilderPage side panel / steps toolbar, e.g.
- *     <SuggestionsPanel testId={test.id} onApplied={() => reloadDefinition()} />
- *     with `sessionId` passed when the suggestions should be mined from a live
- *     recorder session instead of the stored definition.
+ * Wired into BuilderPage bottom tab "Suggest".
  *
  * The panel fetches rule-based suggestions (fill → assertValue, click →
  * assertVisible of the next target, goto → assertURL, …), shows them as a
@@ -23,17 +19,20 @@ export interface SuggestionsPanelProps {
 }
 
 export function SuggestionsPanel({ testId, sessionId, onApplied }: SuggestionsPanelProps) {
+  const toast = useToast();
   const [suggestions, setSuggestions] = useState<SuggestedAssertion[]>([]);
   const [source, setSource] = useState<string>("");
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unsupported, setUnsupported] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setUnsupported(false);
     setNotice(null);
     try {
       const res = await p2api.fetchSuggestions(testId, sessionId ? { sessionId } : {});
@@ -41,7 +40,12 @@ export function SuggestionsPanel({ testId, sessionId, onApplied }: SuggestionsPa
       setSource(res.source);
       setChecked(new Set(res.suggestions.map((s) => s.id)));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load suggestions");
+      if (isNotFoundError(e)) {
+        setUnsupported(true);
+        setSuggestions([]);
+      } else {
+        setError(e instanceof Error ? e.message : "Failed to load suggestions");
+      }
     } finally {
       setLoading(false);
     }
@@ -70,11 +74,15 @@ export function SuggestionsPanel({ testId, sessionId, onApplied }: SuggestionsPa
     setError(null);
     try {
       const res = await p2api.applySuggestions(testId, { suggestionIds: ids });
-      setNotice(`Inserted ${res.applied.length} assertion step(s) — now at version ${res.versionNumber}.`);
+      const msg = `Inserted ${res.applied.length} assertion step(s) — now at version ${res.versionNumber}.`;
+      setNotice(msg);
+      toast.push("success", msg);
       onApplied?.({ versionNumber: res.versionNumber, stepCount: res.stepCount });
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Apply failed");
+      const msg = e instanceof Error ? e.message : "Apply failed";
+      setError(msg);
+      toast.push("error", msg);
     } finally {
       setApplying(false);
     }
@@ -89,9 +97,19 @@ export function SuggestionsPanel({ testId, sessionId, onApplied }: SuggestionsPa
         </button>
       </div>
       {source && <p style={{ fontSize: 12, color: "#666" }}>mined from: {source} (deterministic rules, no AI)</p>}
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
+      {loading ? <Skeleton className="h-10" /> : null}
+      {unsupported ? (
+        <EmptyState
+          title="Backend chưa hỗ trợ suggestions (API 404)"
+          hint="UI đã sẵn sàng theo contract POST /tests/:id/suggestions. Đợi backend P2 rồi bấm Refresh."
+        />
+      ) : error ? (
+        <ErrorState message={error} onRetry={refresh} />
+      ) : null}
       {notice && <p style={{ color: "green" }}>{notice}</p>}
-      {!loading && suggestions.length === 0 && <p>No suggestions for the current steps.</p>}
+      {!loading && !unsupported && !error && suggestions.length === 0 && (
+        <EmptyState title="Không có gợi ý cho steps hiện tại" hint="Thêm fill/click/goto rồi bấm Refresh." />
+      )}
       <ul style={{ listStyle: "none", padding: 0 }}>
         {suggestions.map((s) => (
           <li key={s.id} style={{ marginBottom: 8 }}>

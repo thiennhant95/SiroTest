@@ -339,42 +339,71 @@ describe('recorder API', () => {
 
   it('start -> assertion -> stop persists draft steps into the definition', async () => {
     const { testId } = await makeTest('persist');
-    const started = await injectJson(app, 'POST', `/api/v1/tests/${testId}/recorder/start`, {});
+    // Headless: no display needed, and the window never pops up mid-suite.
+    const started = await injectJson(app, 'POST', `/api/v1/tests/${testId}/recorder/start`, { headed: false });
     assert.equal(started.statusCode, 201);
-    const { sessionId } = started.json() as { sessionId: string };
+    const { sessionId, liveBrowser } = started.json() as { sessionId: string; liveBrowser: boolean };
     assert.ok(sessionId);
+    assert.equal(liveBrowser, true, 'start attaches a live browser');
+    try {
+      const second = await injectJson(app, 'POST', `/api/v1/tests/${testId}/recorder/start`, {});
+      assert.equal(second.statusCode, 409);
+      assert.equal((second.json() as { code: string }).code, 'CONFLICT_RECORDER_ACTIVE');
 
-    const second = await injectJson(app, 'POST', `/api/v1/tests/${testId}/recorder/start`, {});
-    assert.equal(second.statusCode, 409);
-    assert.equal((second.json() as { code: string }).code, 'CONFLICT_RECORDER_ACTIVE');
+      // Live browser attached: the endpoint counts for real. The fresh page
+      // is blank, so Email matches 0 (honest count, cannot save healthy).
+      const probed = await injectJson(app, 'POST', `/api/v1/recorder/${sessionId}/locator/test`, {
+        candidate: { strategy: 'label', value: 'Email' },
+      });
+      assert.equal(probed.statusCode, 200);
+      const verdict = probed.json() as { matches: number; canSave: boolean; status: string };
+      assert.equal(verdict.matches, 0);
+      assert.equal(verdict.canSave, false);
+      assert.equal(verdict.status, 'none');
 
-    const probed = await injectJson(app, 'POST', `/api/v1/recorder/${sessionId}/locator/test`, {
-      candidate: { strategy: 'label', value: 'Email' },
-    });
-    // P0 honesty gate: no live browser is attached to the session, so the
-    // endpoint must fail loudly (503 RECORDER_NO_LIVE_BROWSER, preview null)
-    // instead of fabricating a match count.
-    assert.equal(probed.statusCode, 503);
-    assert.equal((probed.json() as { code: string }).code, 'RECORDER_NO_LIVE_BROWSER');
+      const assertion = await injectJson(app, 'POST', `/api/v1/recorder/${sessionId}/assertion`, {
+        type: 'assertVisible',
+        target: { primary: { strategy: 'text', value: 'Dashboard' } },
+      });
+      assert.equal(assertion.statusCode, 201);
 
-    const assertion = await injectJson(app, 'POST', `/api/v1/recorder/${sessionId}/assertion`, {
-      type: 'assertVisible',
-      target: { primary: { strategy: 'text', value: 'Dashboard' } },
-    });
-    assert.equal(assertion.statusCode, 201);
+      const stopped = await injectJson(app, 'POST', `/api/v1/recorder/${sessionId}/stop`);
+      assert.equal(stopped.statusCode, 200);
+      assert.ok(((stopped.json() as { draftCount: number }).draftCount) >= 1);
 
-    const stopped = await injectJson(app, 'POST', `/api/v1/recorder/${sessionId}/stop`);
-    assert.equal(stopped.statusCode, 200);
-    assert.ok(((stopped.json() as { draftCount: number }).draftCount) >= 1);
+      const testRow = (await injectJson(app, 'GET', `/api/v1/tests/${testId}`)).json() as { definitionJson: string };
+      const steps = (JSON.parse(testRow.definitionJson) as { steps: unknown[] }).steps;
+      assert.equal(steps.length, 5 + 1, 'recorded assertion must be appended to the definition');
+    } finally {
+      // Always release the browser so the suite process can exit.
+      await injectJson(app, 'POST', `/api/v1/recorder/${sessionId}/stop`).catch(() => undefined);
+    }
+  });
 
-    const testRow = (await injectJson(app, 'GET', `/api/v1/tests/${testId}`)).json() as { definitionJson: string };
-    const steps = (JSON.parse(testRow.definitionJson) as { steps: unknown[] }).steps;
-    assert.equal(steps.length, 5 + 1, 'recorded assertion must be appended to the definition');
+  it('locator/test without a live browser fails loudly (503, no fake count)', async () => {
+    // A session whose browser died reports interrupted; locator/test on a
+    // session with no live page must 503 instead of fabricating matches.
+    const { testId } = await makeTest('nolive');
+    const started = await injectJson(app, 'POST', `/api/v1/tests/${testId}/recorder/start`, { headed: false });
+    const { sessionId } = started.json() as { sessionId: string };
+    try {
+      const killed = await injectJson(app, 'POST', `/api/v1/recorder/${sessionId}/interrupt`, { reason: 'test-kill' });
+      assert.equal(killed.statusCode, 200);
+      // The interrupt drops the browser ref; the session row survives, so
+      // locator/test must 503 (honest: nothing truthful to count).
+      const probed = await injectJson(app, 'POST', `/api/v1/recorder/${sessionId}/locator/test`, {
+        candidate: { strategy: 'label', value: 'Email' },
+      });
+      assert.equal(probed.statusCode, 503);
+      assert.equal((probed.json() as { code: string }).code, 'RECORDER_NO_LIVE_BROWSER');
+    } finally {
+      await injectJson(app, 'POST', `/api/v1/recorder/${sessionId}/stop`).catch(() => undefined);
+    }
   });
 
   it('pause buffers, resume replays, stopped sessions are gone', async () => {
     const { testId } = await makeTest('pause');
-    const { sessionId } = (await injectJson(app, 'POST', `/api/v1/tests/${testId}/recorder/start`, {})).json() as { sessionId: string };
+    const { sessionId } = (await injectJson(app, 'POST', `/api/v1/tests/${testId}/recorder/start`, { headed: false })).json() as { sessionId: string };
     const paused = await injectJson(app, 'POST', `/api/v1/recorder/${sessionId}/pause`);
     assert.equal(paused.statusCode, 200);
     assert.equal((paused.json() as { status: string }).status, 'paused');
