@@ -177,7 +177,10 @@ async function day6req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
-      "content-type": "application/json",
+      // NOTE: no literal "content-type" here — day6Headers() (via
+      // authHeaders()) already sets "Content-Type". A duplicate key with
+      // different casing makes fetch send "a, b", which Fastify rejects
+      // (FST_ERR_CTP_INVALID_MEDIA_TYPE → "Unsupported Media Type").
       ...day6Headers(),
       ...(init?.headers ?? {}),
     },
@@ -237,6 +240,7 @@ export interface ProjectRecord {
   id: string;
   name: string;
   description?: string | null;
+  baseUrl?: string | null;
 }
 export interface TestRecord {
   id: string;
@@ -295,6 +299,11 @@ export const api = {
 
   /* Compat helpers used by pages/Projects + ProjectTests (Day 5/7 shell). */
   listProjects: () => day6req<ProjectRecord[]>("/projects"),
+  createProject: (payload: { name: string; description?: string; baseUrl?: string }) =>
+    day6req<ProjectRecord>(`/projects`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   listTests: (projectId: string, tag?: string) =>
     day6req<TestRecord[]>(`/projects/${projectId}/tests${tag ? `?tag=${encodeURIComponent(tag)}` : ""}`),
   createTest: (projectId: string, name: string) =>
@@ -315,10 +324,10 @@ export const api = {
     day6req<Environment[]>(`/projects/${projectId}/environments`),
   listVariables: (projectId: string) =>
     day6req<Variable[]>(`/projects/${projectId}/variables`),
-  createRun: (testId: string, opts: { environmentId: string; browser?: string; headed?: boolean; datasetId?: string; rowIndex?: number; profileId?: string; healWithAlternatives?: boolean }) =>
+  createRun: (testId: string, opts: { environmentId: string; browser?: string; headed?: boolean; datasetId?: string; rowIndex?: number; profileId?: string; healWithAlternatives?: boolean; slowMoMs?: number; debug?: boolean; artifacts?: { trace?: 'on' | 'off' | 'retain-on-failure'; screenshot?: 'on' | 'off' | 'only-on-failure'; video?: 'on' | 'off' | 'retain-on-failure' } }) =>
     day6req<{ id: string; status: string }>(`/tests/${testId}/runs`, {
       method: "POST",
-      body: JSON.stringify({ environmentId: opts.environmentId, browser: opts.browser ?? "chromium", headed: opts.headed ?? false, ...(opts.datasetId ? { datasetId: opts.datasetId } : {}), ...(opts.rowIndex !== undefined ? { rowIndex: opts.rowIndex } : {}), ...(opts.profileId ? { profileId: opts.profileId } : {}), ...(opts.healWithAlternatives === true ? { healWithAlternatives: true } : {}) }),
+      body: JSON.stringify({ environmentId: opts.environmentId, browser: opts.browser ?? "chromium", headed: opts.headed ?? false, ...(opts.datasetId ? { datasetId: opts.datasetId } : {}), ...(opts.rowIndex !== undefined ? { rowIndex: opts.rowIndex } : {}), ...(opts.profileId ? { profileId: opts.profileId } : {}), ...(opts.healWithAlternatives === true ? { healWithAlternatives: true } : {}), ...(opts.slowMoMs !== undefined ? { slowMoMs: opts.slowMoMs } : {}), ...(opts.debug === true ? { debug: true } : {}), ...(opts.artifacts ? { artifacts: opts.artifacts } : {}) }),
     }),
   /* P1 datasets (definition-embedded): import CSV/JSON text, delete a table. */
   importDataset: (testId: string, payload: { format: "csv" | "json"; name?: string; content: string }) =>
@@ -340,11 +349,11 @@ export const api = {
       body: JSON.stringify(baseUrl ? { baseUrl } : {}),
     }),
   recorderPause: (sessionId: string) =>
-    day6req<void>(`/recorder/${sessionId}/pause`, { method: "POST" }),
+    day6req<void>(`/recorder/${sessionId}/pause`, { method: "POST", body: "{}" }),
   recorderResume: (sessionId: string) =>
-    day6req<void>(`/recorder/${sessionId}/resume`, { method: "POST" }),
+    day6req<void>(`/recorder/${sessionId}/resume`, { method: "POST", body: "{}" }),
   recorderStop: (sessionId: string) =>
-    day6req<unknown>(`/recorder/${sessionId}/stop`, { method: "POST" }),
+    day6req<unknown>(`/recorder/${sessionId}/stop`, { method: "POST", body: "{}" }),
 
   /* P1 — Reusable actions/business keywords + parameters. */
   listActions: (projectId: string) =>
@@ -417,7 +426,9 @@ export const api = {
   cancelSuiteRun: (suiteRunId: string) =>
     day6req<{ suiteRunId: string; cancelled: string[]; alreadyTerminal: string[] }>(
       `/suite-runs/${suiteRunId}/cancel`,
-      { method: "POST" },
+      // NOTE: Fastify rejects `content-type: application/json` with an empty
+      // body (400) — bodiless POSTs must send '{}' explicitly.
+      { method: "POST", body: "{}" },
     ),
   /* P1 wave 2 — Auth profiles (storageState; secret/state never returned). */
   listProfiles: (projectId: string) =>

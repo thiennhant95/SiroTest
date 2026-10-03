@@ -10,7 +10,7 @@
  *  8. Cleanup temp source while retaining configured artifacts.
  */
 
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { copyFile, readdir, readFile, stat } from 'node:fs/promises';
 import { delimiter, join } from 'node:path';
 import type { ChildProcess } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -175,8 +175,49 @@ async function tailEvents(
   }
 }
 
-async function collectArtifacts(ws: RunWorkspace, runId: string): Promise<ArtifactRecord[]> {
-  // Artifact size limits (11-security/security.md): skip files over the cap so
+/** Recursively find the first file with the given name/extension under dir. */
+async function findFirstFile(dir: string, match: (name: string) => boolean): Promise<string | null> {
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+  for (const e of entries) {
+    const abs = join(dir, e.name);
+    if (e.isDirectory()) {
+      const hit = await findFirstFile(abs, match);
+      if (hit) return hit;
+    } else if (e.isFile() && match(e.name)) {
+      return abs;
+    }
+  }
+  return null;
+}
+
+/** Copy Playwright-produced trace.zip / first .webm from outputDir into the
+ *  artifact dir (collectArtifacts picks them up from there). */
+async function promotePlaywrightOutputs(ws: RunWorkspace): Promise<void> {
+  const outDir = join(ws.workDir, 'output');
+  const trace = await findFirstFile(outDir, (n) => n === 'trace.zip');
+  if (trace) {
+    try {
+      await copyFile(trace, ws.tracePath);
+    } catch {
+      // best effort — collectArtifacts simply records nothing
+    }
+  }
+  const video = await findFirstFile(outDir, (n) => n.toLowerCase().endsWith('.webm'));
+  if (video) {
+    try {
+      await copyFile(video, ws.videoPath);
+    } catch {
+      // best effort
+    }
+  }
+}
+
+async function collectArtifacts(ws: RunWorkspace, runId: string): Promise<ArtifactRecord[]> {  // Artifact size limits (11-security/security.md): skip files over the cap so
   // a compromised page cannot fill the disk via huge traces/videos.
   const MAX_BYTES = Number(process.env.ARTIFACT_MAX_BYTES ?? 50 * 1024 * 1024);
   const MAX_SCREENSHOTS = Number(process.env.ARTIFACT_MAX_SCREENSHOTS ?? 100);
@@ -376,7 +417,8 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     });
     const configSource = compileConfig({
       browser,
-      headed: req.headed ?? false,
+      headed: req.debug === true ? true : (req.headed ?? false),
+      ...(req.slowMoMs ? { slowMoMs: req.slowMoMs } : {}),
       baseUrl: test.baseUrl,
       viewport: test.viewport,
       reporterPath,
@@ -408,6 +450,10 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
       ...(nodePath ? { NODE_PATH: nodePath } : {}),
       RUN_ID: runId,
       RUN_ARTIFACT_DIR: ws.artifactDir,
+      // Debug mode (≈ --debug): PWDEBUG=1 makes Playwright open its
+      // Inspector on this host; headed is forced above. The run stays alive
+      // until the tester closes the browser/Inspector or hits Cancel.
+      ...(req.debug === true ? { PWDEBUG: '1' } : {}),
       RUN_EVENTS_PATH: eventsPath,
       RUN_SECRETS_JSON: JSON.stringify(secrets),
       // P1 data-driven: selected rows (or all rows) as JSON. Present only
@@ -559,10 +605,15 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
         }
       }
     }
+    // Playwright writes trace.zip / *.webm under outputDir (workDir/output),
+    // never directly to the artifact dir — promote the first of each into
+    // storage before cleanup, otherwise trace/video artifacts can never
+    // exist no matter the retention mode. Best-effort: absence just means
+    // Playwright produced none (e.g. mode 'off').
+    await promotePlaywrightOutputs(ws);
     for (const artifact of await collectArtifacts(ws, runId)) {
       await store.addArtifact(artifact);
-    }
-    await store.updateRun(runId, {
+    }    await store.updateRun(runId, {
       status,
       finishedAt,
       durationMs: finishedAt - startedAt,

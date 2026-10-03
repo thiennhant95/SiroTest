@@ -260,7 +260,11 @@ function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string
     case 'assertChecked':
       return `await expect(${loc()}).toBeChecked();`;
     case 'screenshot':
-      return `await ${pageVar}.screenshot({ path: require('node:path').join(__dirname, '..', 'screenshots', ${esc(`${step.id}.png`)}), fullPage: ${step.fullPage ? 'true' : 'false'} });`;
+      // Screenshots are run evidence: write into the run artifact dir (runner
+      // injects RUN_ARTIFACT_DIR) so collectArtifacts() persists them. The old
+      // __dirname-relative path landed in the temp compile dir, which is
+      // cleaned up — screenshots silently never reached storage.
+      return `await ${pageVar}.screenshot({ path: require('node:path').join(process.env.RUN_ARTIFACT_DIR ?? '.', 'screenshots', ${esc(`${step.id}.png`)}), fullPage: ${step.fullPage ? 'true' : 'false'} });`;
     case 'visualCheck':
       return visualCheckBody(step, pageVar);
     case 'upload': {
@@ -790,6 +794,8 @@ function assertNoRowRefs(test: TestDefinition): void {
 export interface RunConfigOptions {
   browser: TestDefinition['browser'];
   headed?: boolean;
+  /** Observe mode: ms of Playwright launch slow-motion (0/undefined = off). */
+  slowMoMs?: number;
   baseUrl?: string;
   viewport?: { width: number; height: number };
   reporterPath: string;
@@ -825,6 +831,7 @@ export function compileConfig(opts: RunConfigOptions): string {
     ...(opts.baseUrl ? [`    baseURL: process.env.RUN_BASE_URL ?? ${esc(opts.baseUrl)},`] : []),
     `    browserName: ${esc(opts.browser)},`,
     `    headless: ${opts.headed ? 'false' : 'true'},`,
+    ...(opts.slowMoMs ? [`    launchOptions: { slowMo: ${Math.trunc(opts.slowMoMs)} }, // observe mode`] : []),
     ...(opts.viewport ? [`    viewport: { width: ${opts.viewport.width}, height: ${opts.viewport.height} },`] : []),
     `    trace: ${esc(opts.trace)},`,
     `    screenshot: ${esc(opts.screenshot)},`,

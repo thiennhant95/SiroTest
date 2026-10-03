@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api, type Environment } from '../lib/api';
+import { Badge, Button, Checkbox, Field, Input } from './ui';
 
 interface Props {
   projectId: string;
@@ -39,29 +40,50 @@ export function EnvironmentsPanel({ projectId, envs, onChanged, onClose }: Props
   }
 
   return (
-    <section data-testid="envs-panel" style={{ padding: 16 }}>
-      <h3>Environments</h3>
-      {err && <p style={{ color: 'crimson' }}>{err}</p>}
-      <ul>
-        {envs.map((e) => (
-          <li key={e.id} style={{ marginBottom: 6 }}>
-            <strong>{e.name}</strong>
-            {e.isDefault && <span style={{ marginLeft: 6, fontSize: 12, background: '#dcfce7', padding: '1px 8px', borderRadius: 10 }}>default</span>}
-            {e.baseUrl && <span style={{ marginLeft: 8, color: '#6b7280', fontSize: 13 }}>{e.baseUrl}</span>}
-            {!e.isDefault && <button type="button" style={{ marginLeft: 8 }} onClick={() => void setDefault(e.id)}>Set default</button>}
-            <button type="button" style={{ marginLeft: 8 }} onClick={() => void remove(e.id)}>Delete</button>
-          </li>
-        ))}
-        {envs.length === 0 && <li style={{ color: '#6b7280' }}>No environments — create Staging first.</li>}
-      </ul>
-      <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-        <input placeholder="Name (e.g. Staging)" value={name} onChange={(e) => setName(e.target.value)} />
-        <input placeholder="Base URL https://…" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} style={{ width: 260 }} />
-        <label style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> default
+    <section data-testid="envs-panel" className="space-y-3">
+      <h3 className="text-sm font-semibold text-slate-800">Environments</h3>
+      {err && (
+        <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+          {err}
+        </p>
+      )}
+      {envs.length === 0 ? (
+        <p className="text-sm text-slate-500">No environments — create Staging first.</p>
+      ) : (
+        <ul className="space-y-2">
+          {envs.map((e) => (
+            <li key={e.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <strong className="text-sm">{e.name}</strong>
+              {e.isDefault && <Badge tone="green">default</Badge>}
+              {e.baseUrl && <span className="font-mono text-xs text-slate-500">{e.baseUrl}</span>}
+              <span className="ml-auto flex gap-1.5">
+                {!e.isDefault && (
+                  <Button type="button" size="sm" variant="outline" onClick={() => void setDefault(e.id)}>
+                    Set default
+                  </Button>
+                )}
+                <Button type="button" size="sm" variant="ghost" onClick={() => void remove(e.id)}>
+                  Delete
+                </Button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="grid grid-cols-[1fr_1.4fr_auto] items-end gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
+        <Field label="Name">
+          <Input placeholder="Staging" value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field label="Base URL">
+          <Input placeholder="https://…" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} inputMode="url" />
+        </Field>
+        <label className="flex items-center gap-1.5 pb-2 text-sm text-slate-600">
+          <Checkbox checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> default
         </label>
-        <button type="button" onClick={() => void create()}>Add</button>
-        <button type="button" onClick={onClose}>Done</button>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={onClose}>Done</Button>
+        <Button type="button" onClick={() => void create()} disabled={!name.trim()}>Add environment</Button>
       </div>
     </section>
   );

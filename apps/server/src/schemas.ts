@@ -58,6 +58,23 @@ export const runCreate = z.object({
   profileId: z.string().min(1).optional(),
   /** P2 healing: try stored alternatives on locator failure (proposal-only). */
   healWithAlternatives: z.boolean().optional(),
+  /**
+   * Observe mode: keep trace/video/screenshots for every run (even passes).
+   * Defaults stay failure-oriented (trace/video retain-on-failure); explicit
+   * 'on' is how a tester gets --ui-like evidence to review afterwards.
+   */
+  artifacts: z.object({
+    trace: z.enum(['on', 'off', 'retain-on-failure']).optional(),
+    screenshot: z.enum(['on', 'off', 'only-on-failure']).optional(),
+    video: z.enum(['on', 'off', 'retain-on-failure']).optional(),
+  }).optional(),
+  /** Observe mode: Playwright launch slow-motion ms (0-10000), for headed watching. */
+  slowMoMs: z.number().int().min(0).max(10000).optional(),
+  /**
+   * Debug mode (≈ `playwright test --debug`): headed + PWDEBUG=1, Playwright
+   * Inspector opens on the host; run settles on browser close or Cancel.
+   */
+  debug: z.boolean().optional(),
 });
 
 /** P1 dataset import (CSV/JSON text → embedded definition.datasets). */

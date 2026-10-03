@@ -49,7 +49,9 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   getRun: (id: string) => req<RunDetail>(`/runs/${id}`),
   cancelRun: (id: string) =>
-    req<RunDetail>(`/runs/${id}/cancel`, { method: "POST" }),
+    // NOTE: Fastify rejects `content-type: application/json` with an empty
+    // body (400), so bodiless POSTs must send '{}' explicitly.
+    req<RunDetail>(`/runs/${id}/cancel`, { method: "POST", body: "{}" }),
   rerun: (testId: string, environmentId: string, browser = "chromium") =>
     req<RunDetail>(`/tests/${testId}/runs`, {
       method: "POST",
@@ -88,6 +90,7 @@ export const api = {
   restoreVersion: (testId: string, versionId: string) =>
     req<TestVersion>(`/tests/${testId}/versions/${versionId}/restore`, {
       method: "POST",
+      body: "{}",
     }),
   deleteTest: (testId: string) =>
     fetch(`${BASE}/tests/${testId}`, { method: "DELETE", headers: authHeaders() }),

@@ -241,6 +241,32 @@ export async function visualRoutes(app: FastifyInstance): Promise<void> {
     return reply.header('content-type', row.mimeType).header('content-length', bytes.length).send(bytes);
   });
 
+  // Download any recorded run artifact by id (trace.zip, video.webm, …).
+  // DB-anchored (no client-supplied paths); same run-membership gate as /image.
+  app.get('/runs/:runId/artifacts/:artifactId/download', { preHandler: requireAuth }, async (req, reply) => {
+    const params = parseOrThrow(
+      z.object({ runId: z.string().min(1), artifactId: z.string().min(1) }),
+      req.params,
+    );
+    await requireRunAccess(req, params.runId);
+    const row = await db().artifact.findUnique({ where: { id: params.artifactId } });
+    if (!row || row.runId !== params.runId) {
+      throw new ApiError('NOT_FOUND', `Artifact ${params.artifactId} not found for run ${params.runId}`, 404);
+    }
+    let bytes: Buffer;
+    try {
+      bytes = await readFile(assertSafePath(storageRoot(), row.path));
+    } catch {
+      throw new ApiError('NOT_FOUND', `Artifact ${params.artifactId} bytes are missing from storage`, 404);
+    }
+    const fileName = row.path.split('/').pop() ?? `${params.artifactId}.bin`;
+    return reply
+      .header('content-type', row.mimeType ?? 'application/octet-stream')
+      .header('content-length', bytes.length)
+      .header('content-disposition', `attachment; filename="${fileName}"`)
+      .send(bytes);
+  });
+
   // Trigger a visual run: baseline map injected, optional capture/plugins.
   app.post('/tests/:id/visual-runs', { preHandler: requireAuth }, async (req, reply) => {
     const { id } = parseOrThrow(testParam, req.params);

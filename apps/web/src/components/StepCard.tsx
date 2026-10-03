@@ -3,6 +3,14 @@ import { STEP_META, businessName, targetSummary, type BuilderStep } from "../lib
 
 export type StepStatus = "idle" | "running" | "failed";
 
+const GROUP_ACCENT: Record<string, string> = {
+  Navigation: "border-l-sky-400",
+  Interaction: "border-l-indigo-400",
+  Wait: "border-l-amber-400",
+  Assertion: "border-l-emerald-400",
+  Utility: "border-l-slate-300",
+};
+
 export function StepCard({
   index,
   step,
@@ -34,6 +42,7 @@ export function StepCard({
 }) {
   const meta = STEP_META[step.type];
   const target = (step as { target?: unknown }).target;
+  const accent = GROUP_ACCENT[meta?.group ?? ""] ?? "border-l-slate-300";
   return (
     <div
       role="button"
@@ -56,8 +65,8 @@ export function StepCard({
         e.preventDefault();
         onDrop(index);
       }}
-      className={`group w-full rounded-lg border bg-white px-3 py-2 text-left shadow-sm transition-colors ${
-        selected ? "border-indigo-500 ring-1 ring-indigo-500" : "border-slate-200 hover:border-slate-300"
+      className={`group w-full rounded-lg border border-l-4 bg-white px-3 py-2 text-left shadow-sm transition-colors ${accent} ${
+        selected ? "border-indigo-500 border-l-indigo-500 ring-1 ring-indigo-500" : "border-slate-200 hover:border-slate-300"
       } ${step.enabled ? "" : "opacity-60"}`}
     >
       <div className="flex items-center gap-2">
@@ -71,6 +80,7 @@ export function StepCard({
           </span>
           <span className="block truncate text-[11px] text-slate-500" title={meta ? undefined : `type: ${step.type} · id: ${step.id}`}>
             {meta?.label ?? "Custom step"}
+            {meta?.group ? ` · ${meta.group}` : ""}
             {target ? ` · ${targetSummary(target)}` : ""}
           </span>
         </span>

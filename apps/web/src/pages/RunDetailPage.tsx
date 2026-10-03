@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, traceViewerUrl } from "../api/client";
-import { ApiError, api as studioApi } from "../lib/api";
+import { ApiError, api as studioApi, apiBase, authHeaders } from "../lib/api";
 import { useRunChannel } from "../hooks/useRunChannel";
 import { locatorPreview, type BuilderStep } from "../lib/steps";
 import { sampleRun } from "../mocks/sampleRun";
@@ -39,7 +39,124 @@ function useRun(runId: string) {
   return { run, loading, error, reload: load };
 }
 
+/** Fetch any artifact bytes with auth; returns an object URL (for
+ *  <video> playback and trace.zip download — plain links cannot carry the
+ *  Authorization header). */
+function useArtifactBlob(runId: string, artifactId: string | undefined, endpoint: "image" | "download") {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!artifactId) return;
+    let alive = true;
+    let obj: string | null = null;
+    setUrl(null);
+    setFailed(false);
+    void (async () => {
+      try {
+        const res = await fetch(
+          `${apiBase}/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifactId)}/${endpoint}`,
+          { headers: authHeaders() },
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        obj = URL.createObjectURL(await res.blob());
+        if (alive) setUrl(obj);
+        else URL.revokeObjectURL(obj);
+      } catch {
+        if (alive) setFailed(true);
+      }
+    })();
+    return () => {
+      alive = false;
+      if (obj) URL.revokeObjectURL(obj);
+    };
+  }, [runId, artifactId, endpoint]);
+  return { url, failed };
+}
+
+/** Trace download (authenticated) + how to open it in Playwright's viewer. */
+function TraceDownload({ runId, artifactId }: { runId: string; artifactId: string }) {
+  const { url, failed } = useArtifactBlob(runId, artifactId, "download");
+  if (failed) return <span className="muted">Không tải được trace.</span>;
+  if (!url)
+    return (
+      <span className="muted small">
+        Đang tải trace… (<code>{artifactId}.zip</code>)
+      </span>
+    );
+  return (
+    <>
+      <a className="btn btn-primary" href={url} download="trace.zip">
+        Tải Trace
+      </a>
+      <span className="muted small">
+        Mở bằng Trace Viewer gốc: <code>npx playwright show-trace trace.zip</code> hoặc kéo file vào https://trace.playwright.dev
+      </span>
+    </>
+  );
+}
+
+/** Run video (authenticated bytes via object URL so <video> can play it). */
+function RunVideo({ runId, artifactId }: { runId: string; artifactId: string }) {
+  const { url, failed } = useArtifactBlob(runId, artifactId, "download");
+  if (failed) return <p className="muted small">Không tải được video.</p>;
+  if (!url) return <p className="muted small">Đang tải video…</p>;
+  return <video controls src={url} aria-label="Video lượt chạy" style={{ maxWidth: "100%" }} />;
+}
+
+/** Image served by the authenticated artifact endpoint (plain <img> cannot
+ *  send the Authorization header, so bytes are fetched with authHeaders and
+ *  shown via an object URL). */
+function AuthArtifactImage({ runId, artifactId, label }: { runId: string; artifactId: string; label: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    let url: string | null = null;
+    setSrc(null);
+    setFailed(false);
+    void (async () => {
+      try {
+        const res = await fetch(
+          `${apiBase}/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifactId)}/image`,
+          { headers: authHeaders() },
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        url = URL.createObjectURL(blob);
+        if (alive) setSrc(url);
+        else URL.revokeObjectURL(url);
+      } catch {
+        if (alive) setFailed(true);
+      }
+    })();
+    return () => {
+      alive = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [runId, artifactId]);
+  if (failed) return <p className="muted small">Không tải được ảnh {label}.</p>;
+  if (!src) return <p className="muted small">Đang tải ảnh {label}…</p>;
+  return (
+    <figure>
+      <figcaption>{label}</figcaption>
+      <img src={src} alt={label} style={{ maxWidth: "100%", border: "1px solid #e2e8f0", borderRadius: 4 }} />
+    </figure>
+  );
+}
+
 export function RunDetailPage({ runId }: { runId: string }) {  const { run, loading, error, reload } = useRun(runId);
+  // Server GET /runs/:id returns artifacts as a flat array
+  // [{id, type: 'result'|'trace'|'video'|'screenshot', path, mimeType, sizeBytes}].
+  // (The RunDetail {traceUrl, videoUrl} object shape only exists in mocks.)
+  // NOTE: hooks must stay before the loading/error early-returns (Rules of Hooks).
+  const artifactList = useMemo(() => {
+    const raw = (run as unknown as { artifacts?: unknown } | null)?.artifacts;
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(
+      (a): a is { id: string; type: string; path: string; mimeType?: string; sizeBytes?: number } =>
+        !!a && typeof a === "object" && typeof (a as { id?: unknown }).id === "string" && typeof (a as { type?: unknown }).type === "string",
+    );
+  }, [run]);
   const toast = useToast();
   const [role, setRole] = useState<UserRole>(
     () => (localStorage.getItem("vv-role") as UserRole) || "tester",
@@ -181,6 +298,9 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
   }
 
   const timelineTotal = Math.max(1, ...run.steps.map((s) => s.durationMs));
+  const traceArtifact = artifactList.find((a) => a.type === "trace");
+  const videoArtifact = artifactList.find((a) => a.type === "video");
+  const shotArtifacts = artifactList.filter((a) => a.type === "screenshot");
   const traceUrl = run.artifacts.traceUrl;
 
   return (
@@ -362,8 +482,24 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
 
       {/* Artifacts */}
       <h2>Bằng chứng (ảnh / video / trace)</h2>
+      {shotArtifacts.length > 0 ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {shotArtifacts.map((a) => (
+            <AuthArtifactImage
+              key={a.id}
+              runId={run.id}
+              artifactId={a.id}
+              label={(a.path.split("/").pop() ?? a.id).replace(/\.png$/, "").replace(/^sShot$/, "Ảnh chụp màn hình")}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="muted small">Lượt chạy này không có ảnh chụp (thêm step “screenshot” vào test để có bằng chứng hình ảnh).</p>
+      )}
       <div className="row">
-        {traceUrl ? (
+        {traceArtifact ? (
+          <TraceDownload runId={run.id} artifactId={traceArtifact.id} />
+        ) : traceUrl ? (
           <>
             <a
               className="btn btn-primary"
@@ -381,13 +517,15 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
           <span className="muted">Lượt chạy này không có trace.</span>
         )}
       </div>
-      {traceUrl && role === "developer" ? (
+      {traceUrl && !traceArtifact && role === "developer" ? (
         <p className="muted small">
           Hoặc chạy local: <code>npx playwright show-trace trace.zip</code> · File gốc:{" "}
           <code>{traceUrl}</code>
         </p>
       ) : null}
-      {run.artifacts.videoUrl ? (
+      {videoArtifact ? (
+        <RunVideo runId={run.id} artifactId={videoArtifact.id} />
+      ) : run.artifacts.videoUrl ? (
         <video controls src={run.artifacts.videoUrl} aria-label="Video lượt chạy" />
       ) : (
         <p className="muted small">Không có video cho lượt chạy này.</p>

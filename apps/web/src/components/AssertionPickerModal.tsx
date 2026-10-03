@@ -7,6 +7,7 @@
  */
 import { useCallback, useState } from "react";
 import { setPickMode } from "../lib/api";
+import { Button, Dialog, Field, Input, Select } from "./ui";
 import {
   extractPickedLocator,
   useRecorderEvents,
@@ -100,130 +101,123 @@ export function AssertionPickerModal(props: {
   }
 
   return (
-    <div
-      role="dialog"
-      aria-label="Add assertion"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.45)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 50,
-      }}
-      onClick={props.onClose}
-    >
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: 10,
-          padding: 20,
-          width: 560,
-          maxWidth: "94vw",
-          maxHeight: "88vh",
-          overflowY: "auto",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 style={{ marginTop: 0 }}>Add assertion</h3>
-
-        <section style={{ marginBottom: 14 }}>
-          <h4 style={{ margin: "0 0 6px" }}>1. Select element</h4>
+    <Dialog open={props.open} onClose={props.onClose} title="Add assertion">
+      <div data-testid="assertion-modal" className="space-y-4 px-4 py-4">
+        <section className="space-y-2">
+          <h4 className="text-sm font-semibold text-slate-700">
+            <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-bold text-indigo-700">1</span>
+            Select element
+          </h4>
           {picked ? (
-            <div style={{ fontSize: 13 }}>
-              Target: <strong>{JSON.stringify(picked.primary)}</strong>{" "}
-              <button type="button" onClick={() => setPicked(null)}>
+            <div className="flex items-start justify-between gap-2 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2">
+              <code className="min-w-0 flex-1 break-all font-mono text-[11px] text-indigo-900">
+                {JSON.stringify(picked.primary)}
+              </code>
+              <Button type="button" size="sm" variant="ghost" onClick={() => setPicked(null)}>
                 Clear
-              </button>
+              </Button>
             </div>
           ) : (
-            <div style={{ fontSize: 13, color: "#475569" }}>No element selected.</div>
+            <p className="text-[13px] text-slate-500">No element selected.</p>
           )}
-          <div style={{ marginTop: 6 }}>
-            <button type="button" onClick={() => void enableAssertionPick()} disabled={picking}>
+          <div className="flex flex-wrap gap-1.5">
+            <Button type="button" size="sm" variant="outline" onClick={() => void enableAssertionPick()} disabled={picking}>
               {picking ? "Assertion pick ON — click an element…" : "Pick from page"}
-            </button>{" "}
+            </Button>
             {FIXTURE_TARGETS.map((t) => (
-              <button
+              <Button
                 key={t.label}
                 type="button"
-                style={{ marginRight: 6, marginBottom: 6 }}
+                size="sm"
+                variant="outline"
                 onClick={() => setPicked({ primary: t.primary, alternatives: t.alternatives })}
               >
                 {t.label}
-              </button>
+              </Button>
             ))}
-            <button
+            <Button
               type="button"
-              style={{ marginBottom: 6 }}
+              size="sm"
+              variant="outline"
               onClick={() => {
                 setPicked(null);
                 setAssertionType("assertURL");
               }}
             >
               Page URL (no element)
-            </button>
+            </Button>
           </div>
           {pickError && (
-            <div role="alert" style={{ color: "#991b1b", fontSize: 13, marginTop: 6 }}>
+            <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
               {pickError}
-            </div>
+            </p>
           )}
         </section>
 
-        <section style={{ marginBottom: 14 }}>
-          <h4 style={{ margin: "0 0 6px" }}>2. Assertion kind</h4>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {ASSERTION_OPTIONS.map((o) => (
-              <button
-                key={o.type}
-                type="button"
-                title={o.hint}
-                disabled={o.needsTarget && !picked}
-                onClick={() => setAssertionType(o.type)}
-                style={{
-                  fontWeight: o.type === assertionType ? 700 : 400,
-                  outline: o.type === assertionType ? "2px solid #0284c7" : undefined,
-                }}
-              >
-                {o.label}
-              </button>
-            ))}
+        <section className="space-y-2">
+          <h4 className="text-sm font-semibold text-slate-700">
+            <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-bold text-indigo-700">2</span>
+            Assertion kind
+          </h4>
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Assertion kind">
+            {ASSERTION_OPTIONS.map((o) => {
+              const active = o.type === assertionType;
+              return (
+                <button
+                  key={o.type}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  title={o.hint}
+                  disabled={o.needsTarget && !picked}
+                  onClick={() => setAssertionType(o.type)}
+                  className={`rounded-md border px-2.5 py-1 text-[13px] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                    active
+                      ? "border-indigo-600 bg-indigo-50 font-semibold text-indigo-700"
+                      : "border-slate-300 bg-white text-slate-700 hover:border-indigo-400"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              );
+            })}
           </div>
-          {option && (
-            <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{option.hint}</div>
-          )}
+          {option && <p className="text-xs text-slate-500">{option.hint}</p>}
         </section>
 
         {option?.needsExpected && (
-          <section style={{ marginBottom: 14 }}>
-            <h4 style={{ margin: "0 0 6px" }}>3. Expected value</h4>
-            <input
-              style={{ width: "100%", boxSizing: "border-box", padding: "6px 8px" }}
-              value={expected}
-              onChange={(e) => setExpected(e.target.value)}
-              placeholder={option.expectedPlaceholder ?? "Expected value"}
-            />
+          <section className="space-y-2">
+            <h4 className="text-sm font-semibold text-slate-700">
+              <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-bold text-indigo-700">3</span>
+              Expected value
+            </h4>
+            <Field label="Expected">
+              <Input
+                value={expected}
+                onChange={(e) => setExpected(e.target.value)}
+                placeholder={option.expectedPlaceholder ?? "Expected value"}
+              />
+            </Field>
           </section>
         )}
 
-        <section style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 13 }}>
-            {option?.needsExpected ? "4. " : "3. "}Insert
-          </span>
-          <select value={position} onChange={(e) => setPosition(e.target.value as InsertPosition)}>
-            <option value="before">before selected step</option>
-            <option value="after">after selected step</option>
-          </select>
-          <button type="button" onClick={insert} disabled={!canInsert}>
-            Insert assertion
-          </button>
-          <button type="button" onClick={props.onClose}>
-            Cancel
-          </button>
-        </section>
+        <div className="flex items-end justify-between gap-2 border-t border-slate-200 pt-3">
+          <Field label={option?.needsExpected ? "4. Insert position" : "3. Insert position"}>
+            <Select value={position} onChange={(e) => setPosition(e.target.value as InsertPosition)} className="w-44">
+              <option value="before">before selected step</option>
+              <option value="after">after selected step</option>
+            </Select>
+          </Field>
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" onClick={props.onClose}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={insert} disabled={!canInsert}>
+              Insert assertion
+            </Button>
+          </div>
+        </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

@@ -213,6 +213,21 @@ export interface RunRequest {
    */
   healWithAlternatives?: boolean;
   artifacts?: RunArtifactsOptions;
+  /**
+   * Observe mode: Playwright launch slow-motion (ms between operations) so a
+   * tester can follow a headed run step by step. 0/undefined = full speed.
+   * Capped at 10s by the server schema; honored only together with headed
+   * (headless + slowMo is allowed by Playwright but pointless to watch).
+   */
+  slowMoMs?: number;
+  /**
+   * Debug mode (≈ `playwright test --debug`): run headed with PWDEBUG=1 so
+   * Playwright opens its Inspector on the host; the tester steps through
+   * manually and the run settles when the browser/Inspector closes (or via
+   * Cancel, which tree-kills the child). Forces headed regardless of
+   * `headed`; combines with slowMoMs/artifacts like observe mode.
+   */
+  debug?: boolean;
 }
 
 export interface StepRecord {
