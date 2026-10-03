@@ -97,6 +97,34 @@ function templateExpr(template: string, field: string, stepId: string): string {
   return parts.join(' + ');
 }
 
+/**
+ * Mirror of the canonical `compileUrlMatcher` (packages/playwright-compiler):
+ * tester glob (`*`/`**`) in a PURE literal becomes `new RegExp(...)` because
+ * Playwright compares plain URL strings literally. Templates pass through.
+ */
+function urlMatcherExpr(template: string, field: string, stepId: string): string {
+  if (!template.includes('*') || findTemplateVars(template).length > 0 || findRowRefs(template).length > 0) {
+    return templateExpr(template, field, stepId);
+  }
+  let src = '';
+  for (let i = 0; i < template.length; i++) {
+    const c = template[i] as string;
+    if (c === '*') {
+      if (template[i + 1] === '*') {
+        src += '.*';
+        i++;
+      } else {
+        src += '[^/]*';
+      }
+    } else if ('.+?^${}()|[]\\'.includes(c)) {
+      src += `\\${c}`;
+    } else {
+      src += c;
+    }
+  }
+  return `new RegExp(${esc(`^${src}$`)})`;
+}
+
 /** Dataset-row column names referenced as {{row.NAME}} inside a template. */
 function findRowRefs(template: string): string[] {
   const names: string[] = [];
@@ -210,7 +238,7 @@ function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string
       return `await ${pageVar}.waitForTimeout(${Number(ms)}); // WARNING: fixed wait is discouraged`;
     }
     case 'waitForURL':
-      return `await ${pageVar}.waitForURL(${templateExpr(step.url ?? step.expected ?? step.pattern ?? '', 'expected', step.id)});`;
+      return `await ${pageVar}.waitForURL(${urlMatcherExpr(step.url ?? step.expected ?? step.pattern ?? '', 'expected', step.id)});`;
     case 'assertVisible':
       return `await expect(${loc()}).toBeVisible();`;
     case 'assertHidden':
@@ -222,7 +250,7 @@ function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string
     case 'assertValue':
       return `await expect(${loc()}).toHaveValue(${templateExpr(step.expected ?? '', 'expected', step.id)});`;
     case 'assertURL':
-      return `await expect(${pageVar}).toHaveURL(${templateExpr(step.expected ?? step.pattern ?? '', 'expected', step.id)});`;
+      return `await expect(${pageVar}).toHaveURL(${urlMatcherExpr(step.expected ?? step.pattern ?? '', 'expected', step.id)});`;
     case 'assertTitle':
       return `await expect(${pageVar}).toHaveTitle(${templateExpr(step.expected ?? '', 'expected', step.id)});`;
     case 'assertEnabled':

@@ -16,6 +16,7 @@ import {
   type LocatorSpec,
 } from './locatorToExpression';
 import {
+  compileUrlMatcher,
   compileValueExpression,
   DATASET_SECRET_NOTE,
   hasRowReference,
@@ -468,7 +469,7 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
           `Step "${step.id}" (waitForURL): one of "url"/"pattern"/"expected" is required`,
         );
       }
-      return [`await ${pageVar}.waitForURL(${compileValueExpression(url)});`];
+      return [`await ${pageVar}.waitForURL(${compileUrlMatcher(url)});`];
     }
     case 'assertVisible':
       return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeVisible();`];
@@ -514,7 +515,7 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
           `Step "${step.id}" (assertURL): one of "expected"/"url"/"pattern" is required`,
         );
       }
-      return [`await expect(${pageVar}).toHaveURL(${compileValueExpression(expected)});`];
+      return [`await expect(${pageVar}).toHaveURL(${compileUrlMatcher(expected)});`];
     }
     case 'assertTitle': {
       const expected = optionalString(step, 'expected', 'title');

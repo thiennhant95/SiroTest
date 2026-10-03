@@ -21,6 +21,7 @@ import {
   type LocatorSpec,
 } from '../src/locatorToExpression';
 import {
+  compileUrlMatcher,
   compileValueExpression,
   escapeString,
   extractVariableNames,
@@ -392,5 +393,45 @@ describe('determinism + golden', () => {
     const raw = fs.readFileSync(path.join(root, 'examples', 'login-test.json'), 'utf8');
     const out = compileTest(JSON.parse(raw) as TestDefinition);
     assert.equal(out, GOLDEN_LINES.join('\n'));
+  });
+});
+
+describe('URL matchers (glob -> RegExp)', () => {
+  it('converts ** and * globs to anchored RegExp', () => {
+    assert.equal(compileUrlMatcher('**/login**'), 'new RegExp("^.*/login.*$")');
+    assert.equal(compileUrlMatcher('/a/*/c'), 'new RegExp("^/a/[^/]*/c$")');
+    assert.equal(
+      compileUrlMatcher('https://x.test/a+b/*.html'),
+      'new RegExp("^https://x\\\\.test/a\\\\+b/[^/]*\\\\.html$")',
+    );
+    // No stars: plain literal, untouched.
+    assert.equal(compileUrlMatcher('https://x.test/a+b/c.html'), "'https://x.test/a+b/c.html'");
+  });
+
+  it('passes exact URLs and templates through untouched', () => {
+    assert.equal(compileUrlMatcher('https://x.test/login'), "'https://x.test/login'");
+    assert.equal(compileUrlMatcher('{{BASE_URL}}'), 'process.env.BASE_URL!');
+    assert.equal(compileUrlMatcher('{{BASE_URL}}/home'), '`${process.env.BASE_URL}/home`');
+  });
+
+  it('emitted RegExp matches like a tester expects', () => {
+    const re = new Function(`return ${compileUrlMatcher('**/login**')};`)() as unknown as RegExp;
+    assert.ok(re.test('https://showcase.sirophp.com/login'));
+    assert.ok(re.test('https://x.test/a/login?next=1'));
+    assert.ok(!re.test('https://x.test/logout'));
+    const one = new Function(`return ${compileUrlMatcher('/a/*/c')};`)() as unknown as RegExp;
+    assert.ok(one.test('/a/b/c'));
+    assert.ok(!one.test('/a/b/c/d'));
+  });
+
+  it('assertURL/waitForURL steps emit the matcher', () => {
+    const out = compileTest(
+      defWithSteps([step('s1', 'assertURL', { pattern: '**/login**' })]),
+    );
+    assert.ok(out.includes(`toHaveURL(new RegExp("^.*/login.*$"))`), out);
+    const wait = compileTest(
+      defWithSteps([step('s1', 'waitForURL', { pattern: '**/dashboard/**' })]),
+    );
+    assert.ok(wait.includes('waitForURL(new RegExp('), wait);
   });
 });

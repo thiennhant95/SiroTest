@@ -106,6 +106,37 @@ export function stringLiteral(value: string): string {
   return `'${escapeString(value)}'`;
 }
 
+/**
+ * Compile a URL matcher (assertURL / waitForURL `expected`/`url`/`pattern`)
+ * into a TS expression. Tester-friendly glob patterns (`*` = path segment,
+ * `**` = anything) become `new RegExp(...)` because Playwright's `toHaveURL`
+ * compares plain strings literally — a raw `**` would never match.
+ * Templates (`{{VAR}}`/`{{row.*}}`) pass through to compileValueExpression
+ * untouched (glob + variables intentionally do not mix).
+ */
+export function compileUrlMatcher(raw: string): string {
+  if (!raw.includes('*') || hasVariable(raw) || hasRowReference(raw)) {
+    return compileValueExpression(raw);
+  }
+  let src = '';
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i] as string;
+    if (c === '*') {
+      if (raw[i + 1] === '*') {
+        src += '.*';
+        i++;
+      } else {
+        src += '[^/]*';
+      }
+    } else if ('.+?^${}()|[]\\'.includes(c)) {
+      src += `\\${c}`;
+    } else {
+      src += c;
+    }
+  }
+  return `new RegExp(${JSON.stringify(`^${src}$`)})`;
+}
+
 /** Escape literal text for embedding inside a template literal. */
 function escapeTemplateText(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');

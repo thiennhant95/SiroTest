@@ -396,8 +396,8 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
           <Field label="Expected URL">
             <Input value={str(step.expected)} onChange={(e) => set("expected", e.target.value)} placeholder="**/dashboard" />
           </Field>
-          <Field label="Pattern (regex, thay cho expected)">
-            <Input value={str(step.pattern)} onChange={(e) => set("pattern", e.target.value || undefined)} />
+          <Field label="Pattern (thay cho expected)" hint="Glob được hỗ trợ: * khớp 1 đoạn đường dẫn, ** khớp mọi thứ. VD: **/login** — không dùng {{BIẾN}} chung với *.">
+            <Input value={str(step.pattern)} onChange={(e) => set("pattern", e.target.value || undefined)} placeholder="**/dashboard" />
           </Field>
         </>
       );
