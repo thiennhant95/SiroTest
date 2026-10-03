@@ -8,6 +8,7 @@ import { testRoutes } from './routes/tests.js';
 import { environmentRoutes } from './routes/environments.js';
 import { variableRoutes } from './routes/variables.js';
 import { recorderRoutes, recorderManager } from './routes/recorder.js';
+import { resolveEventLocator } from '@vv/recorder';
 import { runRoutes } from './routes/runs.js';
 import { datasetRoutes } from './routes/datasets.js';
 import { suiteRoutes } from './routes/suites.js';
@@ -101,8 +102,7 @@ export async function buildApp() {
     }
   };
 
-  app.get('/ws', { websocket: true }, (socket, req) => {
-    const user = authenticateWsToken(req.query);
+  app.get('/ws', { websocket: true }, (socket, req) => {    const user = authenticateWsToken(req.query);
     if (!user) {
       // No cookie auth exists, so WS cannot rely on ambient credentials:
       // close unauthenticated handshakes instead of leaking events.
@@ -120,6 +120,9 @@ export async function buildApp() {
     socket.on('message', (raw: Buffer) => {
       // Bridge ingest: { sessionId, evt } — evt is minimal BridgeEvent metadata.
       // Only the session owner may ingest into it (cross-user hijack guard).
+      // Locator resolution matches the live-browser path (resolveEventLocator):
+      // a session WITH a live browser gets verified candidates; externally
+      // driven pages get an unverified rank from event-time metadata.
       try {
         const msg = JSON.parse(String(raw)) as { sessionId?: string; evt?: unknown };
         if (msg.sessionId && msg.evt) {
@@ -129,7 +132,22 @@ export async function buildApp() {
             peer.send(JSON.stringify({ event: 'error', payload: { code: 'FORBIDDEN', message: 'Recorder session belongs to another user' } }));
             return;
           }
-          recorderManager.ingest(msg.sessionId, msg.evt);
+          void (async () => {
+            try {
+              const browser = recorderManager.getBrowser(msg.sessionId as string);
+              const locator = await resolveEventLocator(
+                browser?.page,
+                msg.evt as Parameters<typeof resolveEventLocator>[1],
+              );
+              recorderManager.ingestResolved(msg.sessionId as string, msg.evt, locator);
+            } catch {
+              try {
+                recorderManager.ingest(msg.sessionId as string, msg.evt);
+              } catch {
+                // Session gone concurrently — nothing to do.
+              }
+            }
+          })();
         }
       } catch { /* ignore malformed frames */ }
     });

@@ -39,12 +39,11 @@ async function handleLiveEvent(
   if (!session) return;
   try {
     if (session.pickMode !== 'off' && (evt.kind === 'click' || evt.kind === 'dblclick')) {
-      const resolved: ResolvedLocator | null = await browser.resolveFromEvent(evt);
+      const resolved = await browser.resolveFromEvent(evt);
       if (resolved) {
         recorderManager.completePick(sessionId, {
           candidate: resolved.primary,
           alternatives: resolved.alternatives,
-          preview: resolved.preview,
         });
       } else {
         recorderManager.completePick(sessionId, { candidate: null, preview: 'no element at pick point' });
@@ -215,9 +214,12 @@ function testBaseUrl(test: { definitionJson: string }): string | undefined {
 
   app.get('/recorder/:sessionId', { preHandler: requireAuth }, async (req) => {
     const { sessionId } = req.params as { sessionId: string };
+    requireSessionOwner(sessionId, req.user!.id);
     const s = recorderManager.getBySessionId(sessionId);
     if (!s) throw new ApiError('NOT_FOUND', `Recorder session ${sessionId} not found`, 404);
-    return { ...s, liveBrowser: recorderManager.hasLiveBrowser(sessionId) };
+    // Live UIs render flushed drafts + the trailing pending step still held
+    // by the normalizer (persistence only ever stores flushed steps).
+    return { ...s, liveBrowser: recorderManager.hasLiveBrowser(sessionId), pendingSteps: recorderManager.pendingSteps(sessionId) };
   });
   // Pick locator mode (locator picker protocol — Day 3 gate)
   app.post('/recorder/:sessionId/locator/pick', { preHandler: requireAuth }, async (req) => {

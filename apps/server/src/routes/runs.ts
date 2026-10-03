@@ -166,11 +166,13 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/tests/:id/runs', { preHandler: requireAuth }, async (req) => {
     const { id } = req.params as { id: string };
+    await requireProjectAccess(req);
     return db().run.findMany({ where: { testId: id }, orderBy: { startedAt: 'desc' } });
   });
 
   app.get('/runs/:id', { preHandler: requireAuth }, async (req) => {
     const { id } = req.params as { id: string };
+    await requireProjectAccess(req);
     const run = await db().run.findUnique({ where: { id }, include: { steps: true, artifacts: true } });
     if (!run) throw new ApiError('NOT_FOUND', `Run ${id} not found`, 404);
     // Defense-in-depth: never expose absolute server paths to browser clients

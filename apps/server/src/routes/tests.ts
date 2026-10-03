@@ -75,6 +75,7 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/tests/:id', { preHandler: requireAuth }, async (req) => {
     const { id } = req.params as { id: string };
+    await requireProjectAccess(req);
     const t = await db().test.findUnique({ where: { id } });
     if (!t) throw new ApiError('NOT_FOUND', `Test ${id} not found`, 404);
     return t;

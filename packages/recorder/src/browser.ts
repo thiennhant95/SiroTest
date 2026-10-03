@@ -17,6 +17,7 @@ import {
   buildCandidates,
   candidateKey,
   candidateToExpression,
+  rankCandidates,
   resolveLocator,
   testLocatorMatch,
   type ElementMetadata,
@@ -146,7 +147,7 @@ export interface RecorderBrowser {
   page: Page;
   close: (reason?: string) => Promise<void>;
   /** Resolve a locator for a bridge event (event-time metadata preferred). */
-  resolveFromEvent: (evt: BridgeEvent) => Promise<ResolvedLocator | null>;
+  resolveFromEvent: (evt: BridgeEvent) => Promise<EventLocator | null>;
   /** Resolve candidates for the element at a viewport point (null when none). */
   resolveFromPoint: (point: { x: number; y: number }) => Promise<ResolvedLocator | null>;
   /** Live 0/1/N count + highlight for a candidate (05-locator Test Locator). */
@@ -219,6 +220,51 @@ async function resolveWithCounts(
   } catch {
     return null;
   }
+}
+
+export interface EventLocator {
+  primary: unknown;
+  alternatives?: unknown[];
+}
+
+export interface LocatorResolvingBrowser {
+  page: Page;
+  resolveFromPoint: (point: { x: number; y: number }) => Promise<ResolvedLocator | null>;
+}
+
+/**
+ * Single choke point for event-time locator resolution (bridge binding path,
+ * WS-ingested path and pick mode all funnel here):
+ * 1. event-time `meta` (synchronous in-page capture — immune to post-event
+ *    DOM swaps) ranked with live counts when a page + counter are given;
+ * 2. point re-resolution against the live page (metadata-less events);
+ * 3. unverified rank from `meta` when no page is available (WS-ingested
+ *    events from externally-driven pages).
+ * Returns undefined when nothing usable exists — the step is still captured.
+ */
+export async function resolveEventLocator(
+  page: Page | undefined,
+  evt: BridgeEvent,
+  countFor?: (candidate: LocatorCandidate) => Promise<number | undefined>,
+): Promise<EventLocator | undefined> {
+  const atCapture = metadataFromEvent(evt);
+  if (atCapture) {
+    if (page && countFor) {
+      const withCounts = await resolveWithCounts(page, atCapture, countFor);
+      if (withCounts) return { primary: withCounts.primary, alternatives: withCounts.alternatives };
+    } else {
+      try {
+        const candidates = buildCandidates(atCapture);
+        if (candidates.length > 0) {
+          const [top, ...rest] = rankCandidates(candidates);
+          return { primary: top.candidate, alternatives: rest.map((r) => r.candidate) };
+        }
+      } catch {
+        // fall through to point fallback / undefined
+      }
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -329,9 +375,12 @@ export async function launchRecorderBrowser(
       const atCapture = metadataFromEvent(evt);
       if (atCapture) {
         const withCounts = await resolveWithCounts(page, atCapture, countFor);
-        if (withCounts) return withCounts;
+        if (withCounts) return { primary: withCounts.primary, alternatives: withCounts.alternatives };
       }
-      if (evt.point) return resolveFromPointImpl(evt.point);
+      if (evt.point) {
+        const fromPoint = await resolveFromPointImpl(evt.point);
+        if (fromPoint) return { primary: fromPoint.primary, alternatives: fromPoint.alternatives };
+      }
       return null;
     },
     resolveFromPoint: async (point) => resolveFromPointImpl(point),
