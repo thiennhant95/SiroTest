@@ -39,12 +39,18 @@ export const RECORDER_BRIDGE_SOURCE = /* js */ `
           const lab = document.querySelector('label[for="' + CSS.escape(el.id) + '"]');
           if (lab) label = (lab.innerText || '').trim();
         }
+        if (!label && get('aria-labelledby')) {
+          label = get('aria-labelledby').split(/\s+/).map((id) => {
+            const n = document.getElementById(id);
+            return n ? (n.innerText || '').trim() : '';
+          }).filter(Boolean).join(' ');
+        }
       } catch { /* best effort */ }
       const type = (get('type') || '').toLowerCase();
       let implicit = '';
       if (tag === 'BUTTON') implicit = 'button';
       else if (tag === 'A' && get('href')) implicit = 'link';
-      else if (tag === 'INPUT' && (type === '' || type === 'text' || type === 'email' || type === 'password' || type === 'search')) implicit = 'textbox';
+      else if (tag === 'INPUT' && (type === '' || type === 'text' || type === 'email' || type === 'password' || type === 'search' || type === 'tel' || type === 'url')) implicit = 'textbox';
       else if (tag === 'INPUT' && (type === 'checkbox' || type === 'radio')) implicit = 'checkbox';
       else if (tag === 'SELECT') implicit = 'combobox';
       else if (tag === 'TEXTAREA') implicit = 'textbox';
@@ -54,7 +60,7 @@ export const RECORDER_BRIDGE_SOURCE = /* js */ `
         ((tag === 'BUTTON' || tag === 'A') ? text : '') ||
         ((tag === 'INPUT' && (get('type') === 'submit' || get('type') === 'button')) ? (el.value || text) : '')).trim().slice(0, 120);
       const attrs = {};
-      for (const a of ['type', 'name', 'placeholder', 'aria-label', 'role', 'data-testid', 'href', 'title', 'alt']) {
+      for (const a of ['type', 'name', 'placeholder', 'aria-label', 'role', 'data-testid', 'href', 'title', 'alt', 'value']) {
         const v = get(a);
         if (v != null && v !== '') attrs[a] = String(v).slice(0, 200);
       }
@@ -72,6 +78,19 @@ export const RECORDER_BRIDGE_SOURCE = /* js */ `
         parts.unshift(part);
         node = node.parentElement;
       }
+      // absolute xpath (fallback only — scored down by the engine)
+      const xp = [];
+      let xn = el;
+      for (let d = 0; d < 8 && xn instanceof Element && xn.tagName !== 'HTML'; d++) {
+        const parent = xn.parentElement;
+        let idx = 1;
+        if (parent) {
+          const same = [...parent.children].filter((c) => c.tagName === xn.tagName);
+          idx = same.indexOf(xn) + 1;
+        }
+        xp.unshift(xn.tagName.toLowerCase() + '[' + idx + ']');
+        xn = parent;
+      }
       return {
         tagName: tag,
         role: get('role') || implicit || undefined,
@@ -84,6 +103,7 @@ export const RECORDER_BRIDGE_SOURCE = /* js */ `
         classNames,
         attributes: attrs,
         cssPath: parts.join(' > ') || undefined,
+        xpath: '/html/' + xp.join('/'),
       };
     } catch {
       return undefined;
