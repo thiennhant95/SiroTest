@@ -26,12 +26,39 @@ declare module 'fastify' {
   }
 }
 
+/**
+ * Dev-stub user auto-provisioning (pilot unblocker).
+ *
+ * P0 auth mints identities from a header without a signup flow, so a fresh
+ * tester has no User row — and without it no owner membership can exist,
+ * which makes every project-scoped write 403 for exactly the users the
+ * pilot is for. Auto-provision a minimal row on first sight (idempotent
+ * upsert; never overwrites an existing row). Real auth (JWT/OIDC) replaces
+ * the stub and keeps this as a harmless no-op. Failures never fail the
+ * request — downstream membership checks apply as before.
+ */
+export async function ensureUserRow(userId: string): Promise<void> {
+  try {
+    await db().user.upsert({
+      where: { id: userId },
+      update: {},
+      create: { id: userId, email: `${userId}@stub.local`, authRef: 'stub', role: 'tester' },
+    });
+  } catch {
+    // DB hiccup: proceed — membership checks still enforce as before.
+  }
+}
+
 export async function requireAuth(req: FastifyRequest, _reply: FastifyReply): Promise<void> {
   const user = resolveUser(req.headers.authorization, req.headers['x-user-id'] as string | undefined);
   if (!user) {
     throw new ApiError('UNAUTHORIZED', 'Missing credentials', 401);
   }
   req.user = user;
+  // Provision the stub identity so first-touch flows (project creation ->
+  // owner membership -> scoped writes) work for fresh testers. No-op once
+  // real auth backs identities; never fails the request.
+  await ensureUserRow(user.id);
 }
 
 /**
@@ -76,6 +103,7 @@ export function requirePrivileged(req: FastifyRequest): AuthUser {
  */
 export async function requireProjectAccess(req: FastifyRequest): Promise<AuthUser> {
   if (!req.user) throw new ApiError('UNAUTHORIZED', 'Missing credentials', 401);
+  await ensureUserRow(req.user.id);
   const params = (req.params ?? {}) as Record<string, unknown>;
   let projectId: string | undefined;
   if (typeof params['projectId'] === 'string' && params['projectId'].length > 0) {
