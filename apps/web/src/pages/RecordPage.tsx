@@ -30,15 +30,32 @@ export function RecordPage() {
         ← Về builder
       </Link>
       <h1 className="text-xl font-semibold">Record session</h1>
-      <p className="text-sm text-slate-500">
-        Test <code>{id}</code> ·{" "}
+      <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+        <span>Test <code className="rounded bg-slate-100 px-1 font-mono text-xs">{id}</code></span>
         {sessionId ? (
-          <Badge tone="indigo">session {sessionId}</Badge>
+          <Badge tone="indigo">session {sessionId.slice(0, 12)}…</Badge>
         ) : (
           <Badge>chưa start</Badge>
-        )}{" "}
+        )}
         {sessionId && paused ? <Badge tone="amber">paused</Badge> : null}
-      </p>
+        {sessionId && !paused ? <Badge tone="green">recording</Badge> : null}
+      </div>
+
+      <ol className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 text-sm shadow-sm">
+        {[
+          "Nhập Base URL rồi Start — browser headed bật lên trên máy chạy server.",
+          "Thao tác trên trang web: mỗi click/gõ được ghi thành step.",
+          "Pause khi cần nghỉ; Resume để tiếp tục.",
+          "Stop để merge steps vào builder rồi review.",
+        ].map((s, i) => (
+          <li key={i} className="flex gap-2.5">
+            <span className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+              sessionId ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
+            }`}>{i + 1}</span>
+            <span className="text-slate-700">{s}</span>
+          </li>
+        ))}
+      </ol>
 
       <Field label="Base URL">
         <Input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} disabled={!!sessionId} />

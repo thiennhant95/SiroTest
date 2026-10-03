@@ -166,6 +166,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
   const [cancelling, setCancelling] = useState(false);
   const [downloadingJUnit, setDownloadingJUnit] = useState(false);
   const [defSteps, setDefSteps] = useState<Map<string, BuilderStep>>(new Map());
+  const [testName, setTestName] = useState<string | null>(null);
 
   // Live WS subscription (08-api/websocket-events.md): informational only —
   // DB (useRun above) stays authoritative; terminal events trigger refetch.
@@ -190,6 +191,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
         const raw = t.definitionJson as { steps?: BuilderStep[] } | null;
         const steps = Array.isArray(raw?.steps) ? raw!.steps! : [];
         setDefSteps(new Map(steps.map((s) => [s.id, s])));
+        if (typeof t.name === "string" && t.name) setTestName(t.name);
       })
       .catch(() => {
         if (alive) setDefSteps(new Map());
@@ -304,14 +306,14 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
   const traceUrl = run.artifacts.traceUrl;
 
   return (
-    <section className="page" aria-label={`Kết quả chạy ${run.testName}`}>
+    <section className="page" aria-label={`Kết quả chạy ${run.testName || testName || run.id}`}>
       {/* Header: status + env/browser/duration */}
       <header className="run-head">
         <div>
           <p className="crumb">
             <Link to={`/tests/${run.testId}`}>← Về bài kiểm thử</Link>
           </p>
-          <h1>{run.testName}</h1>
+          <h1>{run.testName || testName || `Run ${run.id.slice(0, 8)}`}</h1>
           <p className="muted">
             Môi trường <strong>{run.environment}</strong> · Trình duyệt{" "}
             <strong>{run.browser}</strong> · Bắt đầu {formatTime(run.startedAt)} · Kéo dài{" "}
