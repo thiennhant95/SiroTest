@@ -1,7 +1,7 @@
 /**
  * Public entry point of `@vietvang/playwright-compiler` (P0).
  */
-export { COMPILER_VERSION, MAX_DATASET_ROWS, SUPPORTED_STEP_TYPES } from './compiler';
+export { COMPILER_VERSION, MAX_DATASET_ROWS, SUPPORTED_STEP_TYPES, P1_WAVE2_STEP_TYPES, FILE_PATHS_ENV, FILE_PATHS_ENV_ALIAS } from './compiler';
 export type {
   ActionParameter,
   ActionsContext,

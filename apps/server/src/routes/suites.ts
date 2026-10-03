@@ -318,6 +318,7 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
       suiteRunId,
       triggeredBy: req.user!.id,
       retriesLeft: body.retries ?? 0,
+      ...(body.profileId !== undefined ? { profileId: body.profileId } : {}),
     };
 
     if (body.parallel === 1) {

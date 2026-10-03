@@ -393,7 +393,7 @@ export const api = {
     day6req<Array<{ tag: string; count: number }>>(`/projects/${projectId}/tags`),
   runSuite: (
     suiteId: string,
-    opts: { environmentId: string; browser?: string; headed?: boolean; retries?: number; parallel?: number },
+    opts: { environmentId: string; browser?: string; headed?: boolean; retries?: number; parallel?: number; profileId?: string },
   ) =>
     day6req<{ suiteRunId: string; runs?: Array<{ id: string; testId: string }> }>(
       `/suites/${suiteId}/runs`,
@@ -405,6 +405,7 @@ export const api = {
           headed: opts.headed ?? false,
           retries: opts.retries ?? 0,
           parallel: opts.parallel ?? 2,
+          ...(opts.profileId ? { profileId: opts.profileId } : {}),
         }),
       },
     ),
@@ -417,6 +418,114 @@ export const api = {
       `/suite-runs/${suiteRunId}/cancel`,
       { method: "POST" },
     ),
+  /* P1 wave 2 — Auth profiles (storageState; secret/state never returned). */
+  listProfiles: (projectId: string) =>
+    day6req<AuthProfile[]>(`/projects/${projectId}/profiles`),
+  createProfile: (projectId: string, payload: { name: string; environmentId?: string; storageStateJson?: string }) =>
+    day6req<AuthProfile>(`/projects/${projectId}/profiles`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  getProfile: (profileId: string) =>
+    day6req<AuthProfile>(`/profiles/${profileId}`),
+  updateProfile: (profileId: string, payload: { name?: string; environmentId?: string | null; storageStateJson?: string }) =>
+    day6req<AuthProfile>(`/profiles/${profileId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deleteProfile: (profileId: string) =>
+    day6req<void>(`/profiles/${profileId}`, { method: "DELETE" }),
+
+  /* P1 wave 2 — File library (base64 upload; download via blob). */
+  listFiles: (projectId: string) =>
+    day6req<FileAsset[]>(`/projects/${projectId}/files`),
+  uploadFile: (projectId: string, payload: { name: string; contentBase64: string; mimeType?: string }) =>
+    day6req<FileAsset>(`/projects/${projectId}/files`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  deleteFile: (fileId: string) =>
+    day6req<void>(`/files/${fileId}`, { method: "DELETE" }),
+  downloadFile: async (fileId: string, fallbackName: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/files/${fileId}/download`, { headers: day6Headers() });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      let code = "REQUEST_FAILED";
+      let message = `Download failed: HTTP ${res.status}`;
+      try {
+        const body = JSON.parse(text) as { code?: string; message?: string };
+        if (body.code) code = body.code;
+        if (body.message) message = body.message;
+      } catch { /* keep defaults */ }
+      throw new ApiError(code, message, res.status);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    try {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fallbackName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+  },
+
+  /* P1 wave 2 — Schedules (cron; runs with trigger='schedule'). */
+  listSchedules: (projectId: string) =>
+    day6req<ScheduleRecord[]>(`/projects/${projectId}/schedules`),
+  createSchedule: (projectId: string, payload: ScheduleCreate) =>
+    day6req<ScheduleRecord>(`/projects/${projectId}/schedules`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateSchedule: (scheduleId: string, payload: ScheduleUpdate) =>
+    day6req<ScheduleRecord>(`/schedules/${scheduleId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deleteSchedule: (scheduleId: string) =>
+    day6req<void>(`/schedules/${scheduleId}`, { method: "DELETE" }),
+  listScheduleRuns: (scheduleId: string) =>
+    day6req<ScheduleRun[]>(`/schedules/${scheduleId}/runs`),
+  runScheduleNow: (scheduleId: string) =>
+    day6req<{ runId?: string; suiteRunId?: string }>(`/schedules/${scheduleId}/runs`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
+  /* P1 wave 2 — Project export/import + spec import. */
+  exportProjectUrl: (projectId: string) =>
+    `${API_BASE}/projects/${projectId}/export?format=json`,
+  downloadProjectExport: async (projectId: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/projects/${projectId}/export?format=json`, { headers: day6Headers() });
+    if (!res.ok) throw new ApiError("REQUEST_FAILED", `Export failed: HTTP ${res.status}`, res.status);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    try {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${projectId}.export.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+  },
+  importProject: (payload: { data: unknown }) =>
+    day6req<{ id: string; name?: string }>(`/projects/import`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  importSpec: (projectId: string, code: string) =>
+    day6req<{ definition: unknown; warnings: string[] }>(`/projects/${projectId}/import-spec`, {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }),
+
   /** Download JUnit XML (suite run or single run) via blob anchor. */
   downloadJUnit: async (kind: "suite-run" | "run", id: string): Promise<void> => {
     const path =
@@ -507,6 +616,76 @@ export interface DataSet {
   id: string;
   name: string;
   rows: Record<string, string>[];
+}
+/** P1 wave 2 — auth profile (storageState never returned; only presence flag). */
+export interface AuthProfile {
+  id: string;
+  projectId: string;
+  name: string;
+  environmentId?: string | null;
+  environmentName?: string | null;
+  /** True when a storageState was saved (value itself is never exposed). */
+  hasStorageState: boolean;
+  createdAt?: string;
+}
+/** P1 wave 2 — file library entry (content only via /download). */
+export interface FileAsset {
+  id: string;
+  projectId: string;
+  name: string;
+  mimeType?: string | null;
+  sizeBytes: number;
+  createdAt?: string;
+  /** Steps currently referencing this file (optional; server may omit). */
+  usedBy?: Array<{ testId: string; testName?: string; stepId: string; stepName?: string }>;
+}
+/** P1 wave 2 — scheduled run (suite or single test). */
+export interface ScheduleRecord {
+  id: string;
+  projectId: string;
+  name?: string | null;
+  suiteId?: string | null;
+  suiteName?: string | null;
+  testId?: string | null;
+  testName?: string | null;
+  environmentId: string;
+  environmentName?: string | null;
+  cron: string;
+  enabled: boolean;
+  retries?: number | null;
+  lastStatus?: string | null;
+  nextRunAt?: string | null;
+}
+export interface ScheduleCreate {
+  name?: string;
+  suiteId?: string;
+  testId?: string;
+  environmentId: string;
+  cron: string;
+  enabled?: boolean;
+  retries?: number;
+}
+export interface ScheduleUpdate {
+  name?: string | null;
+  suiteId?: string | null;
+  testId?: string | null;
+  environmentId?: string;
+  cron?: string;
+  enabled?: boolean;
+  retries?: number | null;
+}
+export interface ScheduleRun {
+  id: string;
+  status: string;
+  trigger?: string;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  testName?: string | null;
+  errorSummary?: string | null;
+}
+/** True when the backend route does not exist yet (parallel P1 agents). */
+export function isNotImplemented(e: unknown): boolean {
+  return e instanceof ApiError && (e.status === 404 || e.code === "NOT_FOUND" || e.code === "ROUTE_NOT_FOUND");
 }
 export interface Run {
   id: string;

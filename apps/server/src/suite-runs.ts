@@ -19,6 +19,7 @@ import type { runTest as runTestFn, RunRequest } from '@playwright-studio/runner
 import { nanoid } from 'nanoid';
 import { db } from './db.js';
 import { stripServerPaths } from './security.js';
+import { resolveRunInputs } from './run-inputs.js';
 import {
   markQueuedEmittedByRoute,
   prismaRunStore,
@@ -95,6 +96,8 @@ export interface EnqueueSuiteMemberOptions {
   triggeredBy: string;
   /** Remaining automatic retries if THIS attempt fails (0 = none). */
   retriesLeft: number;
+  /** P1 wave-2: explicit auth profile (storage state); never auto-applied. */
+  profileId?: string;
 }
 
 type RunTest = typeof runTestFn;
@@ -132,6 +135,12 @@ export async function enqueueSuiteMember(
       opts.projectId,
       opts.environmentId,
     );
+    // Same P1 inputs as single-test runs: actions + upload files + explicit
+    // profile (fail fast inside the worker lifecycle on bad references).
+    const inputs = await resolveRunInputs(opts.projectId, definition, {
+      environmentId: opts.environmentId,
+      ...(opts.profileId !== undefined ? { profileId: opts.profileId } : {}),
+    });
     const request: RunRequest = {
       runId: run.id,
       test: definition,
@@ -139,6 +148,9 @@ export async function enqueueSuiteMember(
       environmentId: opts.environmentId,
       browser: opts.browser,
       headed: opts.headed,
+      ...(inputs.actions.length > 0 ? { actions: inputs.actions } : {}),
+      ...(inputs.filePaths !== undefined ? { filePaths: inputs.filePaths } : {}),
+      ...(inputs.storageStateJson !== undefined ? { storageStateJson: inputs.storageStateJson } : {}),
       projectVariables,
       environmentVariables,
       trigger: opts.trigger,

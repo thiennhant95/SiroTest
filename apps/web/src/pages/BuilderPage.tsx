@@ -368,11 +368,28 @@ export function BuilderPage() {
           ⚙ Envs
         </Button>
         {projectId && projectId !== "demo" ? (
-          <Tooltip tip="Reusable actions / business keywords của project">
-            <Button size="sm" variant="outline" onClick={() => nav(`/projects/${projectId}/actions`)}>
-              🔁 Actions
-            </Button>
-          </Tooltip>
+          <>
+            <Tooltip tip="Reusable actions / business keywords của project">
+              <Button size="sm" variant="outline" onClick={() => nav(`/projects/${projectId}/actions`)}>
+                🔁 Actions
+              </Button>
+            </Tooltip>
+            <Tooltip tip="Auth profiles (storageState) của project">
+              <Button size="sm" variant="outline" onClick={() => nav(`/projects/${projectId}/profiles`)}>
+                👤 Profiles
+              </Button>
+            </Tooltip>
+            <Tooltip tip="File library cho step Upload">
+              <Button size="sm" variant="outline" onClick={() => nav(`/projects/${projectId}/files`)}>
+                📁 Files
+              </Button>
+            </Tooltip>
+            <Tooltip tip="Lịch chạy suite/test theo cron">
+              <Button size="sm" variant="outline" onClick={() => nav(`/projects/${projectId}/schedules`)}>
+                🕒 Schedules
+              </Button>
+            </Tooltip>
+          </>
         ) : null}
         <Input
           aria-label="Recorder session"
@@ -679,6 +696,7 @@ export function BuilderPage() {
           envs={environments}
           envId={envId || null}
           datasets={definition.datasets ?? []}
+          projectId={projectId && projectId !== "demo" ? projectId : undefined}
           onClose={() => setShowRunModal(false)}
           onStarted={(runId) => {
             setShowRunModal(false);

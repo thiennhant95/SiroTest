@@ -12,6 +12,11 @@ import { runRoutes } from './routes/runs.js';
 import { datasetRoutes } from './routes/datasets.js';
 import { suiteRoutes } from './routes/suites.js';
 import { actionRoutes } from './routes/actions.js';
+import { profileRoutes } from './routes/profiles.js';
+import { fileRoutes } from './routes/files.js';
+import { scheduleRoutes } from './routes/schedules.js';
+import { transferRoutes } from './routes/transfer.js';
+import { specImportRoutes } from './routes/specimport.js';
 import { compilerRoutes } from './routes/compiler.js';
 import { fixtureRoutes } from './routes/fixture.js';
 
@@ -41,6 +46,11 @@ export async function buildApp() {
       await v1.register(datasetRoutes);
       await v1.register(suiteRoutes);
       await v1.register(actionRoutes);
+      await v1.register(profileRoutes);
+      await v1.register(fileRoutes);
+      await v1.register(scheduleRoutes);
+      await v1.register(transferRoutes);
+      await v1.register(specImportRoutes);
       await v1.register(compilerRoutes);
     },
     { prefix: '/api/v1' },
@@ -125,6 +135,14 @@ if (process.env.SKIP_LISTEN !== '1') {
         }
       } catch (err) {
         app.log.error({ err }, "boot recovery failed (server continues serving)");
+      }
+      // P1 scheduling ticker (scheduler.ts): same guards as src/index.ts —
+      // this block only runs for the real `pnpm dev` / `node dist/app.js`
+      // entry (SKIP_LISTEN=1 in tests/e2e keeps the ticker off), and
+      // SCHEDULER_DISABLED=1 opts into external-cron-only mode.
+      if (process.env.SCHEDULER_DISABLED !== '1') {
+        const { startScheduler } = await import('./scheduler.js');
+        startScheduler({ log: app.log });
       }
     })
     .catch((err) => { console.error(err); process.exit(1); });

@@ -172,19 +172,38 @@ export function checkAllowedHttpUrl(raw: string | undefined | null): UrlCheck {
 // ---------------------------------------------------------------------------
 
 /**
- * Every storable step type (P0 + P1 `callAction`). Anything else (incl.
- * customCode) is rejected. `callAction` is valid in TEST definitions; it is
- * still rejected inside ACTION bodies (nested calls would break total
- * inlining) — see routes/actions.ts.
+ * Every storable step type (P0 + P1 `callAction` + P1 wave-2 files/tabs/
+ * dialogs/API). Anything else (incl. customCode) is rejected. `callAction`
+ * is valid in TEST definitions; it is still rejected inside ACTION bodies
+ * (nested calls would break total inlining) — see routes/actions.ts.
+ *
+ * Built from `P0_STEP_TYPES` + `P1_STEP_TYPES` in
+ * packages/test-model/src/types.ts (mirrored here so this package keeps no
+ * runtime dependency on test-model — keep the two lists in sync).
  */
-export const SUPPORTED_STEP_TYPES: ReadonlySet<string> = new Set([
+const P0_STEP_TYPES: readonly string[] = [
   'goto', 'reload', 'goBack', 'goForward',
   'click', 'doubleClick', 'fill', 'clear', 'press', 'check', 'uncheck',
   'select', 'hover', 'waitForElement', 'waitForTimeout', 'waitForURL',
   'assertVisible', 'assertHidden', 'assertText', 'assertContainsText',
   'assertValue', 'assertURL', 'assertTitle', 'assertEnabled',
   'assertDisabled', 'assertChecked', 'screenshot',
+];
+
+/** P1 step types (mirrors `P1_STEP_TYPES` in packages/test-model/src/types.ts). */
+const P1_STEP_TYPES: readonly string[] = [
   'callAction',
+  'upload',
+  'download',
+  'newTab',
+  'closeTab',
+  'handleDialog',
+  'apiRequest',
+];
+
+export const SUPPORTED_STEP_TYPES: ReadonlySet<string> = new Set([
+  ...P0_STEP_TYPES,
+  ...P1_STEP_TYPES,
 ]);
 
 export interface DefinitionIssue {

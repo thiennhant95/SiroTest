@@ -219,6 +219,68 @@ export interface CallActionStep extends BaseStep {
   arguments?: Record<string, string>;
 }
 
+// ---------------------------------------------------- P1 wave 2 steps ---
+// Shapes only — semantics live in the P1 compiler/runner agents. P0 tooling
+// rejects these types explicitly (unknown-type path), never silently.
+
+/** P1 — file upload via setInputFiles (fileId references the file store). */
+export interface UploadStep extends BaseStep {
+  type: "upload";
+  target: LocatorSpec;
+  /** File store id (POST /projects/:id/files). Resolved at run time. */
+  fileId: string;
+}
+
+/**
+ * P1 — capture a download. Either clicks `target` and waits for the
+ * download event, or downloads `url` directly (at least one required).
+ */
+export interface DownloadStep extends BaseStep {
+  type: "download";
+  target?: LocatorSpec;
+  url?: string;
+  /** Filename hint for the saved artifact. */
+  saveAs?: string;
+}
+
+/** P1 — open a new tab (optionally navigating), later steps use it. */
+export interface NewTabStep extends BaseStep {
+  type: "newTab";
+  url?: string;
+}
+
+/** P1 — close the current tab (explicit fail when it is the last one). */
+export interface CloseTabStep extends BaseStep {
+  type: "closeTab";
+}
+
+/**
+ * P1 — one-time dialog handler for the NEXT dialog (alert/confirm/prompt).
+ * Must precede the step that triggers the dialog.
+ */
+export interface HandleDialogStep extends BaseStep {
+  type: "handleDialog";
+  action: "accept" | "dismiss";
+  /** Text to enter for prompt() dialogs. */
+  promptText?: string;
+}
+
+/**
+ * P1 — HTTP API request via Playwright `request` fixture, with optional
+ * status assertion and response capture into a run variable.
+ */
+export interface ApiRequestStep extends BaseStep {
+  type: "apiRequest";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  url: string;
+  headers?: Record<string, string>;
+  body?: string;
+  /** Fail explicitly when the status differs. */
+  expectedStatus?: number;
+  /** Save the response body text into this run variable for later steps. */
+  saveAs?: string;
+}
+
 /** P1 — one named table of rows for data-driven runs (embedded, capped). */
 export interface DataSet {
   id: string;
@@ -257,7 +319,13 @@ export type TestStep =
   | AssertDisabledStep
   | AssertCheckedStep
   | ScreenshotStep
-  | CallActionStep;
+  | CallActionStep
+  | UploadStep
+  | DownloadStep
+  | NewTabStep
+  | CloseTabStep
+  | HandleDialogStep
+  | ApiRequestStep;
 
 export type StepType = TestStep["type"];
 
@@ -293,4 +361,12 @@ export const P0_STEP_TYPES: readonly StepType[] = [
 ] as const;
 
 /** P1 step types (require P1-aware compiler/runner; P0 tooling rejects them). */
-export const P1_STEP_TYPES: readonly string[] = ["callAction"] as const;
+export const P1_STEP_TYPES: readonly string[] = [
+  "callAction",
+  "upload",
+  "download",
+  "newTab",
+  "closeTab",
+  "handleDialog",
+  "apiRequest",
+] as const;

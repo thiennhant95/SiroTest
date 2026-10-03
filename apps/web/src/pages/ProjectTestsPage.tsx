@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Badge, Button, EmptyState, ErrorState, Input, Select, Skeleton, useToast } from "../components/ui";
+import { ExportProjectButton, ImportProjectButton, ImportSpecDialog } from "../components/ProjectTransfer";
 import { ApiError, api, type TestRecord } from "../lib/api";
 
 export function ProjectTestsPage() {
@@ -10,6 +11,7 @@ export function ProjectTestsPage() {
   const [tag, setTag] = useState("");
   const [error, setError] = useState("");
   const [name, setName] = useState("");
+  const [specOpen, setSpecOpen] = useState(false);
   const toast = useToast();
 
   const load = async (activeTag = tag) => {
@@ -40,15 +42,39 @@ export function ProjectTestsPage() {
       </Link>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Tests</h1>
-        <span className="flex gap-3">
+        <span className="flex flex-wrap gap-3">
+          <Link to={`/projects/${projectId}`} className="text-sm text-indigo-700 hover:underline">
+            ← Project
+          </Link>
           <Link to={`/projects/${projectId}/actions`} className="text-sm text-indigo-700 hover:underline">
             🔁 Actions
+          </Link>
+          <Link to={`/projects/${projectId}/profiles`} className="text-sm text-indigo-700 hover:underline">
+            Profiles
+          </Link>
+          <Link to={`/projects/${projectId}/files`} className="text-sm text-indigo-700 hover:underline">
+            Files
+          </Link>
+          <Link to={`/projects/${projectId}/schedules`} className="text-sm text-indigo-700 hover:underline">
+            Schedules
           </Link>
           <Link to={`/projects/${projectId}/suites`} className="text-sm text-indigo-700 hover:underline">
             Suites →
           </Link>
         </span>
       </div>
+      {projectId ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportProjectButton projectId={projectId} />
+          <ImportProjectButton onImported={() => void load()} />
+          <Button size="sm" variant="outline" onClick={() => setSpecOpen(true)} title="Dán .spec.ts để tạo test draft">
+            📄 Import spec
+          </Button>
+        </div>
+      ) : null}
+      {projectId ? (
+        <ImportSpecDialog projectId={projectId} open={specOpen} onClose={() => setSpecOpen(false)} />
+      ) : null}
       <div className="flex items-center gap-2">
         <Select value={tag} onChange={(e) => { setTag(e.target.value); void load(e.target.value); }} aria-label="Filter by tag" className="max-w-xs">
           <option value="">All tags</option>

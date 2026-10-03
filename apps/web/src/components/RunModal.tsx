@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { api, type DataSet, type Environment } from '../lib/api';
+import { useEffect, useState } from 'react';
+import { api, isNotImplemented, type AuthProfile, type DataSet, type Environment } from '../lib/api';
 
 interface Props {
   testId: string;
@@ -8,24 +8,62 @@ interface Props {
   envs: Environment[];
   envId: string | null;
   datasets?: DataSet[];
+  /** P1 wave 2: project for loading auth profiles (graceful when API 404). */
+  projectId?: string;
+  /** Preloaded profiles (Builder may pass); otherwise fetched by projectId. */
+  profiles?: AuthProfile[];
   onClose: () => void;
   onStarted: (runId: string) => void;
   onSuiteStarted?: (suiteRunId: string) => void;
 }
 
-/** POST /tests/:id/runs {environmentId, browser, headed, datasetId?, rowIndex?} → runId. */
-export function RunModal({ testId, suiteId, envs, envId, datasets = [], onClose, onStarted, onSuiteStarted }: Props) {
+/** POST /tests/:id/runs {environmentId, browser, headed, datasetId?, rowIndex?, profileId?} → runId. */
+export function RunModal({ testId, suiteId, envs, envId, datasets = [], projectId, profiles: preloaded, onClose, onStarted, onSuiteStarted }: Props) {
   const [environmentId, setEnvironmentId] = useState(envId ?? envs.find((e) => e.isDefault)?.id ?? envs[0]?.id ?? '');
   const [browser, setBrowser] = useState('chromium');
   const [headed, setHeaded] = useState(false);
   const [datasetId, setDatasetId] = useState('');
   const [rowIndex, setRowIndex] = useState('');
+  const [profileId, setProfileId] = useState('');
+  const [profiles, setProfiles] = useState<AuthProfile[] | null>(preloaded ?? null);
+  const [profilesUnsupported, setProfilesUnsupported] = useState(false);
   const [retries, setRetries] = useState(0);
   const [parallel, setParallel] = useState(2);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const selected = datasets.find((d) => d.id === datasetId);
+
+  useEffect(() => {
+    if (preloaded) {
+      setProfiles(preloaded);
+      return;
+    }
+    if (!projectId) {
+      setProfiles([]);
+      return;
+    }
+    let alive = true;
+    setProfiles(null);
+    setProfilesUnsupported(false);
+    api
+      .listProfiles(projectId)
+      .then((list) => {
+        if (alive) setProfiles(list);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        if (isNotImplemented(e)) {
+          setProfilesUnsupported(true);
+          setProfiles([]);
+        } else {
+          setProfiles([]);
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, [projectId, preloaded]);
 
   async function start() {
     if (!environmentId) { setErr('Pick an environment'); return; }
@@ -45,6 +83,7 @@ export function RunModal({ testId, suiteId, envs, envId, datasets = [], onClose,
           environmentId, browser, headed,
           retries: Math.max(0, Math.min(5, retries)),
           parallel: parallel === 1 ? 1 : 2,
+          ...(profileId ? { profileId } : {}),
         });
         (onSuiteStarted ?? onStarted)(res.suiteRunId);
         return;
@@ -53,6 +92,7 @@ export function RunModal({ testId, suiteId, envs, envId, datasets = [], onClose,
         environmentId, browser, headed,
         ...(datasetId ? { datasetId } : {}),
         ...(row !== undefined ? { rowIndex: row } : {}),
+        ...(profileId ? { profileId } : {}),
       });
       onStarted(run.id);
     } catch (e) {
@@ -78,7 +118,22 @@ export function RunModal({ testId, suiteId, envs, envId, datasets = [], onClose,
             <option value="webkit">webkit</option>
           </select>
         </label>
-        {datasets.length > 0 && (
+        {!profilesUnsupported && profiles !== null && profiles.length > 0 && (
+          <label style={row}>Auth profile
+            <select value={profileId} onChange={(e) => setProfileId(e.target.value)} aria-label="Auth profile">
+              <option value="">No profile (fresh browser)</option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}{p.hasStorageState ? '' : ' (no saved login)'}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {profiles === null && projectId ? (
+          <p style={{ fontSize: 12, color: '#64748b' }}>Loading auth profiles…</p>
+        ) : null}
+        {datasets.length > 0 && !suiteId && (
           <>
             <label style={row}>Dataset
               <select

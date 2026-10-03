@@ -40,6 +40,13 @@ export const SUPPORTED_STEP_TYPES: ReadonlySet<string> = new Set([
   'screenshot',
   // P1 reusable-action invocation (callee body inlines at compile time)
   'callAction',
+  // P1 wave-2: files / tabs / dialogs / API (mirrors test-model P1_STEP_TYPES)
+  'upload',
+  'download',
+  'newTab',
+  'closeTab',
+  'handleDialog',
+  'apiRequest',
 ]);
 
 const SUPPORTED_LOCATOR_STRATEGIES: ReadonlySet<string> = new Set([
@@ -70,6 +77,9 @@ const STEPS_REQUIRING_TARGET: ReadonlySet<string> = new Set([
   'assertEnabled',
   'assertDisabled',
   'assertChecked',
+  // P1 wave-2: upload always needs a file-input locator; download needs one
+  // unless it carries a direct `url` (checked below).
+  'upload',
 ]);
 
 export interface ValidationIssue {
@@ -173,6 +183,64 @@ function validateStep(step: TestStep, index: number, issues: ValidationIssue[]):
       message: `${where} of type 'waitForTimeout' requires milliseconds >= 0`,
       stepId: step.id,
     });
+  }
+  // ---- P1 wave-2 field checks (explicit failures, never silent skips) ----
+  if (step.type === 'upload') {
+    if (typeof step.fileId !== 'string' || step.fileId.length === 0) {
+      issues.push({ code: 'STEP_FILE_MISSING', message: `${where} of type 'upload' requires fileId`, stepId: step.id });
+    }
+  }
+  if (step.type === 'download') {
+    if (step.target === undefined && step.url === undefined) {
+      issues.push({ code: 'STEP_DOWNLOAD_SOURCE_MISSING', message: `${where} of type 'download' requires at least one of 'target' or 'url'`, stepId: step.id });
+    }
+    if (step.target !== undefined) {
+      const primary = (step.target as { primary?: unknown } | undefined)?.primary;
+      if (!isRecord(primary) || typeof (primary as Record<string, unknown>).strategy !== 'string') {
+        issues.push({ code: 'STEP_TARGET_MISSING', message: `${where} requires target.primary`, stepId: step.id });
+      } else if (!SUPPORTED_LOCATOR_STRATEGIES.has(String((primary as Record<string, unknown>).strategy))) {
+        issues.push({
+          code: 'LOCATOR_STRATEGY_UNSUPPORTED',
+          message: `${where}.target.primary.strategy '${String((primary as Record<string, unknown>).strategy)}' is not supported`,
+          stepId: step.id,
+        });
+      }
+    }
+    if (step.saveAs !== undefined && (typeof step.saveAs !== 'string' || step.saveAs.length === 0)) {
+      issues.push({ code: 'STEP_SAVEAS_INVALID', message: `${where} of type 'download' requires saveAs to be a non-empty string`, stepId: step.id });
+    }
+  }
+  if (step.type === 'handleDialog') {
+    if (step.action !== 'accept' && step.action !== 'dismiss') {
+      issues.push({ code: 'STEP_DIALOG_ACTION_INVALID', message: `${where} of type 'handleDialog' requires action 'accept'|'dismiss'`, stepId: step.id });
+    }
+    if (step.promptText !== undefined && typeof step.promptText !== 'string') {
+      issues.push({ code: 'STEP_DIALOG_PROMPT_INVALID', message: `${where} of type 'handleDialog' requires promptText to be a string`, stepId: step.id });
+    }
+  }
+  if (step.type === 'apiRequest') {
+    const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+    if (typeof step.method !== 'string' || !methods.includes(step.method)) {
+      issues.push({ code: 'STEP_API_METHOD_INVALID', message: `${where} of type 'apiRequest' requires method ${methods.join('|')}`, stepId: step.id });
+    }
+    if (typeof step.url !== 'string' || step.url.length === 0) {
+      issues.push({ code: 'STEP_URL_MISSING', message: `${where} of type 'apiRequest' requires url`, stepId: step.id });
+    }
+    if (step.headers !== undefined) {
+      const h = step.headers as unknown;
+      if (!isRecord(h) || !Object.values(h).every((v) => typeof v === 'string')) {
+        issues.push({ code: 'STEP_API_HEADERS_INVALID', message: `${where} of type 'apiRequest' requires headers to be a record of strings`, stepId: step.id });
+      }
+    }
+    if (step.body !== undefined && typeof step.body !== 'string') {
+      issues.push({ code: 'STEP_API_BODY_INVALID', message: `${where} of type 'apiRequest' requires body to be a string`, stepId: step.id });
+    }
+    if (step.expectedStatus !== undefined && !(Number.isInteger(step.expectedStatus) && (step.expectedStatus as number) >= 100 && (step.expectedStatus as number) <= 599)) {
+      issues.push({ code: 'STEP_API_STATUS_INVALID', message: `${where} of type 'apiRequest' requires expectedStatus 100-599`, stepId: step.id });
+    }
+    if (step.saveAs !== undefined && !(typeof step.saveAs === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(step.saveAs))) {
+      issues.push({ code: 'STEP_API_SAVEAS_INVALID', message: `${where} of type 'apiRequest' requires saveAs to match /^[A-Za-z_][A-Za-z0-9_]*$/`, stepId: step.id });
+    }
   }
 }
 

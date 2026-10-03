@@ -157,6 +157,26 @@ export const SUPPORTED_STEP_TYPES: readonly string[] = [
   'screenshot',
 ];
 
+/**
+ * P1 wave-2 step types (shapes in packages/test-model/src/types.ts).
+ * The P0 `SUPPORTED_STEP_TYPES` list above is kept frozen so P0 goldens and
+ * coverage assertions stay byte-identical; wave-2 support is additive and
+ * gated on the compiler paths below (never silently skipped).
+ */
+export const P1_WAVE2_STEP_TYPES: readonly string[] = [
+  'upload',
+  'download',
+  'newTab',
+  'closeTab',
+  'handleDialog',
+  'apiRequest',
+];
+
+/** Env key carrying the fileId -> absolute-path map for `upload` steps. */
+export const FILE_PATHS_ENV = 'VV_FILE_PATHS';
+/** Legacy alias also honoured at run time (runner injects both). */
+export const FILE_PATHS_ENV_ALIAS = 'FILE_PATHS';
+
 function asRecord(step: TestStep): Record<string, unknown> {
   return step as Record<string, unknown>;
 }
@@ -274,6 +294,29 @@ export function defaultStepName(step: TestStep): string {
       const actionId = typeof r['actionId'] === 'string' ? (r['actionId'] as string) : '';
       return `Call action ${actionId}`;
     }
+    case 'upload':
+      return withTarget('Upload');
+    case 'download': {
+      const saveAs = typeof r['saveAs'] === 'string' && r['saveAs'] ? (r['saveAs'] as string) : '';
+      const url = typeof r['url'] === 'string' ? (r['url'] as string) : '';
+      if (targetDesc) return `Download ${targetDesc}`;
+      return saveAs ? `Download ${saveAs}` : url ? `Download ${url}` : 'Download';
+    }
+    case 'newTab': {
+      const url = typeof r['url'] === 'string' && r['url'] ? (r['url'] as string) : '';
+      return url ? `Open new tab ${url}` : 'Open new tab';
+    }
+    case 'closeTab':
+      return 'Close tab';
+    case 'handleDialog': {
+      const action = typeof r['action'] === 'string' ? (r['action'] as string) : '';
+      return action ? `Handle dialog ${action}` : 'Handle dialog';
+    }
+    case 'apiRequest': {
+      const method = typeof r['method'] === 'string' ? (r['method'] as string) : '';
+      const url = typeof r['url'] === 'string' ? (r['url'] as string) : '';
+      return method && url ? `API ${method} ${url}` : method ? `API ${method}` : 'API request';
+    }
     default:
       return `${step.type} ${step.id}`;
   }
@@ -283,23 +326,44 @@ export function defaultStepName(step: TestStep): string {
  * Compile one ENABLED step into `test.step()` body lines (without indentation).
  * Throws UnsupportedStepError for unknown types, InvalidDefinitionError for
  * missing/invalid fields.
+ *
+ * P1 wave-2 semantics (shapes: packages/test-model/src/types.ts):
+ * - `pageVar` is the current tab handle (`page` by default; `page2`, …
+ *   after `newTab`). P0 output is byte-identical (default `page`).
+ * - `upload` resolves the file path at run time from `VV_FILE_PATHS`
+ *   (alias `FILE_PATHS`): JSON map fileId -> absolute path injected by the
+ *   runner. Never inlines paths into code.
+ * - `download` with `target`: `waitForEvent('download')` + click + `saveAs`
+ *   (or `suggestedFilename()` when no hint). URL-only (no `target`):
+ *   `page.evaluate(fetch)` so browser cookies/auth apply, then
+ *   `node:fs/promises.writeFile` in Node. Decision documented in
+ *   `compileTest` and mirrored by apps/runner.
+ * - `newTab` needs `newPageVar` (deterministic `page2`, … allocated by
+ *   `compileTest`); standalone calls without it fail explicitly.
+ * - `closeTab` closes `pageVar`; the last-tab guard lives in `compileTest`.
+ * - `handleDialog` registers a one-time `once('dialog')` handler for the
+ *   NEXT dialog; it must precede the triggering step (no static next-step
+ *   check — any step can trigger via JS).
+ * - `apiRequest` uses the `request` fixture; `expectedStatus` throws
+ *   explicitly on mismatch; `saveAs` stores `await resp.text()` into
+ *   `process.env[saveAs]` for later `{{VAR}}` steps in the same process.
  */
-export function compileStepBody(step: TestStep): string[] {
+export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string[] {
   switch (step.type) {
     case 'goto': {
       const url = requiredString(step, 'url');
-      return [`await page.goto(${compileValueExpression(url)});`];
+      return [`await ${pageVar}.goto(${compileValueExpression(url)});`];
     }
     case 'reload':
-      return ['await page.reload();'];
+      return [`await ${pageVar}.reload();`];
     case 'goBack':
-      return ['await page.goBack();'];
+      return [`await ${pageVar}.goBack();`];
     case 'goForward':
-      return ['await page.goForward();'];
+      return [`await ${pageVar}.goForward();`];
     case 'click':
-      return [`await ${locatorToExpression(requiredTarget(step))}.click();`];
+      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.click();`];
     case 'doubleClick':
-      return [`await ${locatorToExpression(requiredTarget(step))}.dblclick();`];
+      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.dblclick();`];
     case 'fill': {
       const value = requiredString(step, 'value');
       // Security (11-security/security.md): a sensitive literal must be a
@@ -310,27 +374,27 @@ export function compileStepBody(step: TestStep): string[] {
         );
       }
       return [
-        `await ${locatorToExpression(requiredTarget(step))}.fill(${compileValueExpression(value)});`,
+        `await ${locatorToExpression(requiredTarget(step), pageVar)}.fill(${compileValueExpression(value)});`,
       ];
     }
     case 'clear':
       // `.clear()` is the canonical Playwright clear semantic; the single
       // spelling is shared with apps/runner compile.ts and web preview.
-      return [`await ${locatorToExpression(requiredTarget(step))}.clear();`];
+      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.clear();`];
     case 'press': {
       const key = requiredString(step, 'key');
       const target = asRecord(step)['target'] as LocatorSpec | undefined;
       if (target) {
         return [
-          `await ${locatorToExpression(target)}.press(${compileValueExpression(key)});`,
+          `await ${locatorToExpression(target, pageVar)}.press(${compileValueExpression(key)});`,
         ];
       }
-      return [`await page.keyboard.press(${compileValueExpression(key)});`];
+      return [`await ${pageVar}.keyboard.press(${compileValueExpression(key)});`];
     }
     case 'check':
-      return [`await ${locatorToExpression(requiredTarget(step))}.check();`];
+      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.check();`];
     case 'uncheck':
-      return [`await ${locatorToExpression(requiredTarget(step))}.uncheck();`];
+      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.uncheck();`];
     case 'select': {
       const raw = asRecord(step)['value'];
       if (raw === undefined || raw === null) {
@@ -342,10 +406,10 @@ export function compileStepBody(step: TestStep): string[] {
         typeof raw === 'string'
           ? compileValueExpression(raw)
           : compileSelectOption(step, raw);
-      return [`await ${locatorToExpression(requiredTarget(step))}.selectOption(${option});`];
+      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.selectOption(${option});`];
     }
     case 'hover':
-      return [`await ${locatorToExpression(requiredTarget(step))}.hover();`];
+      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.hover();`];
     case 'waitForElement': {
       const state = asRecord(step)['state'];
       const allowed = ['visible', 'hidden', 'attached', 'detached'];
@@ -355,13 +419,13 @@ export function compileStepBody(step: TestStep): string[] {
         );
       }
       const opts = typeof state === 'string' ? `{ state: ${stringLiteral(state)} }` : '';
-      return [`await ${locatorToExpression(requiredTarget(step))}.waitFor(${opts});`];
+      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.waitFor(${opts});`];
     }
     case 'waitForTimeout': {
       const ms = requiredNumber(step, 'milliseconds', 'ms');
       return [
         '// WARNING: fixed wait is discouraged; prefer waitForElement/waitForURL.',
-        `await page.waitForTimeout(${Math.trunc(ms)});`,
+        `await ${pageVar}.waitForTimeout(${Math.trunc(ms)});`,
       ];
     }
     case 'waitForURL': {
@@ -371,12 +435,12 @@ export function compileStepBody(step: TestStep): string[] {
           `Step "${step.id}" (waitForURL): one of "url"/"pattern"/"expected" is required`,
         );
       }
-      return [`await page.waitForURL(${compileValueExpression(url)});`];
+      return [`await ${pageVar}.waitForURL(${compileValueExpression(url)});`];
     }
     case 'assertVisible':
-      return [`await expect(${locatorToExpression(requiredTarget(step))}).toBeVisible();`];
+      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeVisible();`];
     case 'assertHidden':
-      return [`await expect(${locatorToExpression(requiredTarget(step))}).toBeHidden();`];
+      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeHidden();`];
     case 'assertText': {
       const expected = optionalString(step, 'expected', 'value', 'text');
       if (expected === undefined) {
@@ -385,7 +449,7 @@ export function compileStepBody(step: TestStep): string[] {
         );
       }
       return [
-        `await expect(${locatorToExpression(requiredTarget(step))}).toHaveText(${compileValueExpression(expected)});`,
+        `await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toHaveText(${compileValueExpression(expected)});`,
       ];
     }
     case 'assertContainsText': {
@@ -396,7 +460,7 @@ export function compileStepBody(step: TestStep): string[] {
         );
       }
       return [
-        `await expect(${locatorToExpression(requiredTarget(step))}).toContainText(${compileValueExpression(expected)});`,
+        `await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toContainText(${compileValueExpression(expected)});`,
       ];
     }
     case 'assertValue': {
@@ -407,7 +471,7 @@ export function compileStepBody(step: TestStep): string[] {
         );
       }
       return [
-        `await expect(${locatorToExpression(requiredTarget(step))}).toHaveValue(${compileValueExpression(expected)});`,
+        `await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toHaveValue(${compileValueExpression(expected)});`,
       ];
     }
     case 'assertURL': {
@@ -417,7 +481,7 @@ export function compileStepBody(step: TestStep): string[] {
           `Step "${step.id}" (assertURL): one of "expected"/"url"/"pattern" is required`,
         );
       }
-      return [`await expect(page).toHaveURL(${compileValueExpression(expected)});`];
+      return [`await expect(${pageVar}).toHaveURL(${compileValueExpression(expected)});`];
     }
     case 'assertTitle': {
       const expected = optionalString(step, 'expected', 'title');
@@ -426,21 +490,99 @@ export function compileStepBody(step: TestStep): string[] {
           `Step "${step.id}" (assertTitle): one of "expected"/"title" is required`,
         );
       }
-      return [`await expect(page).toHaveTitle(${compileValueExpression(expected)});`];
+      return [`await expect(${pageVar}).toHaveTitle(${compileValueExpression(expected)});`];
     }
     case 'assertEnabled':
-      return [`await expect(${locatorToExpression(requiredTarget(step))}).toBeEnabled();`];
+      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeEnabled();`];
     case 'assertDisabled':
-      return [`await expect(${locatorToExpression(requiredTarget(step))}).toBeDisabled();`];
+      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeDisabled();`];
     case 'assertChecked':
-      return [`await expect(${locatorToExpression(requiredTarget(step))}).toBeChecked();`];
+      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeChecked();`];
     case 'screenshot': {
       const r = asRecord(step);
       const name =
         typeof r['name'] === 'string' && r['name'] ? (r['name'] as string) : step.id;
       const opts: string[] = [`path: ${stringLiteral(`screenshots/${name}.png`)}`];
       if (r['fullPage'] === true) opts.push('fullPage: true');
-      return [`await page.screenshot({ ${opts.join(', ')} });`];
+      return [`await ${pageVar}.screenshot({ ${opts.join(', ')} });`];
+    }
+    case 'upload': {
+      const fileId = requiredString(step, 'fileId');
+      const loc = locatorToExpression(requiredTarget(step), pageVar);
+      return [
+        `const vvFile = (JSON.parse(process.env.${FILE_PATHS_ENV} ?? process.env.${FILE_PATHS_ENV_ALIAS} ?? '{}') as Record<string, string>)[${stringLiteral(fileId)}];`,
+        `if (!vvFile) throw new Error(${stringLiteral(`upload "${step.id}": no file path for fileId "${fileId}" (runner injects ${FILE_PATHS_ENV} map)`)});`,
+        `await ${loc}.setInputFiles(vvFile);`,
+      ];
+    }
+    case 'download': {
+      const r = asRecord(step);
+      const target = r['target'] as LocatorSpec | undefined;
+      const url = typeof r['url'] === 'string' && r['url'] ? (r['url'] as string) : undefined;
+      const saveAs = typeof r['saveAs'] === 'string' && r['saveAs'] ? (r['saveAs'] as string) : undefined;
+      if (!target && !url) {
+        throw new InvalidDefinitionError(
+          `Step "${step.id}" (download): one of "target" or "url" is required`,
+        );
+      }
+      if (target) {
+        if (!target.primary) {
+          throw new InvalidDefinitionError(
+            `Step "${step.id}" (download): field "target.primary" is required`,
+          );
+        }
+        const loc = locatorToExpression(target, pageVar);
+        const saveExpr = saveAs ? stringLiteral(saveAs) : 'download.suggestedFilename()';
+        return [
+          `const downloadPromise = ${pageVar}.waitForEvent('download');`,
+          `await ${loc}.click();`,
+          `const download = await downloadPromise;`,
+          `await download.saveAs(${saveExpr});`,
+        ];
+      }
+      // URL-only: fetch inside the page so cookies/auth apply, then persist
+      // from Node. `saveAs` defaults to a deterministic per-step filename.
+      const outName = saveAs ?? `download-${step.id}`;
+      return [
+        `const vvBytes = await ${pageVar}.evaluate(async (vvUrl: string) => {`,
+        `  const vvRes = await fetch(vvUrl);`,
+        `  if (!vvRes.ok) throw new Error(\`download "${step.id}" failed with status \` + vvRes.status);`,
+        `  return [...new Uint8Array(await vvRes.arrayBuffer())];`,
+        `}, ${compileValueExpression(url!)});`,
+        `await (await import('node:fs/promises')).writeFile(${stringLiteral(outName)}, Buffer.from(vvBytes));`,
+      ];
+    }
+    case 'newTab': {
+      if (!newPageVar) {
+        throw new InvalidDefinitionError(
+          `Step "${step.id}" (newTab) requires a deterministic page name — compile via compileTest() so tabs are named page/page2/... explicitly`,
+        );
+      }
+      const url = optionalString(step, 'url');
+      const lines = [`const ${newPageVar} = await context.newPage();`];
+      if (url) lines.push(`await ${newPageVar}.goto(${compileValueExpression(url)});`);
+      return lines;
+    }
+    case 'closeTab':
+      return [`await ${pageVar}.close();`];
+    case 'handleDialog': {
+      const r = asRecord(step);
+      const action = r['action'];
+      if (action !== 'accept' && action !== 'dismiss') {
+        throw new InvalidDefinitionError(
+          `Step "${step.id}" (handleDialog): field "action" must be "accept" or "dismiss"`,
+        );
+      }
+      const promptText = typeof r['promptText'] === 'string' && r['promptText'] ? (r['promptText'] as string) : undefined;
+      if (action === 'accept') {
+        return promptText
+          ? [`${pageVar}.once('dialog', async (dialog) => { await dialog.accept(${compileValueExpression(promptText)}); });`]
+          : [`${pageVar}.once('dialog', async (dialog) => { await dialog.accept(); });`];
+      }
+      return [`${pageVar}.once('dialog', async (dialog) => { await dialog.dismiss(); });`];
+    }
+    case 'apiRequest': {
+      return compileApiRequestBody(step);
     }
     case 'callAction':
       throw new UnsupportedStepError(
@@ -451,6 +593,80 @@ export function compileStepBody(step: TestStep): string[] {
     default:
       throw new UnsupportedStepError(step.id, step.type);
   }
+}
+
+function compileApiRequestBody(step: TestStep): string[] {
+  const r = asRecord(step);
+  const methodRaw = r['method'];
+  const allowedMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+  if (typeof methodRaw !== 'string' || !allowedMethods.includes(methodRaw)) {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (apiRequest): field "method" must be one of ${allowedMethods.join(', ')}`,
+    );
+  }
+  const url = typeof r['url'] === 'string' && r['url'] ? (r['url'] as string) : undefined;
+  if (!url) {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (apiRequest): field "url" must be a non-empty string`,
+    );
+  }
+  const method = (methodRaw as string).toLowerCase();
+  const headersRaw = r['headers'];
+  let headersExpr: string | undefined;
+  if (headersRaw !== undefined) {
+    if (!headersRaw || typeof headersRaw !== 'object' || Array.isArray(headersRaw)) {
+      throw new InvalidDefinitionError(
+        `Step "${step.id}" (apiRequest): field "headers" must be a record of strings`,
+      );
+    }
+    const entries = Object.entries(headersRaw as Record<string, unknown>);
+    for (const [k, v] of entries) {
+      if (typeof v !== 'string') {
+        throw new InvalidDefinitionError(
+          `Step "${step.id}" (apiRequest): header "${k}" must be a string (use {{VARIABLE}} for secrets)`,
+        );
+      }
+    }
+    const sorted = [...entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    headersExpr = `{ ${sorted.map(([k, v]) => `${stringLiteral(k)}: ${compileValueExpression(v as string)}`).join(', ')} }`;
+  }
+  const bodyRaw = r['body'];
+  let bodyExpr: string | undefined;
+  if (bodyRaw !== undefined) {
+    if (typeof bodyRaw !== 'string') {
+      throw new InvalidDefinitionError(
+        `Step "${step.id}" (apiRequest): field "body" must be a string (use {{VARIABLE}} for secrets)`,
+      );
+    }
+    bodyExpr = compileValueExpression(bodyRaw);
+  }
+  const expectedRaw = r['expectedStatus'];
+  if (expectedRaw !== undefined && !(typeof expectedRaw === 'number' && Number.isInteger(expectedRaw) && expectedRaw >= 100 && expectedRaw <= 599)) {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (apiRequest): field "expectedStatus" must be an integer 100-599`,
+    );
+  }
+  const saveAsRaw = r['saveAs'];
+  if (saveAsRaw !== undefined && !(typeof saveAsRaw === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(saveAsRaw))) {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (apiRequest): field "saveAs" must match /^[A-Za-z_][A-Za-z0-9_]*$/`,
+    );
+  }
+  const opts: string[] = [];
+  if (headersExpr) opts.push(`headers: ${headersExpr}`);
+  if (bodyExpr) opts.push(`data: ${bodyExpr}`);
+  const urlExpr = compileValueExpression(url);
+  const call = opts.length > 0 ? `await request.${method}(${urlExpr}, { ${opts.join(', ')} })` : `await request.${method}(${urlExpr})`;
+  const lines = [`const vvResp = ${call};`];
+  if (typeof expectedRaw === 'number') {
+    lines.push(
+      `if (vvResp.status() !== ${Math.trunc(expectedRaw)}) throw new Error(${stringLiteral(`apiRequest "${step.id}": expected status ${Math.trunc(expectedRaw)} but got `)} + vvResp.status());`,
+    );
+  }
+  if (typeof saveAsRaw === 'string' && saveAsRaw) {
+    lines.push(`process.env[${stringLiteral(saveAsRaw)}] = await vvResp.text();`);
+  }
+  return lines;
 }
 
 function compileSelectOption(step: TestStep, raw: unknown): string {
@@ -646,12 +862,17 @@ function interpolateActionStep(step: TestStep, args: Record<string, string>): Te
  * deterministic. Each body step keeps its own name/timeoutMs/
  * continueOnFailure; the caller step contributes the outer title/timeout/
  * continueOnFailure.
+ *
+ * P1 wave-2: body steps compile against the caller's current `pageVar`
+ * (multi-tab state never crosses the action boundary — `newTab`/`closeTab`
+ * inside an action body fail explicitly).
  */
 function emitCallActionBlock(
   caller: TestStep,
   action: ReusableAction,
   baseIndent: string,
   dataset: boolean,
+  pageVar = 'page',
 ): string[] {
   const args = resolveActionArguments(caller, action);
   const title = caller.name ?? `Call ${action.name}`;
@@ -669,6 +890,13 @@ function emitCallActionBlock(
         `Step "${caller.id}" (callAction) cannot inline action "${action.name}" (${action.id}): nested callAction (body step "${bodyStep.id}") is rejected — action bodies must be P0 steps`,
       );
     }
+    if (bodyStep.type === 'newTab' || bodyStep.type === 'closeTab') {
+      throw new UnsupportedStepError(
+        caller.id,
+        'callAction',
+        `Step "${caller.id}" (callAction) cannot inline action "${action.name}" (${action.id}): body step "${bodyStep.id}" (${bodyStep.type}) manages tabs — multi-tab state never crosses the action boundary`,
+      );
+    }
     if (index > 0) inner.push('');
     if (bodyStep.enabled === false) {
       inner.push(`${innerIndent}// skipped disabled step ${bodyStep.id} (${bodyStep.type})`);
@@ -679,7 +907,7 @@ function emitCallActionBlock(
       ...emitTestStepBlock(
         interpolated,
         stepTitleExpr(interpolated, interpolated.name ?? defaultStepName(interpolated), dataset),
-        compileStepBody(interpolated),
+        compileStepBody(interpolated, pageVar),
         innerIndent,
       ),
     );
@@ -704,7 +932,25 @@ function emitCallActionBlock(
 export function compileTest(def: TestDefinition, opts?: CompileOptions): string {
   validateDefinition(def);
   const dataset = resolveDataset(def, opts?.datasetId);
-  if (!dataset) assertNoRowReferences(def);
+  if (!dataset) assertNoRowReferences(def, opts?.actions);
+
+  // P1 wave-2 fixtures: `context` only when a `newTab` step exists,
+  // `request` only when an `apiRequest` step exists (including inside an
+  // inlined action body). P0 definitions keep `async ({ page })` exactly.
+  const needsContext = def.steps.some(
+    (s) => s.enabled !== false && s.type === 'newTab',
+  );
+  const needsRequest = def.steps.some((s) => {
+    if (s.enabled === false) return false;
+    if (s.type === 'apiRequest') return true;
+    if (s.type === 'callAction') {
+      const actionId = asRecord(s)['actionId'];
+      const action = typeof actionId === 'string' ? lookupAction(opts?.actions, actionId) : undefined;
+      return !!action?.steps.some((b) => b.enabled !== false && b.type === 'apiRequest');
+    }
+    return false;
+  });
+  const fixtures = ['page', ...(needsContext ? ['context'] : []), ...(needsRequest ? ['request'] : [])].join(', ');
 
   const out: string[] = [];
   out.push(`// Generated by @vietvang/playwright-compiler v${COMPILER_VERSION} - do not edit.`);
@@ -725,7 +971,7 @@ export function compileTest(def: TestDefinition, opts?: CompileOptions): string 
       `// Requested test timeout: ${Math.trunc(def.timeoutMs)}ms (apply via test.setTimeout in a suite; per-step timeouts are emitted below).`,
     );
   }
-  out.push(`test(${stringLiteral(def.name)}, async ({ page }) => {`);
+  out.push(`test(${stringLiteral(def.name)}, async ({ ${fixtures} }) => {`);
 
   // Extra indentation level inside the dataset loop (0 for P0 output).
   const pad = dataset ? '  ' : '';
@@ -737,10 +983,49 @@ export function compileTest(def: TestDefinition, opts?: CompileOptions): string 
     out.push(`    const row: Record<string, string> = VV_ROWS[_vvIteration] ?? {};`);
   }
 
+  // P1 wave-2 tab tracking: deterministic stack, `page` first, then
+  // `page2`, `page3`, … Disabled steps emit a comment and never touch the
+  // stack (they do not execute). `closeTab` on the last tab fails
+  // explicitly — closing it would leave the test with no page.
+  const pageStack: string[] = ['page'];
+  let pageCounter = 1;
+
   def.steps.forEach((step, index) => {
     if (index > 0) out.push('');
     if (step.enabled === false) {
       out.push(`${pad}  // skipped disabled step ${step.id} (${step.type})`);
+      return;
+    }
+    const currentPage = pageStack[pageStack.length - 1];
+    if (step.type === 'newTab') {
+      pageCounter += 1;
+      const newPageVar = pageCounter === 2 ? 'page2' : `page${pageCounter}`;
+      out.push(
+        ...emitTestStepBlock(
+          step,
+          stepTitleExpr(step, step.name ?? defaultStepName(step), dataset !== undefined),
+          compileStepBody(step, currentPage, newPageVar),
+          `${pad}  `,
+        ),
+      );
+      pageStack.push(newPageVar);
+      return;
+    }
+    if (step.type === 'closeTab') {
+      if (pageStack.length <= 1) {
+        throw new InvalidDefinitionError(
+          `Step "${step.id}" (closeTab): cannot close the last remaining tab — at least one page must stay open`,
+        );
+      }
+      out.push(
+        ...emitTestStepBlock(
+          step,
+          stepTitleExpr(step, step.name ?? defaultStepName(step), dataset !== undefined),
+          compileStepBody(step, currentPage),
+          `${pad}  `,
+        ),
+      );
+      pageStack.pop();
       return;
     }
     if (step.type === 'callAction') {
@@ -756,14 +1041,14 @@ export function compileTest(def: TestDefinition, opts?: CompileOptions): string 
             : `Step "${step.id}" (callAction) is missing required field "actionId"`,
         );
       }
-      out.push(...emitCallActionBlock(step, action, `${pad}  `, dataset !== undefined));
+      out.push(...emitCallActionBlock(step, action, `${pad}  `, dataset !== undefined, currentPage));
       return;
     }
     out.push(
       ...emitTestStepBlock(
         step,
         stepTitleExpr(step, step.name ?? defaultStepName(step), dataset !== undefined),
-        compileStepBody(step),
+        compileStepBody(step, currentPage),
         `${pad}  `,
       ),
     );
@@ -804,8 +1089,11 @@ export function resolveDataset(def: TestDefinition, datasetId?: string): DataSet
  * String fields that `compileStepBody` interpolates via compileValueExpression
  * (same set the runner mirror uses). `{{row.*}}` anywhere else (locators,
  * names) is inert P0 text and must NOT force dataset mode.
+ *
+ * P1 wave-2 adds `body`/`headers` (apiRequest) and `promptText`
+ * (handleDialog); `url` already covers goto/newTab/download/apiRequest.
  */
-const INTERPOLATED_FIELDS = ['url', 'value', 'key', 'expected', 'pattern'] as const;
+const INTERPOLATED_FIELDS = ['url', 'value', 'key', 'expected', 'pattern', 'body', 'headers', 'promptText'] as const;
 
 function collectInterpolatedStrings(step: TestStep): string[] {
   const rec = step as Record<string, unknown>;
@@ -835,8 +1123,10 @@ function collectInterpolatedStrings(step: TestStep): string[] {
  * P1 actions: `callAction` arguments interpolate into body-step value
  * fields, so `{{row.*}}` inside `arguments` is scanned too (it would
  * otherwise compile to a dangling `row` lookup inside the inlined body).
+ * Inlined action bodies are scanned as well (apiRequest body/headers and
+ * any value field may carry row refs).
  */
-function assertNoRowReferences(def: TestDefinition): void {
+function assertNoRowReferences(def: TestDefinition, actions?: ActionsContext): void {
   for (const step of def.steps) {
     if (step.enabled === false) continue;
     const hits = collectInterpolatedStrings(step);
@@ -848,6 +1138,16 @@ function assertNoRowReferences(def: TestDefinition): void {
             hits.push(v);
             break;
           }
+        }
+      }
+      const actionId = asRecord(step)['actionId'];
+      const action = typeof actionId === 'string' ? lookupAction(actions, actionId) : undefined;
+      if (action) {
+        for (const bodyStep of action.steps) {
+          if (bodyStep.enabled === false) continue;
+          const interpolated = interpolateActionStep(bodyStep, {});
+          hits.push(...collectInterpolatedStrings(interpolated));
+          if (hits.length > 0) break;
         }
       }
     }

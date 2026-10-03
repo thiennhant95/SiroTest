@@ -35,7 +35,10 @@ model Project {
   variables   Variable[]
   tests       Test[]
   actions     Action[]
+  files       FileAsset[]
+  authProfiles AuthProfile[]
   suites      TestSuite[]
+  schedules   Schedule[]
   runs        Run[]
 }
 
@@ -58,6 +61,7 @@ model Environment {
   updatedAt DateTime @updatedAt
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   variables Variable[]
+  authProfiles AuthProfile[]
   runs      Run[]
   @@unique([projectId, name])
 }
@@ -134,6 +138,55 @@ model TestSuite {
   project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   tests       SuiteTest[]
   runs        Run[]
+  schedules   Schedule[]
+}
+
+// P1 — auth profiles: stored login state (Playwright storageState JSON,
+// encrypted at rest like secrets) reused across runs per environment.
+model AuthProfile {
+  id            String       @id @default(cuid())
+  projectId     String
+  environmentId String?
+  name          String
+  stateEncrypted String     // storageState JSON, AES-256-GCM (never plaintext after create)
+  createdBy     String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment   Environment? @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+  @@unique([projectId, environmentId, name])
+}
+
+// P1 — file library for upload steps (stored under storage/files/, capped).
+model FileAsset {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String   // original filename (sanitized)
+  mimeType  String?
+  sizeBytes Int
+  path      String   // storage-relative path; never absolute server path to client
+  createdBy String
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// P1 — scheduled suite/test runs (in-process ticker; trigger 'schedule').
+model Schedule {
+  id            String     @id @default(cuid())
+  projectId     String
+  suiteId       String?
+  testId        String?
+  environmentId String
+  cron          String     // minute hour dom month dow (5 fields)
+  enabled       Boolean    @default(true)
+  retries       Int        @default(0)
+  lastRunAt     DateTime?
+  nextRunAt     DateTime?
+  createdBy     String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  project       Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  suite         TestSuite? @relation(fields: [suiteId], references: [id], onDelete: Cascade)
 }
 
 model SuiteTest {
