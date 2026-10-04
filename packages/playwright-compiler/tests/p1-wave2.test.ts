@@ -291,8 +291,7 @@ describe('apiRequest', () => {
   });
 });
 
-describe('mockRoute', () => {
-  it('emits page.route with fulfill + method fallthrough', () => {
+describe('mockRoute', () => {  it('emits page.route with fulfill + method fallthrough', () => {
     const out = compileTest(
       defWithSteps([
         step('m1', 'mockRoute', {
@@ -377,5 +376,28 @@ describe('P0 byte-identical guarantee', () => {  it('login-test.json golden is u
         ),
       InvalidDefinitionError,
     );
+  });
+});
+
+describe('step timeoutMs forwards into expect() polling', () => {
+  it('assertVisible without timeoutMs emits a bare matcher (byte-identical)', () => {
+    const out = compileTest(
+      defWithSteps([step('v1', 'assertVisible', { target: T({ strategy: 'text', value: 'Hi' }) })]),
+    );
+    assert.ok(out.includes('.toBeVisible();'), out);
+  });
+
+  it('assertVisible with timeoutMs passes { timeout } to expect', () => {
+    const out = compileTest(
+      defWithSteps([step('v1', 'assertVisible', { target: T({ strategy: 'text', value: 'Hi' }), timeoutMs: 20000 })]),
+    );
+    assert.ok(out.includes('.toBeVisible({ timeout: 20000 });'), out);
+  });
+
+  it('two-arg matchers take timeout as second arg', () => {
+    const out = compileTest(
+      defWithSteps([step('t1', 'assertText', { target: T({ strategy: 'text', value: 'Hi' }), expected: 'Hi', timeoutMs: 15000 })]),
+    );
+    assert.ok(out.includes(`'Hi', { timeout: 15000 });`), out);
   });
 });

@@ -151,8 +151,7 @@ function secretAwareValueExpr(step: TestStep): string {
   return templateExpr(value, 'value', step.id);
 }
 
-function locatorExpr(target: TestStep['target'], stepId: string, pageVar = 'page'): string {
-  const primary: LocatorCandidate | undefined = target?.primary;
+function locatorExpr(target: TestStep['target'], stepId: string, pageVar = 'page'): string {  const primary: LocatorCandidate | undefined = target?.primary;
   if (!primary) throw new CompileError(stepId, `Step '${stepId}': missing target.primary`);
   switch (primary.strategy) {
     case 'role': {
@@ -194,6 +193,18 @@ function locatorExpr(target: TestStep['target'], stepId: string, pageVar = 'page
  *   use `{{VAR}}` lookups (never inlined secrets); the runner redacts
  *   secret values from logs/result JSON via redactSecrets.
  */
+/**
+ * Step timeout also governs expect() polling: Playwright's `test.step`
+ * timeout does NOT extend assertion waits (expect defaults to 5s), so a
+ * step-level timeoutMs must be forwarded explicitly — otherwise raising a
+ * step timeout has no effect on assertions and slow pages fail identically.
+ * Returns '' when unset (output byte-identical to before).
+ */
+function expectTimeout(step: TestStep): string {
+  const ms = (step as unknown as { timeoutMs?: unknown }).timeoutMs;
+  return typeof ms === 'number' && Number.isFinite(ms) && ms > 0 ? `{ timeout: ${Math.trunc(ms)} }` : '';
+}
+
 function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string {
   // P2 plugin steps dispatch before the literal switch (prefix-matched).
   if (typeof step.type === 'string' && PLUGIN_STEP_PATTERN.test(step.type)) {
@@ -239,26 +250,46 @@ function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string
     }
     case 'waitForURL':
       return `await ${pageVar}.waitForURL(${urlMatcherExpr(step.url ?? step.expected ?? step.pattern ?? '', 'expected', step.id)});`;
-    case 'assertVisible':
-      return `await expect(${loc()}).toBeVisible();`;
-    case 'assertHidden':
-      return `await expect(${loc()}).toBeHidden();`;
-    case 'assertText':
-      return `await expect(${loc()}).toHaveText(${templateExpr(step.expected ?? '', 'expected', step.id)});`;
-    case 'assertContainsText':
-      return `await expect(${loc()}).toContainText(${templateExpr(step.expected ?? '', 'expected', step.id)});`;
-    case 'assertValue':
-      return `await expect(${loc()}).toHaveValue(${templateExpr(step.expected ?? '', 'expected', step.id)});`;
-    case 'assertURL':
-      return `await expect(${pageVar}).toHaveURL(${urlMatcherExpr(step.expected ?? step.pattern ?? '', 'expected', step.id)});`;
-    case 'assertTitle':
-      return `await expect(${pageVar}).toHaveTitle(${templateExpr(step.expected ?? '', 'expected', step.id)});`;
-    case 'assertEnabled':
-      return `await expect(${loc()}).toBeEnabled();`;
-    case 'assertDisabled':
-      return `await expect(${loc()}).toBeDisabled();`;
-    case 'assertChecked':
-      return `await expect(${loc()}).toBeChecked();`;
+    case 'assertVisible': {
+      const t = expectTimeout(step);
+      return `await expect(${loc()}).toBeVisible(${t});`;
+    }
+    case 'assertHidden': {
+      const t = expectTimeout(step);
+      return `await expect(${loc()}).toBeHidden(${t});`;
+    }
+    case 'assertText': {
+      const t = expectTimeout(step);
+      return `await expect(${loc()}).toHaveText(${templateExpr(step.expected ?? '', 'expected', step.id)}${t ? `, ${t}` : ''});`;
+    }
+    case 'assertContainsText': {
+      const t = expectTimeout(step);
+      return `await expect(${loc()}).toContainText(${templateExpr(step.expected ?? '', 'expected', step.id)}${t ? `, ${t}` : ''});`;
+    }
+    case 'assertValue': {
+      const t = expectTimeout(step);
+      return `await expect(${loc()}).toHaveValue(${templateExpr(step.expected ?? '', 'expected', step.id)}${t ? `, ${t}` : ''});`;
+    }
+    case 'assertURL': {
+      const t = expectTimeout(step);
+      return `await expect(${pageVar}).toHaveURL(${urlMatcherExpr(step.expected ?? step.pattern ?? '', 'expected', step.id)}${t ? `, ${t}` : ''});`;
+    }
+    case 'assertTitle': {
+      const t = expectTimeout(step);
+      return `await expect(${pageVar}).toHaveTitle(${templateExpr(step.expected ?? '', 'expected', step.id)}${t ? `, ${t}` : ''});`;
+    }
+    case 'assertEnabled': {
+      const t = expectTimeout(step);
+      return `await expect(${loc()}).toBeEnabled(${t});`;
+    }
+    case 'assertDisabled': {
+      const t = expectTimeout(step);
+      return `await expect(${loc()}).toBeDisabled(${t});`;
+    }
+    case 'assertChecked': {
+      const t = expectTimeout(step);
+      return `await expect(${loc()}).toBeChecked(${t});`;
+    }
     case 'screenshot':
       // Screenshots are run evidence: write into the run artifact dir (runner
       // injects RUN_ARTIFACT_DIR) so collectArtifacts() persists them. The old
