@@ -239,6 +239,15 @@ const mockRouteStep = baseStep.extend({
   body: z.string().max(200000).optional(),
   contentType: z.string().max(200).optional(),
 });
+const axeCheckStep = baseStep.extend({
+  type: z.literal("axeCheck"),
+  /** Optional CSS scope (omit = whole page). */
+  selector: z.string().min(1).max(2000).optional(),
+  /** Fail on violations at these impacts (default critical+serious). */
+  includedImpacts: z.array(z.enum(["critical", "serious", "moderate", "minor"])).min(1).max(4).optional(),
+  /** Rule ids to skip (accepted issues). */
+  disableRules: z.array(z.string().min(1).max(120)).max(100).optional(),
+});
 
 // --------------------------------------------------------------- P2 ---
 
@@ -285,6 +294,7 @@ export const testStepSchema = z.discriminatedUnion("type", [
   handleDialogStep,
   apiRequestStep,
   mockRouteStep,
+  axeCheckStep,
   visualCheckStep,
 ]).superRefine((val, ctx) => {
   // Cross-field rules live here (not on individual options) because

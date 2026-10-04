@@ -392,6 +392,19 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     if (visualSteps.length > 0) {
       await writeWorkFile(ws.workDir, 'vv-visual-compare.cjs', visualHelperSource());
     }
+    // axe-core shim for `axeCheck` steps. The isolated workdir has no
+    // node_modules and NODE_PATH only covers the Playwright CLI owner, so the
+    // runner resolves the absolute entry now (fail fast when uninstallled)
+    // and the shim requires it directly. Same host ⇒ byte-identical output.
+    if (test.steps.some((s) => s.enabled !== false && s.type === 'axeCheck')) {
+      let axeEntry: string;
+      try {
+        axeEntry = createRequire(__filename).resolve('@axe-core/playwright');
+      } catch {
+        throw new Error(`axeCheck step requires the '@axe-core/playwright' dependency (runner install is missing it)`);
+      }
+      await writeWorkFile(ws.workDir, 'vv-axe.cjs', `module.exports = require(${JSON.stringify(axeEntry)});\n`);
+    }
     // P2 plugins: load the trusted registry (ALLOW_PLUGINS=1 required),
     // copy entry files into the workdir and write the `vv-plugins.cjs`
     // shim. Disabled/missing plugins fail here with an explicit

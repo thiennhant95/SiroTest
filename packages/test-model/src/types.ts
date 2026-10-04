@@ -295,6 +295,18 @@ export interface MockRouteStep extends BaseStep {
   contentType?: string;
 }
 
+/**
+ * Accessibility scan via axe-core (wcag2a/2aa/21a/21aa). Fails explicitly
+ * listing rule ids + impacted nodes when violations at/above includedImpacts
+ * exist. Page-level by default; `selector` scopes to one CSS subtree.
+ */
+export interface AxeCheckStep extends BaseStep {
+  type: "axeCheck";
+  selector?: string;
+  includedImpacts?: Array<"critical" | "serious" | "moderate" | "minor">;
+  disableRules?: string[];
+}
+
 // --------------------------------------------------------------- P2 ---
 // P2 additions are strictly additive (same contract as P1 additions).
 
@@ -360,6 +372,7 @@ export type TestStep =
   | HandleDialogStep
   | ApiRequestStep
   | MockRouteStep
+  | AxeCheckStep
   | VisualCheckStep;
 
 export type StepType = TestStep["type"];
@@ -405,6 +418,7 @@ export const P1_STEP_TYPES: readonly string[] = [
   "handleDialog",
   "apiRequest",
   "mockRoute",
+  "axeCheck",
 ] as const;
 
 /** P2 step types (require P2-aware compiler/runner). */

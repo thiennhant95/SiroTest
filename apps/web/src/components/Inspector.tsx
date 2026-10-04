@@ -511,6 +511,8 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
       return <ApiRequestFields step={step} set={set} />;
     case "mockRoute":
       return <MockRouteFields step={step} set={set} />;
+    case "axeCheck":
+      return <AxeCheckFields step={step} set={set} />;
     case "visualCheck":
       return <VisualCheckFields step={step} set={set} />;
     default:
@@ -920,6 +922,56 @@ function MockRouteFields({ step, set }: { step: BuilderStep; set: (k: string, v:
       </Field>
       <Field label="Body trả về (tùy chọn)" hint="Text thô — hỗ trợ {{VARIABLES}}.">
         <Textarea rows={4} value={str(step.body)} onChange={(e) => set("body", e.target.value || undefined)} placeholder='{"error":"mocked"}' />
+      </Field>
+    </div>
+  );
+}
+
+const AXE_IMPACTS = ["critical", "serious", "moderate", "minor"] as const;
+
+function AxeCheckFields({ step, set }: { step: BuilderStep; set: (k: string, v: unknown) => void }) {
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  const inc = Array.isArray(step.includedImpacts) ? (step.includedImpacts as string[]) : ["critical", "serious"];
+  const toggle = (imp: string) => {
+    const next = inc.includes(imp) ? inc.filter((x) => x !== imp) : [...inc, imp];
+    set("includedImpacts", next.length === 0 ? undefined : next);
+  };
+  return (
+    <div className="space-y-3">
+      <p className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+        Quét axe-core (WCAG 2.0/2.1 A+AA). Fail explicit kèm rule id khi có lỗi ở mức đã chọn. Đặt sau khi trang ổn định.
+      </p>
+      <Field label="CSS scope (tùy chọn)" hint="Trống = cả trang.">
+        <Input value={str(step.selector)} onChange={(e) => set("selector", e.target.value || undefined)} placeholder="main, #checkout-form" />
+      </Field>
+      <Field label="Fail ở mức">
+        <div className="flex flex-wrap gap-1.5">
+          {AXE_IMPACTS.map((imp) => {
+            const on = inc.includes(imp);
+            return (
+              <button
+                key={imp}
+                type="button"
+                role="checkbox"
+                aria-checked={on}
+                onClick={() => toggle(imp)}
+                className={`rounded-md border px-2.5 py-1 text-[13px] transition-colors ${
+                  on ? "border-indigo-600 bg-indigo-50 font-semibold text-indigo-700" : "border-slate-300 bg-white text-slate-600 hover:border-indigo-400"
+                }`}
+              >
+                {imp}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+      <Field label="Bỏ qua rules (tùy chọn)" hint="Mỗi dòng 1 rule id đã chấp nhận, vd color-contrast.">
+        <Textarea
+          rows={2}
+          value={Array.isArray(step.disableRules) ? (step.disableRules as string[]).join("\n") : ""}
+          onChange={(e) => set("disableRules", e.target.value.trim() === "" ? undefined : e.target.value.split("\n").map((s) => s.trim()).filter(Boolean))}
+          placeholder={"color-contrast"}
+        />
       </Field>
     </div>
   );

@@ -48,6 +48,7 @@ export const SUPPORTED_STEP_TYPES: ReadonlySet<string> = new Set([
   'handleDialog',
   'apiRequest',
   'mockRoute',
+  'axeCheck',
   // P2: visual regression (plugin:* steps match by prefix below)
   'visualCheck',
 ]);
@@ -264,6 +265,18 @@ function validateStep(step: TestStep, index: number, issues: ValidationIssue[]):
     }
     if (step.contentType !== undefined && (typeof step.contentType !== 'string' || step.contentType.length === 0 || step.contentType.length > 200)) {
       issues.push({ code: 'STEP_MOCK_CT_INVALID', message: `${where} of type 'mockRoute' requires contentType (1-200 chars)`, stepId: step.id });
+    }
+  }
+  if (step.type === 'axeCheck') {
+    const impacts = ['critical', 'serious', 'moderate', 'minor'];
+    if (step.selector !== undefined && (typeof step.selector !== 'string' || step.selector.length === 0 || step.selector.length > 2000)) {
+      issues.push({ code: 'STEP_AXE_SELECTOR_INVALID', message: `${where} of type 'axeCheck' requires selector (1-2000 chars CSS)`, stepId: step.id });
+    }
+    if (step.includedImpacts !== undefined && (!Array.isArray(step.includedImpacts) || step.includedImpacts.length === 0 || step.includedImpacts.length > 4 || !(step.includedImpacts as unknown[]).every((v) => typeof v === 'string' && impacts.includes(v)))) {
+      issues.push({ code: 'STEP_AXE_IMPACTS_INVALID', message: `${where} of type 'axeCheck' requires includedImpacts from ${impacts.join('|')}`, stepId: step.id });
+    }
+    if (step.disableRules !== undefined && (!Array.isArray(step.disableRules) || (step.disableRules as unknown[]).some((v) => typeof v !== 'string' || (v as string).length === 0 || (v as string).length > 120) || (step.disableRules as unknown[]).length > 100)) {
+      issues.push({ code: 'STEP_AXE_RULES_INVALID', message: `${where} of type 'axeCheck' requires disableRules string[<=100]`, stepId: step.id });
     }
   }
   // ---- P2 field checks (explicit failures, never silent skips) ----

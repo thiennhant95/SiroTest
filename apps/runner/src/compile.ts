@@ -369,6 +369,8 @@ function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string
       return apiRequestBody(step);
     case 'mockRoute':
       return mockRouteBody(step, pageVar);
+    case 'axeCheck':
+      return axeCheckBody(step, pageVar);
     case 'callAction':
       throw new CompileError(step.id, `Step '${step.id}': callAction needs an actions context — pass { actions } to compileSpec() so the callee body can be inlined explicitly`);
     default:
@@ -553,6 +555,46 @@ function mockRouteBody(step: TestStep, pageVar: string): string {
       ? `async (vvRoute) => { if (vvRoute.request().method() !== ${esc(method)}) return vvRoute.fallback(); await vvRoute.fulfill({ ${fulfill.join(', ')} }); }`
       : `async (vvRoute) => { await vvRoute.fulfill({ ${fulfill.join(', ')} }); }`;
   return `await ${pageVar}.route(${urlExpr}, ${handler});`;
+}
+
+/**
+ * axeCheck -> axe-core scan (wcag2a/2aa/21a/21aa). Fails explicitly with
+ * rule ids + node counts. axe runs in the page; results are data (no secrets
+ * by construction, and error text passes through runner secret redaction).
+ */
+function axeCheckBody(step: TestStep, pageVar: string): string {
+  const rec = step as unknown as Record<string, unknown>;
+  const impacts = ['critical', 'serious', 'moderate', 'minor'];
+  const selector = rec['selector'];
+  if (selector !== undefined && (typeof selector !== 'string' || selector.length === 0 || selector.length > 2000)) {
+    throw new CompileError(step.id, `Step '${step.id}': axeCheck requires selector (1-2000 chars CSS)`);
+  }
+  const incRaw = rec['includedImpacts'];
+  const included: string[] =
+    incRaw === undefined
+      ? ['critical', 'serious']
+      : Array.isArray(incRaw) && incRaw.length > 0 && incRaw.length <= 4 && incRaw.every((v) => typeof v === 'string' && impacts.includes(v))
+        ? [...(incRaw as string[])].sort()
+        : (() => { throw new CompileError(step.id, `Step '${step.id}': axeCheck requires includedImpacts from ${impacts.join('|')}`); })();
+  const disRaw = rec['disableRules'];
+  if (disRaw !== undefined && (!Array.isArray(disRaw) || (disRaw as unknown[]).some((v) => typeof v !== 'string' || (v as string).length === 0 || (v as string).length > 120) || (disRaw as unknown[]).length > 100)) {
+    throw new CompileError(step.id, `Step '${step.id}': axeCheck requires disableRules string[<=100]`);
+  }
+  const lines = [
+    // @axe-core/playwright resolves via NODE_PATH in the isolated workdir
+    // (runner injects its node_modules); the vv-axe.cjs shim next to the spec
+    // re-exports it so both CJS and ESM spec transforms can load it.
+    `const vvAxeMod = await import('./vv-axe.cjs');`,
+    `const vvAxeBuilder = new (vvAxeMod.default ?? vvAxeMod)({ page: ${pageVar} }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']);`,
+  ];
+  if (typeof selector === 'string') lines.push(`vvAxeBuilder.include(${esc(selector)});`);
+  if (Array.isArray(disRaw) && (disRaw as unknown[]).length > 0) {
+    lines.push(`vvAxeBuilder.disableRules(${JSON.stringify(disRaw)});`);
+  }
+  lines.push(`const vvAxe = await vvAxeBuilder.analyze();`);
+  lines.push(`const vvAxeBad = vvAxe.violations.filter((vv) => ${JSON.stringify(included)}.includes(vv.impact));`);
+  lines.push(`if (vvAxeBad.length > 0) throw new Error(${esc(`axeCheck '${step.id}': `)} + vvAxeBad.length + ${esc(' violation(s): ')} + vvAxeBad.map((vv) => vv.id + '[' + vv.impact + ']').join(', '));`);
+  return lines.join('\n');
 }
 
 /**

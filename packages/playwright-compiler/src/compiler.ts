@@ -360,6 +360,9 @@ export function defaultStepName(step: TestStep): string {
       const mUrl = typeof r['url'] === 'string' ? (r['url'] as string) : '';
       return mUrl ? `Mock ${mUrl}` : 'Mock route';
     }
+    case 'axeCheck': {
+      return typeof r['selector'] === 'string' && r['selector'] ? `Axe ${r['selector']}` : 'Axe check';
+    }
     default:
       return `${step.type} ${step.id}`;
   }
@@ -652,6 +655,9 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
     case 'mockRoute': {
       return compileMockRouteBody(step, pageVar);
     }
+    case 'axeCheck': {
+      return compileAxeCheckBody(step, pageVar);
+    }
     case 'callAction':
       throw new UnsupportedStepError(
         step.id,
@@ -872,6 +878,50 @@ function compileMockRouteBody(step: TestStep, pageVar: string): string[] {
       ? `async (vvRoute) => { if (vvRoute.request().method() !== ${stringLiteral(methodRaw)}) return vvRoute.fallback(); await vvRoute.fulfill({ ${fulfill.join(', ')} }); }`
       : `async (vvRoute) => { await vvRoute.fulfill({ ${fulfill.join(', ')} }); }`;
   return [`await ${pageVar}.route(${urlExpr}, ${handler});`];
+}
+
+/**
+ * axeCheck (Code-tab mirror of the runner compiler): axe-core scan with the
+ * same validation and emitted shape.
+ */
+function compileAxeCheckBody(step: TestStep, pageVar: string): string[] {
+  const r = asRecord(step);
+  const impacts = ['critical', 'serious', 'moderate', 'minor'];
+  const selector = r['selector'];
+  if (selector !== undefined && (typeof selector !== 'string' || selector.length === 0 || selector.length > 2000)) {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (axeCheck): field "selector" must be 1-2000 chars CSS`,
+    );
+  }
+  const incRaw = r['includedImpacts'];
+  let included: string[];
+  if (incRaw === undefined) {
+    included = ['critical', 'serious'];
+  } else if (Array.isArray(incRaw) && incRaw.length > 0 && incRaw.length <= 4 && incRaw.every((v) => typeof v === 'string' && impacts.includes(v))) {
+    included = [...(incRaw as string[])].sort();
+  } else {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (axeCheck): field "includedImpacts" must be from ${impacts.join('|')}`,
+    );
+  }
+  const disRaw = r['disableRules'];
+  if (disRaw !== undefined && (!Array.isArray(disRaw) || (disRaw as unknown[]).some((v) => typeof v !== 'string' || (v as string).length === 0 || (v as string).length > 120) || (disRaw as unknown[]).length > 100)) {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (axeCheck): field "disableRules" must be string[<=100]`,
+    );
+  }
+  const lines = [
+    `const vvAxeMod = await import('./vv-axe.cjs');`,
+    `const vvAxeBuilder = new (vvAxeMod.default ?? vvAxeMod)({ page: ${pageVar} }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']);`,
+  ];
+  if (typeof selector === 'string') lines.push(`vvAxeBuilder.include(${stringLiteral(selector)});`);
+  if (Array.isArray(disRaw) && (disRaw as unknown[]).length > 0) {
+    lines.push(`vvAxeBuilder.disableRules(${JSON.stringify(disRaw)});`);
+  }
+  lines.push(`const vvAxe = await vvAxeBuilder.analyze();`);
+  lines.push(`const vvAxeBad = vvAxe.violations.filter((vv) => ${JSON.stringify(included)}.includes(vv.impact));`);
+  lines.push(`if (vvAxeBad.length > 0) throw new Error(${stringLiteral(`axeCheck "${step.id}": `)} + vvAxeBad.length + ${stringLiteral(' violation(s): ')} + vvAxeBad.map((vv) => vv.id + '[' + vv.impact + ']').join(', '));`);
+  return lines;
 }
 
 function compileSelectOption(step: TestStep, raw: unknown): string {

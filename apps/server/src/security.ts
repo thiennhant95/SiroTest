@@ -200,6 +200,7 @@ const P1_STEP_TYPES: readonly string[] = [
   'handleDialog',
   'apiRequest',
   'mockRoute',
+  'axeCheck',
 ];
 
 /** P2 step types (mirrors `P2_STEP_TYPES` in packages/test-model/src/types.ts). */
