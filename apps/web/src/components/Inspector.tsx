@@ -509,6 +509,8 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
     }
     case "apiRequest":
       return <ApiRequestFields step={step} set={set} />;
+    case "mockRoute":
+      return <MockRouteFields step={step} set={set} />;
     case "visualCheck":
       return <VisualCheckFields step={step} set={set} />;
     default:
@@ -872,6 +874,53 @@ function ApiRequestFields({ step, set }: { step: BuilderStep; set: (k: string, v
       {!saveAsOk ? (
         <p className="text-xs text-red-600">Tên biến phải khớp /^[A-Za-z_][A-Za-z0-9_]*$/.</p>
       ) : null}
+    </div>
+  );
+}
+
+function MockRouteFields({ step, set }: { step: BuilderStep; set: (k: string, v: unknown) => void }) {
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  const status = typeof step.status === "number" ? step.status : 200;
+  const statusOk = Number.isInteger(status) && status >= 100 && status <= 599;
+  return (
+    <div className="space-y-3">
+      <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        Chặn request của browser <strong>trước</strong> khi app gọi — đặt step này trước goto/click gây ra request. Method khác filter sẽ đi mạng thật.
+      </p>
+      <Field label="URL pattern (glob)" hint="vd {{BASE_URL}}/api/users/* — hỗ trợ {{VARIABLES}}.">
+        <Input value={str(step.url)} onChange={(e) => set("url", e.target.value)} placeholder="**/api/users" />
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Method filter (tùy chọn)" hint="Trống = chặn mọi method.">
+          <Select
+            value={str(step.method)}
+            onChange={(e) => set("method", e.target.value === "" ? undefined : e.target.value)}
+          >
+            <option value="">(any)</option>
+            {["GET", "POST", "PUT", "PATCH", "DELETE"].map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Status trả về">
+          <Input
+            type="number"
+            min={100}
+            max={599}
+            value={status}
+            onChange={(e) => set("status", e.target.value === "" ? undefined : Number(e.target.value))}
+          />
+        </Field>
+      </div>
+      {!statusOk ? (
+        <p className="text-xs text-red-600">Status phải là số nguyên 100–599.</p>
+      ) : null}
+      <Field label="Content type (tùy chọn)">
+        <Input value={str(step.contentType)} onChange={(e) => set("contentType", e.target.value || undefined)} placeholder="application/json" />
+      </Field>
+      <Field label="Body trả về (tùy chọn)" hint="Text thô — hỗ trợ {{VARIABLES}}.">
+        <Textarea rows={4} value={str(step.body)} onChange={(e) => set("body", e.target.value || undefined)} placeholder='{"error":"mocked"}' />
+      </Field>
     </div>
   );
 }

@@ -281,6 +281,20 @@ export interface ApiRequestStep extends BaseStep {
   saveAs?: string;
 }
 
+/**
+ * Mock a browser HTTP route BEFORE the app requests it (test UI under
+ * API failure states: 500s, timeouts, empty lists). Unmatched methods fall
+ * through to the real network. Must precede the triggering navigation/action.
+ */
+export interface MockRouteStep extends BaseStep {
+  type: "mockRoute";
+  url: string;
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  status?: number;
+  body?: string;
+  contentType?: string;
+}
+
 // --------------------------------------------------------------- P2 ---
 // P2 additions are strictly additive (same contract as P1 additions).
 
@@ -345,6 +359,7 @@ export type TestStep =
   | CloseTabStep
   | HandleDialogStep
   | ApiRequestStep
+  | MockRouteStep
   | VisualCheckStep;
 
 export type StepType = TestStep["type"];
@@ -389,6 +404,7 @@ export const P1_STEP_TYPES: readonly string[] = [
   "closeTab",
   "handleDialog",
   "apiRequest",
+  "mockRoute",
 ] as const;
 
 /** P2 step types (require P2-aware compiler/runner). */

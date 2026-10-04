@@ -420,7 +420,8 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
       headed: req.debug === true ? true : (req.headed ?? false),
       ...(req.slowMoMs ? { slowMoMs: req.slowMoMs } : {}),
       baseUrl: test.baseUrl,
-      viewport: test.viewport,
+      // Run-level override wins (responsive runs); test default otherwise.
+      ...(req.viewport ?? test.viewport ? { viewport: (req.viewport ?? test.viewport)! } : {}),
       reporterPath,
       runId,
       trace: req.artifacts?.trace ?? 'retain-on-failure',

@@ -229,6 +229,16 @@ const apiRequestStep = baseStep.extend({
   expectedStatus: z.number().int().min(100).max(599).optional(),
   saveAs: z.string().min(1).max(120).regex(/^[A-Za-z_][A-Za-z0-9_]*$/).optional(),
 });
+const mockRouteStep = baseStep.extend({
+  type: z.literal("mockRoute"),
+  /** URL glob/pattern intercepted BEFORE the app requests it (supports {{VARIABLE}}). */
+  url: z.string().min(1),
+  /** Optional method filter (unmatched methods fall through to the network). */
+  method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]).optional(),
+  status: z.number().int().min(100).max(599).optional(),
+  body: z.string().max(200000).optional(),
+  contentType: z.string().max(200).optional(),
+});
 
 // --------------------------------------------------------------- P2 ---
 
@@ -274,6 +284,7 @@ export const testStepSchema = z.discriminatedUnion("type", [
   closeTabStep,
   handleDialogStep,
   apiRequestStep,
+  mockRouteStep,
   visualCheckStep,
 ]).superRefine((val, ctx) => {
   // Cross-field rules live here (not on individual options) because

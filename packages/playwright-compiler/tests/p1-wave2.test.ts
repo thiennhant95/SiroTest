@@ -291,6 +291,49 @@ describe('apiRequest', () => {
   });
 });
 
+describe('mockRoute', () => {
+  it('emits page.route with fulfill + method fallthrough', () => {
+    const out = compileTest(
+      defWithSteps([
+        step('m1', 'mockRoute', {
+          url: '**/api/users',
+          method: 'GET',
+          status: 500,
+          body: '{"error":"mocked"}',
+          contentType: 'application/json',
+        }),
+      ]),
+    );
+    assert.ok(out.includes('await page.route('), out);
+    assert.ok(out.includes('vvRoute.fulfill'), out);
+    assert.ok(out.includes('vvRoute.fallback()'), out);
+    assert.ok(out.includes('status: 500'), out);
+  });
+
+  it('method-less route fulfills everything', () => {
+    const out = compileTest(
+      defWithSteps([step('m1', 'mockRoute', { url: '**/api/slow' })]),
+    );
+    assert.ok(!out.includes('fallback'), out);
+    assert.ok(out.includes('status: 200'), out);
+  });
+
+  it('missing url / bad status / bad method fail explicitly', () => {
+    assert.throws(
+      () => compileTest(defWithSteps([step('m1', 'mockRoute', {})])),
+      InvalidDefinitionError,
+    );
+    assert.throws(
+      () => compileTest(defWithSteps([step('m1', 'mockRoute', { url: '**/x', status: 99 })])),
+      InvalidDefinitionError,
+    );
+    assert.throws(
+      () => compileTest(defWithSteps([step('m1', 'mockRoute', { url: '**/x', method: 'FETCH' })])),
+      InvalidDefinitionError,
+    );
+  });
+});
+
 describe('generated code parses as TypeScript', () => {
   it('wave-2 spec with all 6 types transpiles + parses', async () => {
     const ts = await import('typescript');

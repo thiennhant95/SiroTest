@@ -199,6 +199,7 @@ const P1_STEP_TYPES: readonly string[] = [
   'closeTab',
   'handleDialog',
   'apiRequest',
+  'mockRoute',
 ];
 
 /** P2 step types (mirrors `P2_STEP_TYPES` in packages/test-model/src/types.ts). */

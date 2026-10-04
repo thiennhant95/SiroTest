@@ -18,6 +18,16 @@ interface Props {
   onSuiteStarted?: (suiteRunId: string) => void;
 }
 
+/** Responsive presets (Playwright viewport override for this run). */
+const VIEWPORTS: Array<{ label: string; value: string; dims?: { width: number; height: number } }> = [
+  { label: "Test default", value: "" },
+  { label: "Desktop 1440×900", value: "1440x900", dims: { width: 1440, height: 900 } },
+  { label: "Laptop 1280×720", value: "1280x720", dims: { width: 1280, height: 720 } },
+  { label: "Tablet 768×1024", value: "768x1024", dims: { width: 768, height: 1024 } },
+  { label: "Mobile 375×667", value: "375x667", dims: { width: 375, height: 667 } },
+  { label: "Mobile 390×844", value: "390x844", dims: { width: 390, height: 844 } },
+];
+
 /** POST /tests/:id/runs {environmentId, browser, headed, datasetId?, rowIndex?, profileId?} → runId. */
 export function RunModal({ testId, suiteId, envs, envId, datasets = [], projectId, profiles: preloaded, onClose, onStarted, onSuiteStarted }: Props) {
   const [environmentId, setEnvironmentId] = useState(envId ?? envs.find((e) => e.isDefault)?.id ?? envs[0]?.id ?? '');
@@ -33,10 +43,12 @@ export function RunModal({ testId, suiteId, envs, envId, datasets = [], projectI
   const [healWithAlternatives, setHealWithAlternatives] = useState(false);
   const [observe, setObserve] = useState(false);
   const [debug, setDebug] = useState(false);
+  const [viewport, setViewport] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const selected = datasets.find((d) => d.id === datasetId);
+  const viewportPreset = VIEWPORTS.find((v) => v.value === viewport);
 
   useEffect(() => {
     if (preloaded) {
@@ -95,6 +107,7 @@ export function RunModal({ testId, suiteId, envs, envId, datasets = [], projectI
       }
       const run = await api.createRun(testId, {
         environmentId, browser, headed: headed || observe || debug,
+        ...(viewportPreset?.dims ? { viewport: viewportPreset.dims } : {}),
         ...(datasetId ? { datasetId } : {}),
         ...(row !== undefined ? { rowIndex: row } : {}),
         ...(profileId ? { profileId } : {}),
@@ -135,6 +148,13 @@ export function RunModal({ testId, suiteId, envs, envId, datasets = [], projectI
             </Select>
           </Field>
         </div>
+        <Field label="Viewport (responsive)" hint="Để trống = cỡ mặc định của test.">
+          <Select value={viewport} onChange={(e) => setViewport(e.target.value)} aria-label="Viewport">
+            {VIEWPORTS.map((v) => (
+              <option key={v.value} value={v.value}>{v.label}</option>
+            ))}
+          </Select>
+        </Field>
         {!profilesUnsupported && profiles !== null && profiles.length > 0 && (
           <Field label="Auth profile" hint="Fresh browser khi để trống.">
             <Select value={profileId} onChange={(e) => setProfileId(e.target.value)} aria-label="Auth profile">
