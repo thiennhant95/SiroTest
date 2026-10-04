@@ -207,6 +207,15 @@ function asRecord(step: TestStep): Record<string, unknown> {
   return step as Record<string, unknown>;
 }
 
+/**
+ * Step timeout also governs expect() polling (test.step timeout alone does
+ * not — expect defaults to 5s). Mirror of the runner compiler helper.
+ */
+function expectTimeout(step: TestStep): string {
+  const ms = asRecord(step)['timeoutMs'];
+  return typeof ms === 'number' && Number.isFinite(ms) && ms > 0 ? `{ timeout: ${Math.trunc(ms)} }` : '';
+}
+
 function requiredString(step: TestStep, field: string): string {
   const v = asRecord(step)[field];
   if (typeof v !== 'string' || v.length === 0) {
@@ -475,10 +484,14 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
       }
       return [`await ${pageVar}.waitForURL(${compileUrlMatcher(url)});`];
     }
-    case 'assertVisible':
-      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeVisible();`];
-    case 'assertHidden':
-      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeHidden();`];
+    case 'assertVisible': {
+      const t = expectTimeout(step);
+      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeVisible(${t});`];
+    }
+    case 'assertHidden': {
+      const t = expectTimeout(step);
+      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeHidden(${t});`];
+    }
     case 'assertText': {
       const expected = optionalString(step, 'expected', 'value', 'text');
       if (expected === undefined) {
@@ -486,8 +499,9 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
           `Step "${step.id}" (assertText): field "expected" is required`,
         );
       }
+      const t = expectTimeout(step);
       return [
-        `await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toHaveText(${compileValueExpression(expected)});`,
+        `await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toHaveText(${compileValueExpression(expected)}${t ? `, ${t}` : ''});`,
       ];
     }
     case 'assertContainsText': {
@@ -497,8 +511,9 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
           `Step "${step.id}" (assertContainsText): field "expected" is required`,
         );
       }
+      const t = expectTimeout(step);
       return [
-        `await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toContainText(${compileValueExpression(expected)});`,
+        `await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toContainText(${compileValueExpression(expected)}${t ? `, ${t}` : ''});`,
       ];
     }
     case 'assertValue': {
@@ -508,8 +523,9 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
           `Step "${step.id}" (assertValue): field "expected" is required`,
         );
       }
+      const t = expectTimeout(step);
       return [
-        `await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toHaveValue(${compileValueExpression(expected)});`,
+        `await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toHaveValue(${compileValueExpression(expected)}${t ? `, ${t}` : ''});`,
       ];
     }
     case 'assertURL': {
@@ -519,7 +535,8 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
           `Step "${step.id}" (assertURL): one of "expected"/"url"/"pattern" is required`,
         );
       }
-      return [`await expect(${pageVar}).toHaveURL(${compileUrlMatcher(expected)});`];
+      const t = expectTimeout(step);
+      return [`await expect(${pageVar}).toHaveURL(${compileUrlMatcher(expected)}${t ? `, ${t}` : ''});`];
     }
     case 'assertTitle': {
       const expected = optionalString(step, 'expected', 'title');
@@ -528,14 +545,21 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
           `Step "${step.id}" (assertTitle): one of "expected"/"title" is required`,
         );
       }
-      return [`await expect(${pageVar}).toHaveTitle(${compileValueExpression(expected)});`];
+      const t = expectTimeout(step);
+      return [`await expect(${pageVar}).toHaveTitle(${compileValueExpression(expected)}${t ? `, ${t}` : ''});`];
     }
-    case 'assertEnabled':
-      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeEnabled();`];
-    case 'assertDisabled':
-      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeDisabled();`];
-    case 'assertChecked':
-      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeChecked();`];
+    case 'assertEnabled': {
+      const t = expectTimeout(step);
+      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeEnabled(${t});`];
+    }
+    case 'assertDisabled': {
+      const t = expectTimeout(step);
+      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeDisabled(${t});`];
+    }
+    case 'assertChecked': {
+      const t = expectTimeout(step);
+      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeChecked(${t});`];
+    }
     case 'screenshot': {
       const r = asRecord(step);
       const name =
