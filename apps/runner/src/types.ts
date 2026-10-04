@@ -228,6 +228,11 @@ export interface RunRequest {
    * `headed`; combines with slowMoMs/artifacts like observe mode.
    */
   debug?: boolean;
+  /**
+   * Run-level viewport override (responsive runs). Falls back to
+   * test.viewport when absent; Playwright default when neither is set.
+   */
+  viewport?: { width: number; height: number };
 }
 
 export interface StepRecord {

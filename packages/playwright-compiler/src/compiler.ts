@@ -347,6 +347,10 @@ export function defaultStepName(step: TestStep): string {
       const url = typeof r['url'] === 'string' ? (r['url'] as string) : '';
       return method && url ? `API ${method} ${url}` : method ? `API ${method}` : 'API request';
     }
+    case 'mockRoute': {
+      const mUrl = typeof r['url'] === 'string' ? (r['url'] as string) : '';
+      return mUrl ? `Mock ${mUrl}` : 'Mock route';
+    }
     default:
       return `${step.type} ${step.id}`;
   }
@@ -621,6 +625,9 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
     case 'apiRequest': {
       return compileApiRequestBody(step);
     }
+    case 'mockRoute': {
+      return compileMockRouteBody(step, pageVar);
+    }
     case 'callAction':
       throw new UnsupportedStepError(
         step.id,
@@ -793,6 +800,54 @@ function compileApiRequestBody(step: TestStep): string[] {
     lines.push(`process.env[${stringLiteral(saveAsRaw)}] = await vvResp.text();`);
   }
   return lines;
+}
+
+/**
+ * mockRoute (Code-tab mirror of the runner compiler): register a
+ * page.route() interception. Same validation, same emitted shape.
+ */
+function compileMockRouteBody(step: TestStep, pageVar: string): string[] {
+  const r = asRecord(step);
+  const allowedMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+  const url = typeof r['url'] === 'string' && r['url'] ? (r['url'] as string) : undefined;
+  if (!url) {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (mockRoute): field "url" must be a non-empty string`,
+    );
+  }
+  const methodRaw = r['method'];
+  if (methodRaw !== undefined && (typeof methodRaw !== 'string' || !allowedMethods.includes(methodRaw))) {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (mockRoute): field "method" must be one of ${allowedMethods.join(', ')}`,
+    );
+  }
+  const statusRaw = r['status'];
+  if (statusRaw !== undefined && !(typeof statusRaw === 'number' && Number.isInteger(statusRaw) && statusRaw >= 100 && statusRaw <= 599)) {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (mockRoute): field "status" must be an integer 100-599`,
+    );
+  }
+  const bodyRaw = r['body'];
+  if (bodyRaw !== undefined && typeof bodyRaw !== 'string') {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (mockRoute): field "body" must be a string (use {{VARIABLE}})`,
+    );
+  }
+  const ctRaw = r['contentType'];
+  if (ctRaw !== undefined && (typeof ctRaw !== 'string' || ctRaw.length === 0 || ctRaw.length > 200)) {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (mockRoute): field "contentType" must be 1-200 chars`,
+    );
+  }
+  const urlExpr = compileValueExpression(url);
+  const fulfill: string[] = [`status: ${statusRaw !== undefined ? Math.trunc(statusRaw as number) : 200}`];
+  if (typeof ctRaw === 'string') fulfill.push(`contentType: ${stringLiteral(ctRaw)}`);
+  if (typeof bodyRaw === 'string') fulfill.push(`body: ${compileValueExpression(bodyRaw)}`);
+  const handler =
+    typeof methodRaw === 'string'
+      ? `async (vvRoute) => { if (vvRoute.request().method() !== ${stringLiteral(methodRaw)}) return vvRoute.fallback(); await vvRoute.fulfill({ ${fulfill.join(', ')} }); }`
+      : `async (vvRoute) => { await vvRoute.fulfill({ ${fulfill.join(', ')} }); }`;
+  return [`await ${pageVar}.route(${urlExpr}, ${handler});`];
 }
 
 function compileSelectOption(step: TestStep, raw: unknown): string {

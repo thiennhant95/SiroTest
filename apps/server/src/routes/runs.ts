@@ -138,6 +138,8 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
       ...(body.slowMoMs !== undefined ? { slowMoMs: body.slowMoMs } : {}),
       // Debug mode (≈ --debug): headed forced + PWDEBUG=1 in the runner.
       ...(body.debug === true ? { debug: true as const } : {}),
+      // Responsive override (falls back to test.viewport in the runner).
+      ...(body.viewport !== undefined ? { viewport: body.viewport } : {}),
       projectVariables,
       environmentVariables,
       trigger: 'manual',

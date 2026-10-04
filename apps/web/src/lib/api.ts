@@ -324,10 +324,10 @@ export const api = {
     day6req<Environment[]>(`/projects/${projectId}/environments`),
   listVariables: (projectId: string) =>
     day6req<Variable[]>(`/projects/${projectId}/variables`),
-  createRun: (testId: string, opts: { environmentId: string; browser?: string; headed?: boolean; datasetId?: string; rowIndex?: number; profileId?: string; healWithAlternatives?: boolean; slowMoMs?: number; debug?: boolean; artifacts?: { trace?: 'on' | 'off' | 'retain-on-failure'; screenshot?: 'on' | 'off' | 'only-on-failure'; video?: 'on' | 'off' | 'retain-on-failure' } }) =>
+  createRun: (testId: string, opts: { environmentId: string; browser?: string; headed?: boolean; datasetId?: string; rowIndex?: number; profileId?: string; healWithAlternatives?: boolean; slowMoMs?: number; debug?: boolean; viewport?: { width: number; height: number }; artifacts?: { trace?: 'on' | 'off' | 'retain-on-failure'; screenshot?: 'on' | 'off' | 'only-on-failure'; video?: 'on' | 'off' | 'retain-on-failure' } }) =>
     day6req<{ id: string; status: string }>(`/tests/${testId}/runs`, {
       method: "POST",
-      body: JSON.stringify({ environmentId: opts.environmentId, browser: opts.browser ?? "chromium", headed: opts.headed ?? false, ...(opts.datasetId ? { datasetId: opts.datasetId } : {}), ...(opts.rowIndex !== undefined ? { rowIndex: opts.rowIndex } : {}), ...(opts.profileId ? { profileId: opts.profileId } : {}), ...(opts.healWithAlternatives === true ? { healWithAlternatives: true } : {}), ...(opts.slowMoMs !== undefined ? { slowMoMs: opts.slowMoMs } : {}), ...(opts.debug === true ? { debug: true } : {}), ...(opts.artifacts ? { artifacts: opts.artifacts } : {}) }),
+      body: JSON.stringify({ environmentId: opts.environmentId, browser: opts.browser ?? "chromium", headed: opts.headed ?? false, ...(opts.datasetId ? { datasetId: opts.datasetId } : {}), ...(opts.rowIndex !== undefined ? { rowIndex: opts.rowIndex } : {}), ...(opts.profileId ? { profileId: opts.profileId } : {}), ...(opts.healWithAlternatives === true ? { healWithAlternatives: true } : {}), ...(opts.slowMoMs !== undefined ? { slowMoMs: opts.slowMoMs } : {}), ...(opts.debug === true ? { debug: true } : {}), ...(opts.viewport ? { viewport: opts.viewport } : {}), ...(opts.artifacts ? { artifacts: opts.artifacts } : {}) }),
     }),
   /* P1 datasets (definition-embedded): import CSV/JSON text, delete a table. */
   importDataset: (testId: string, payload: { format: "csv" | "json"; name?: string; content: string }) =>

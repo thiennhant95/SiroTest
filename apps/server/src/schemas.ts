@@ -75,6 +75,14 @@ export const runCreate = z.object({
    * Inspector opens on the host; run settles on browser close or Cancel.
    */
   debug: z.boolean().optional(),
+  /**
+   * Responsive runs: viewport override (falls back to test.viewport).
+   * Bounds keep silly values out (320px watch … 8K).
+   */
+  viewport: z.object({
+    width: z.number().int().min(320).max(7680),
+    height: z.number().int().min(320).max(4320),
+  }).optional(),
 });
 
 /** P1 dataset import (CSV/JSON text → embedded definition.datasets). */

@@ -47,6 +47,7 @@ export const SUPPORTED_STEP_TYPES: ReadonlySet<string> = new Set([
   'closeTab',
   'handleDialog',
   'apiRequest',
+  'mockRoute',
   // P2: visual regression (plugin:* steps match by prefix below)
   'visualCheck',
 ]);
@@ -245,6 +246,24 @@ function validateStep(step: TestStep, index: number, issues: ValidationIssue[]):
     }
     if (step.saveAs !== undefined && !(typeof step.saveAs === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(step.saveAs))) {
       issues.push({ code: 'STEP_API_SAVEAS_INVALID', message: `${where} of type 'apiRequest' requires saveAs to match /^[A-Za-z_][A-Za-z0-9_]*$/`, stepId: step.id });
+    }
+  }
+  if (step.type === 'mockRoute') {
+    const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+    if (typeof step.url !== 'string' || step.url.length === 0) {
+      issues.push({ code: 'STEP_URL_MISSING', message: `${where} of type 'mockRoute' requires url (glob/pattern)`, stepId: step.id });
+    }
+    if (step.method !== undefined && (typeof step.method !== 'string' || !methods.includes(step.method))) {
+      issues.push({ code: 'STEP_MOCK_METHOD_INVALID', message: `${where} of type 'mockRoute' requires method ${methods.join('|')}`, stepId: step.id });
+    }
+    if (step.status !== undefined && !(Number.isInteger(step.status) && (step.status as number) >= 100 && (step.status as number) <= 599)) {
+      issues.push({ code: 'STEP_MOCK_STATUS_INVALID', message: `${where} of type 'mockRoute' requires status 100-599`, stepId: step.id });
+    }
+    if (step.body !== undefined && typeof step.body !== 'string') {
+      issues.push({ code: 'STEP_MOCK_BODY_INVALID', message: `${where} of type 'mockRoute' requires body to be a string (use {{VARIABLE}})`, stepId: step.id });
+    }
+    if (step.contentType !== undefined && (typeof step.contentType !== 'string' || step.contentType.length === 0 || step.contentType.length > 200)) {
+      issues.push({ code: 'STEP_MOCK_CT_INVALID', message: `${where} of type 'mockRoute' requires contentType (1-200 chars)`, stepId: step.id });
     }
   }
   // ---- P2 field checks (explicit failures, never silent skips) ----
