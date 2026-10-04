@@ -316,7 +316,6 @@ describe('mockRoute', () => {  it('emits page.route with fulfill + method fallth
     assert.ok(!out.includes('fallback'), out);
     assert.ok(out.includes('status: 200'), out);
   });
-
   it('missing url / bad status / bad method fail explicitly', () => {
     assert.throws(
       () => compileTest(defWithSteps([step('m1', 'mockRoute', {})])),
@@ -399,5 +398,38 @@ describe('step timeoutMs forwards into expect() polling', () => {
       defWithSteps([step('t1', 'assertText', { target: T({ strategy: 'text', value: 'Hi' }), expected: 'Hi', timeoutMs: 15000 })]),
     );
     assert.ok(out.includes(`'Hi', { timeout: 15000 });`), out);
+  });
+});
+
+describe('axeCheck', () => {
+  it('emits an AxeBuilder scan failing on critical/serious by default', () => {
+    const out = compileTest(defWithSteps([step('x1', 'axeCheck', {})]));
+    assert.ok(out.includes(`await import('./vv-axe.cjs')`), out);
+    assert.ok(out.includes('.analyze()'), out);
+    assert.ok(out.includes('["critical","serious"]'), out);
+  });
+
+  it('honors selector + custom impacts + disableRules', () => {
+    const out = compileTest(
+      defWithSteps([step('x1', 'axeCheck', { selector: 'main', includedImpacts: ['moderate'], disableRules: ['color-contrast'] })]),
+    );
+    assert.ok(out.includes(`.include('main')`), out);
+    assert.ok(out.includes('["moderate"]'), out);
+    assert.ok(out.includes('disableRules(["color-contrast"])'), out);
+  });
+
+  it('bad selector / impacts / rules fail explicitly', () => {
+    assert.throws(
+      () => compileTest(defWithSteps([step('x1', 'axeCheck', { selector: '' })])),
+      InvalidDefinitionError,
+    );
+    assert.throws(
+      () => compileTest(defWithSteps([step('x1', 'axeCheck', { includedImpacts: ['cosmic'] })])),
+      InvalidDefinitionError,
+    );
+    assert.throws(
+      () => compileTest(defWithSteps([step('x1', 'axeCheck', { disableRules: [''] })])),
+      InvalidDefinitionError,
+    );
   });
 });

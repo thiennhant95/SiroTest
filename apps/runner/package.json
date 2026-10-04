@@ -20,6 +20,7 @@
     "test": "node --test tests/"
   },
   "dependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright-studio/action-sdk": "workspace:*",
     "@playwright-studio/reporter": "workspace:*"
   },
