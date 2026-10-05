@@ -290,16 +290,16 @@ export function SchedulesPage() {
                         {s.retries ? ` · retries ${s.retries}` : ""}
                         {s.lastStatus ? ` · last ${s.lastStatus}` : ""}
                       </span>
-                      <span className="ml-auto flex gap-2 text-xs">
-                        <button className="text-indigo-700 hover:underline" onClick={() => void toggleRuns(s)}>
+                      <span className="ml-auto flex flex-wrap gap-1">
+                        <Button size="sm" variant="ghost" className="text-indigo-700" onClick={() => void toggleRuns(s)}>
                           {open ? "Hide runs" : "Runs"}
-                        </button>
-                        <button className="text-indigo-700 hover:underline" onClick={() => void runNow(s)}>Run now</button>
-                        <button className="text-indigo-700 hover:underline" onClick={() => openEdit(s)}>Edit</button>
-                        <button className="text-slate-600 hover:underline" onClick={() => void toggleEnabled(s)}>
+                        </Button>
+                        <Button size="sm" variant="ghost" className="text-indigo-700" onClick={() => void runNow(s)}>Run now</Button>
+                        <Button size="sm" variant="ghost" className="text-indigo-700" onClick={() => openEdit(s)}>Edit</Button>
+                        <Button size="sm" variant="ghost" className="text-slate-600" onClick={() => void toggleEnabled(s)}>
                           {s.enabled ? "Disable" : "Enable"}
-                        </button>
-                        <button className="text-red-600 hover:underline" onClick={() => void remove(s)}>Delete</button>
+                        </Button>
+                        <Button size="sm" variant="ghost" className="text-red-600" onClick={() => void remove(s)}>Delete</Button>
                       </span>
                     </div>
                     {open ? (

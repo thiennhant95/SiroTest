@@ -161,7 +161,7 @@ export function SuiteDetailPage() {
           </ol>
         )}
         <form
-          className="flex gap-2"
+          className="flex gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
           onSubmit={async (e) => {
             e.preventDefault();
             if (!sid || !addId) return;
@@ -192,7 +192,7 @@ export function SuiteDetailPage() {
         {executions === null ? (
           <Skeleton className="h-12" />
         ) : executions.length === 0 ? (
-          <p className="text-xs text-slate-500">No runs yet. Click Run suite to run.</p>
+          <EmptyState title="No runs yet" hint="Click Run suite to start the first run." />
         ) : (
           <ul className="space-y-2">
             {executions.map((x) => (
@@ -202,7 +202,7 @@ export function SuiteDetailPage() {
                   {x.suiteRunId}
                 </Link>
                 <span className="text-xs text-slate-500">
-                  ✓{x.counts.passed} ✗{x.counts.failed} ···{x.counts.running} ⦸{x.counts.cancelled} / {x.counts.total}
+                  {x.counts.passed} passed · {x.counts.failed} failed · {x.counts.running} running · {x.counts.cancelled} cancelled · {x.counts.total} total
                 </span>
               </li>
             ))}

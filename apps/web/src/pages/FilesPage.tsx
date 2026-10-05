@@ -14,7 +14,7 @@ import { ApiError, api, isNotImplemented, type FileAsset } from "../lib/api";
 
 /**
  * P1 wave 2 — File library (/projects/:id/files).
- * Upload via file input → base64 (cap 10 MB hiển thị); download/delete;
+ * Upload via file input → base64 (10 MB UI-upload cap); download/delete;
  * FILE_IN_USE surfaces as a readable alert (never a raw stack).
  */
 export function FilesPage() {
@@ -142,12 +142,12 @@ export function FilesPage() {
         <ErrorState message={error} onRetry={load} />
       ) : (
         <>
-          <fieldset className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-4">
+          <fieldset className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <Field label="Display name (optional)">
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. avatar.png" className="w-52" />
             </Field>
             <Field label="Choose file (≤ 10 MB)">
-              <input
+              <Input
                 type="file"
                 aria-label="Choose file to upload"
                 disabled={uploading}
@@ -155,7 +155,7 @@ export function FilesPage() {
                   void onPick(e.target.files?.[0]);
                   e.target.value = "";
                 }}
-                className="text-xs"
+                className="cursor-pointer py-1.5 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200"
               />
             </Field>
             {uploading ? <p className="text-xs text-slate-500">Uploading…</p> : null}
@@ -201,9 +201,9 @@ export function FilesPage() {
                   key: "id",
                   header: "Actions",
                   render: (r) => (
-                    <span className="flex gap-2 text-xs">
-                      <button className="text-indigo-700 hover:underline" onClick={() => void download(r)}>Download</button>
-                      <button className="text-red-600 hover:underline" onClick={() => void remove(r)}>Delete</button>
+                    <span className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="text-indigo-700 hover:text-indigo-900" onClick={() => void download(r)}>Download</Button>
+                      <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-800" onClick={() => void remove(r)}>Delete</Button>
                     </span>
                   ),
                 },

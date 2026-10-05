@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { isNotFoundError } from "../lib/api";
-import { EmptyState, ErrorState, Skeleton, useToast } from "../components/ui";
+import { Badge, Button, EmptyState, ErrorState, Field, Input, Skeleton, useToast } from "../components/ui";
 
 const API = "/api/v1";
 
@@ -32,10 +32,12 @@ function headers(): Record<string, string> {
 }
 
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
+  // NOTE: Fastify rejects content-type json with an empty body — bodiless
+  // POSTs must send '{}' explicitly.
   const res = await fetch(url, {
     method,
     headers: headers(),
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? (method === "POST" ? "{}" : undefined) : JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
   if (res.status === 204) return undefined as T;
@@ -136,27 +138,28 @@ export function WorkersPage() {
       <Link to="/projects" className="text-sm text-slate-500 hover:text-slate-800">
         ← Projects
       </Link>
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Workers</h1>
-        <button className="rounded border px-3 py-1 text-sm" onClick={() => void sweep()}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-semibold">Workers</h1>
+          <p className="mt-0.5 text-sm text-slate-500">
+            Distributed run executors. The in-process queue stays the default — workers take over when registered.
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => void sweep()} title="Release runs claimed by dead workers">
           Sweep stale (90s)
-        </button>
+        </Button>
       </div>
-      <p className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-        DB job-claim protocol, no extra infra. True distribution needs a shared DB (Postgres) —
-        file-local SQLite is only a same-host demo. Details: <code>docs/oidc-sso.md</code> (SSO) and
-        server route <code>apps/server/src/routes/workers.ts</code> header.
+      <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+        DB job-claim protocol, no extra infra. True distribution needs a <strong>shared DB (Postgres)</strong> —
+        file-local SQLite is only a same-host demo.
       </p>
-      <div className="flex gap-2 text-sm">
-        <input
-          className="rounded border px-2 py-1"
-          placeholder="worker name (e.g. edge-01)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <button className="rounded border px-3 py-1" disabled={busy} onClick={() => void register()}>
+      <div className="grid grid-cols-[1fr_auto] items-end gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
+        <Field label="Worker name">
+          <Input placeholder="edge-01" value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Button onClick={() => void register()} disabled={busy || !name.trim()}>
           {busy ? "…" : "Register"}
-        </button>
+        </Button>
       </div>
       {unsupported ? (
         <EmptyState
@@ -178,24 +181,27 @@ export function WorkersPage() {
         />
       ) : workers.length === 0 ? null : (
         <ul className="space-y-2">
-          {workers.map((w) => (
-            <li key={w.id} className="rounded-lg border p-4">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <strong>{w.name}</strong>
-                <span
-                  className={`rounded px-2 py-0.5 text-xs ${w.status === "online" ? "bg-green-100 text-green-800" : "bg-slate-200 text-slate-600"}`}
-                >
-                  {w.status}
-                </span>
-                <span className="text-xs text-slate-500">
-                  cap {w.capacity} · active {w.activeClaims} · heartbeat {w.lastHeartbeatAt ?? "—"}
-                </span>
-                <button className="ml-auto text-xs text-red-600 hover:underline" onClick={() => void deregister(w.id)}>
+          {workers.map((w) => {
+            const load = w.capacity > 0 ? Math.min(100, Math.round((w.activeClaims / w.capacity) * 100)) : 0;
+            return (
+            <li key={w.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <strong className="text-sm">{w.name}</strong>
+                <Badge tone={w.status === "online" ? "green" : "slate"}>{w.status}</Badge>
+                <span className="font-mono text-[11px] text-slate-400">{w.id.slice(0, 12)}…</span>
+                <Button type="button" size="sm" variant="ghost" className="ml-auto text-red-600 hover:text-red-700" onClick={() => void deregister(w.id)}>
                   Deregister
-                </button>
+                </Button>
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                <span className="shrink-0">load {w.activeClaims}/{w.capacity}</span>
+                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200" aria-hidden>
+                  <span className={`block h-full rounded-full ${load >= 100 ? "bg-red-500" : load > 0 ? "bg-indigo-500" : "bg-slate-300"}`} style={{ width: `${load}%` }} />
+                </span>
+                <span className="shrink-0">heartbeat {w.lastHeartbeatAt ? new Date(w.lastHeartbeatAt).toLocaleTimeString() : "—"}</span>
               </div>
               {w.claimedRuns.length > 0 ? (
-                <ul className="mt-2 space-y-1 text-xs">
+                <ul className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs">
                   {w.claimedRuns.map((r) => (
                     <li key={r.id} className="font-mono">
                       <Link to={`/runs/${r.id}`} className="text-indigo-700 hover:underline">{r.id.slice(0, 8)}</Link>
@@ -205,7 +211,8 @@ export function WorkersPage() {
                 </ul>
               ) : null}
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </main>

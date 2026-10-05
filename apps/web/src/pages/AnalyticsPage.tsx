@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { isNotFoundError } from "../lib/api";
-import { EmptyState, ErrorState, Skeleton, useToast } from "../components/ui";
+import { Badge, Button, EmptyState, ErrorState, RunStatusBadge, Skeleton, useToast } from "../components/ui";
 
 const API = "/api/v1";
 
@@ -143,6 +143,9 @@ export function AnalyticsPage() {
         ← Project
       </Link>
       <h1 className="text-xl font-semibold">Analytics</h1>
+      <p className="text-sm text-slate-500">
+        Pass rate, duration trend, and flaky tests for the last 30 days.
+      </p>
       {unsupported ? (
         <EmptyState
           title="Backend analytics not supported (API 404)"
@@ -161,33 +164,33 @@ export function AnalyticsPage() {
         <EmptyState title="No analytics data yet" hint="Run a few times, then come back." />
       ) : summary === null ? null : (
         <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div className="rounded-lg border p-3">
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-xs text-slate-500">Pass rate (30d)</p>
             <p className="text-2xl font-semibold">
               {summary.passRate === null ? "—" : `${(summary.passRate * 100).toFixed(1)}%`}
             </p>
           </div>
-          <div className="rounded-lg border p-3">
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-xs text-slate-500">Runs</p>
             <p className="text-2xl font-semibold">{summary.totals.total}</p>
             <p className="text-xs text-slate-500">
               {summary.totals.passed} passed · {summary.totals.failed} failed · {summary.totals.cancelled} cancelled
             </p>
           </div>
-          <div className="rounded-lg border p-3">
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-xs text-slate-500">Avg duration</p>
             <p className="text-2xl font-semibold">{fmtMs(summary.avgDurationMs)}</p>
           </div>
-          <div className="rounded-lg border p-3">
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-xs text-slate-500">By browser</p>
             {Object.entries(summary.byBrowser).map(([b, s]) => (
-              <p key={b} className="text-xs">{b}: {s.passed}/{s.total} passed</p>
+              <p key={b} className="text-xs"><Badge>{b}</Badge> {s.passed}/{s.total} passed</p>
             ))}
           </div>
         </section>
       )}
 
-      <section>
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-2 text-sm font-semibold">Duration trend (runs/day, CSS bars)</h2>
         {trend.length === 0 ? (
           <EmptyState title="No data for the last 30 days" hint="Run a few times, then come back to see the trend." />
@@ -195,7 +198,7 @@ export function AnalyticsPage() {
           <div className="space-y-1">
             {trend.map((t) => (
               <div key={t.date} className="flex items-center gap-2 text-xs">
-                <span className="w-24 shrink-0 font-mono">{t.date}</span>
+                <span className="w-24 shrink-0 font-mono text-[11px]">{t.date}</span>
                 <div className="h-3 flex-1 rounded bg-slate-100">
                   <div
                     className="h-3 rounded bg-indigo-500"
@@ -203,8 +206,8 @@ export function AnalyticsPage() {
                     title={`${t.runs} runs · avg ${fmtMs(t.avgDurationMs)}`}
                   />
                 </div>
-                <span className="w-40 shrink-0 text-slate-500">
-                  {t.runs} runs · {t.passed}✓ {t.failed}✗ · {fmtMs(t.avgDurationMs)}
+                <span className="w-44 shrink-0 text-slate-500">
+                  {t.runs} runs · {t.passed} passed · {t.failed} failed · {fmtMs(t.avgDurationMs)}
                 </span>
               </div>
             ))}
@@ -212,67 +215,83 @@ export function AnalyticsPage() {
         )}
       </section>
 
-      <section>
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-2 text-sm font-semibold">Flaky tests (passed + failed in the last 20 runs)</h2>
         {flaky.length === 0 ? (
           <EmptyState title="No flaky tests detected" hint="Needs at least 2 recent runs with both passes and failures to score." />
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-slate-500">
-                <th>Test</th><th>Runs</th><th>Passed</th><th>Failed</th><th>Score</th><th />
-              </tr>
-            </thead>
-            <tbody>
-              {flaky.map((f) => (
-                <tr key={f.testId} className="border-t">
-                  <td>{f.testName}</td>
-                  <td>{f.runs}</td>
-                  <td className="text-green-700">{f.passed}</td>
-                  <td className="text-red-700">{f.failed}</td>
-                  <td className="font-mono">{f.flakyScore.toFixed(2)}</td>
-                  <td>
-                    <button
-                      className="text-indigo-700 hover:underline"
-                      onClick={() => void openHistory(f.testId, f.testName)}
-                    >
-                      History
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      {history !== null ? (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold">History — {historyTitle}</h2>
-          {history.length === 0 ? (
-            <EmptyState title="No runs" hint="This test has no runs in the last 20." />
-          ) : (
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="text-left text-xs text-slate-500">
-                  <th>Run</th><th>Status</th><th>Browser</th><th>Duration</th><th>Finished</th><th>Error</th>
+                <tr className="border-b-2 border-slate-200 bg-slate-50 text-left">
+                  <th className="px-3 py-2 text-xs font-semibold text-slate-600">Test</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-slate-600">Runs</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-slate-600">Passed</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-slate-600">Failed</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-slate-600">Score</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-slate-600"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
-                {history.map((r) => (
-                  <tr key={r.id} className="border-t">
-                    <td className="font-mono text-xs">
-                      <Link to={`/runs/${r.id}`} className="text-indigo-700 hover:underline">{r.id.slice(0, 8)}</Link>
+                {flaky.map((f) => (
+                  <tr key={f.testId} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60">
+                    <td className="px-3 py-2 text-sm">{f.testName}</td>
+                    <td className="px-3 py-2 text-sm">{f.runs}</td>
+                    <td className="px-3 py-2 text-sm text-green-700">{f.passed}</td>
+                    <td className="px-3 py-2 text-sm text-red-700">{f.failed}</td>
+                    <td className="px-3 py-2"><Badge tone={f.flakyScore >= 0.5 ? "red" : "amber"}><span className="font-mono text-[11px]">{f.flakyScore.toFixed(2)}</span></Badge></td>
+                    <td className="px-3 py-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-indigo-700"
+                        onClick={() => void openHistory(f.testId, f.testName)}
+                      >
+                        History
+                      </Button>
                     </td>
-                    <td>{r.status}</td>
-                    <td>{r.browser}</td>
-                    <td>{fmtMs(r.durationMs)}</td>
-                    <td className="text-xs">{r.finishedAt ?? "—"}</td>
-                    <td className="max-w-xs truncate text-xs text-slate-500">{r.errorSummary ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </section>
+
+      {history !== null ? (
+        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold">History — {historyTitle}</h2>
+          {history.length === 0 ? (
+            <EmptyState title="No runs" hint="This test has no runs in the last 20." />
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b-2 border-slate-200 bg-slate-50 text-left">
+                    <th className="px-3 py-2 text-xs font-semibold text-slate-600">Run</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-slate-600">Status</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-slate-600">Browser</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-slate-600">Duration</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-slate-600">Finished</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-slate-600">Error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((r) => (
+                    <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60">
+                      <td className="px-3 py-2 font-mono text-xs">
+                        <Link to={`/runs/${r.id}`} className="text-indigo-700 hover:underline">{r.id.slice(0, 8)}</Link>
+                      </td>
+                      <td className="px-3 py-2"><RunStatusBadge status={r.status} /></td>
+                      <td className="px-3 py-2 text-sm">{r.browser}</td>
+                      <td className="px-3 py-2 text-sm">{fmtMs(r.durationMs)}</td>
+                      <td className="px-3 py-2 text-xs">{r.finishedAt ?? "—"}</td>
+                      <td className="max-w-xs truncate px-3 py-2 text-xs text-slate-500">{r.errorSummary ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       ) : null}
