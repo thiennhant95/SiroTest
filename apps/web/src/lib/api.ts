@@ -421,6 +421,11 @@ export const api = {
     ),
   listSuiteRuns: (suiteId: string) =>
     day6req<SuiteExecution[]>(`/suites/${suiteId}/runs`),
+  /** Tests in this suite tagged as write behavior (warn, never block). */
+  listSuiteSideEffects: (suiteId: string) =>
+    day6req<{ suiteId: string; tests: Array<{ testId: string; name: string; tags: string[] }> }>(
+      `/suites/${suiteId}/side-effects`,
+    ),
   getSuiteRun: (suiteRunId: string) =>
     day6req<SuiteRunDetail>(`/suite-runs/${suiteRunId}`),
   cancelSuiteRun: (suiteRunId: string) =>

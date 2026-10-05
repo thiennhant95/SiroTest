@@ -87,6 +87,18 @@ function memberDatasetProblem(
 }
 
 /**
+ * Definition tags marking write behavior. A test carrying one of these tells
+ * bulk runners (suite/schedule) "I create real data" — the UI warns, the
+ * tester decides. Never blocks.
+ */
+const SIDE_EFFECT_TAGS: ReadonlySet<string> = new Set([
+  'writes',
+  'order',
+  'destructive',
+  'side-effect',
+]);
+
+/**
  * Project membership for suite-scoped routes (params carry `sid`, not a
  * project id, so the shared requireProjectAccess cannot resolve the project).
  * Same contract as auth.ts: admins bypass, everyone else needs a member row.
@@ -222,6 +234,36 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
     const suite = await loadSuiteOrThrow(sid);
     await requireAccessToProject(req, suite.projectId);
     return suite.tests;
+  });
+
+  /**
+   * Side-effect warning (tester decides, tool warns — never blocks).
+   * Returns suite members whose definition tags mark write behavior
+   * (`writes`, `order`, `destructive`, `side-effect`). The Run dialog shows
+   * these so a bulk/scheduled run never creates real data by surprise
+   * (e.g. one staging order per run of a purchase test).
+   */
+  app.get('/suites/:sid/side-effects', { preHandler: requireAuth }, async (req) => {
+    const { sid } = req.params as { sid: string };
+    const suite = await loadSuiteOrThrow(sid);
+    await requireAccessToProject(req, suite.projectId);
+    const tests = await db().test.findMany({
+      where: { id: { in: suite.tests.map((t) => t.testId) } },
+      select: { id: true, name: true, definitionJson: true },
+    });
+    const flagged = tests.flatMap((t) => {
+      let tags: unknown = [];
+      try {
+        tags = (JSON.parse(t.definitionJson) as { tags?: unknown }).tags ?? [];
+      } catch {
+        tags = [];
+      }
+      const hit = Array.isArray(tags)
+        ? (tags as unknown[]).filter((x) => typeof x === 'string' && SIDE_EFFECT_TAGS.has(x))
+        : [];
+      return hit.length > 0 ? [{ testId: t.id, name: t.name, tags: hit }] : [];
+    });
+    return { suiteId: sid, tests: flagged };
   });
 
   app.post('/suites/:sid/tests', { preHandler: requireAuth }, async (req, reply) => {

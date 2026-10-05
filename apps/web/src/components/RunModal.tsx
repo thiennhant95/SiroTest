@@ -44,11 +44,32 @@ export function RunModal({ testId, suiteId, envs, envId, datasets = [], projectI
   const [observe, setObserve] = useState(false);
   const [debug, setDebug] = useState(false);
   const [viewport, setViewport] = useState('');
+  const [sideEffects, setSideEffects] = useState<Array<{ testId: string; name: string; tags: string[] }> | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const selected = datasets.find((d) => d.id === datasetId);
   const viewportPreset = VIEWPORTS.find((v) => v.value === viewport);
+
+  useEffect(() => {
+    if (!suiteId) {
+      setSideEffects(null);
+      return;
+    }
+    let alive = true;
+    setSideEffects(null);
+    api
+      .listSuiteSideEffects(suiteId)
+      .then((res) => {
+        if (alive) setSideEffects(res.tests);
+      })
+      .catch(() => {
+        if (alive) setSideEffects([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [suiteId]);
 
   useEffect(() => {
     if (preloaded) {
@@ -155,6 +176,13 @@ export function RunModal({ testId, suiteId, envs, envId, datasets = [], projectI
             ))}
           </Select>
         </Field>
+        {sideEffects !== null && sideEffects.length > 0 ? (
+          <p role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
+            This suite contains {sideEffects.length === 1 ? "a test tagged as write behavior" : `${sideEffects.length} tests tagged as write behavior`} —{" "}
+            {sideEffects.map((t) => t.name).join(", ")}. Each run may create real data (orders, DB rows…).
+            The decision is yours; this warning never blocks the run.
+          </p>
+        ) : null}
         {!profilesUnsupported && profiles !== null && profiles.length > 0 && (
           <Field label="Auth profile" hint="Fresh browser when empty.">
             <Select value={profileId} onChange={(e) => setProfileId(e.target.value)} aria-label="Auth profile">
