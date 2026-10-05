@@ -31,14 +31,18 @@ export function Button({
   );
 }
 
-export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(function Input(
+  props,
+  ref,
+) {
   return (
     <input
+      ref={ref}
       {...props}
       className={`h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm placeholder:text-slate-400 disabled:bg-slate-100 disabled:opacity-60 ${props.className ?? ""}`}
     />
   );
-}
+});
 
 export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
@@ -187,11 +191,14 @@ export function Tooltip({
   children: React.ReactNode;
 }) {
   return (
-    <span className="group relative inline-flex" tabIndex={0} aria-label={tip} title={tip}>
+    // NOTE: named group (group/tip) — a plain `group` class here would clash
+    // with ancestor `.group` containers (e.g. StepCard hover-reveal rows),
+    // showing every nested tooltip at once, stacked on each other.
+    <span className="group/tip relative inline-flex" tabIndex={0} aria-label={tip} title={tip}>
       {children}
       <span
         role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-slate-200 bg-slate-900 px-2 py-1 text-[11px] text-white shadow-lg group-hover:block group-focus-visible:block group-focus:block"
+        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-slate-200 bg-slate-900 px-2 py-1 text-[11px] text-white shadow-lg group-hover/tip:block group-focus-visible/tip:block group-focus/tip:block"
       >
         {tip}
       </span>
