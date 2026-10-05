@@ -68,7 +68,7 @@ export function AuditPage() {
           setRows([]);
         } else {
           setRows([]);
-          const msg = e instanceof Error ? e.message : "Không tải được audit log";
+          const msg = e instanceof Error ? e.message : "Couldn't load audit log";
           setError(msg);
           toast.push("error", msg);
         }
@@ -92,7 +92,7 @@ export function AuditPage() {
       <div className="flex flex-wrap gap-2 text-sm">
         <input
           className="rounded border px-2 py-1"
-          placeholder="filter action (vd worker.claim)"
+          placeholder="filter action (e.g. worker.claim)"
           value={fAction}
           onChange={(e) => setFAction(e.target.value)}
         />
@@ -103,13 +103,13 @@ export function AuditPage() {
           onChange={(e) => setFUser(e.target.value)}
         />
         <button className="rounded border px-3 py-1" onClick={() => { setOffset(0); void load(0); }}>
-          Lọc
+          Filter
         </button>
       </div>
       {unsupported ? (
         <EmptyState
-          title="Backend chưa hỗ trợ audit (API 404)"
-          hint="UI đã sẵn sàng theo contract GET /projects/:id/audit. Đợi backend P2 rồi reload."
+          title="Backend audit not supported (API 404)"
+          hint="UI is ready per contract GET /projects/:id/audit. Waiting on P2 backend — reload later."
         />
       ) : error ? (
         <ErrorState message={error} onRetry={() => { setOffset(0); void load(0); }} />
@@ -120,7 +120,7 @@ export function AuditPage() {
           <Skeleton className="h-12" />
         </div>
       ) : !unsupported && !error && rows.length === 0 ? (
-        <EmptyState title="Chưa có audit entries" hint="Các thao tác ghi log (worker claim, healing approve…) sẽ hiện ở đây." />
+        <EmptyState title="No audit entries yet" hint="Logged operations (worker claim, healing approve, etc.) will appear here." />
       ) : rows.length === 0 ? null : (
         <>
           <table className="w-full text-sm">

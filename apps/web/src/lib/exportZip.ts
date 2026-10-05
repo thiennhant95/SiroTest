@@ -132,6 +132,6 @@ export function specZipFiles(testName: string, code: string): Record<string, str
     ),
     "playwright.config.ts": `import { defineConfig } from '@playwright/test';\n\nexport default defineConfig({\n  testDir: '.',\n  use: { trace: 'on-first-retry', screenshot: 'only-on-failure' },\n});\n`,
     "README.txt":
-      `Chạy kiểm thử đã xuất:\n  npm install\n  npx playwright install chromium\n  npx playwright test\n\nMã chạy bằng @playwright/test gốc, không cần Studio.\n`,
+      `Run the exported test:\n  npm install\n  npx playwright install chromium\n  npx playwright test\n\nRuns with stock @playwright/test, no Studio needed.\n`,
   };
 }

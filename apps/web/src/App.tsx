@@ -24,6 +24,7 @@ import { VisualPage } from "./pages/VisualPage";
 import { PluginDocs } from "./components/PluginDocs";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { AuditPage } from "./pages/AuditPage";
+import { DocsPage } from "./pages/DocsPage";
 import { WorkersPage } from "./pages/WorkersPage";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -63,6 +64,7 @@ export function App() {
           <Route path="/projects/:id/audit" element={<AuditPage />} />
           <Route path="/workers" element={<WorkersPage />} />
           <Route path="/plugins" element={<PluginDocs />} />
+          <Route path="/docs" element={<DocsPage />} />
           <Route path="/runs/:id" element={<RunDetailRoute />} />
           {/* Live-only fallback view (WS timeline + cancel); main view is RunDetailRoute. */}
           <Route path="/runs/:id/live" element={<RunPage />} />

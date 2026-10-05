@@ -40,7 +40,7 @@ export function FilesPage() {
         setUnsupported(true);
         setFiles([]);
       } else {
-        setError(e instanceof ApiError ? e.message : "Không tải được files");
+        setError(e instanceof ApiError ? e.message : "Couldn't load files");
         setFiles([]);
       }
     }
@@ -54,7 +54,7 @@ export function FilesPage() {
   async function onPick(file: File | undefined) {
     if (!file || !projectId) return;
     if (file.size > 10 * 1024 * 1024) {
-      toast.push("error", "File quá lớn (tối đa 10 MB cho upload từ UI).");
+      toast.push("error", "File too large (10 MB max for UI upload).");
       return;
     }
     setUploading(true);
@@ -66,7 +66,7 @@ export function FilesPage() {
           const comma = result.indexOf(",");
           resolve(comma >= 0 ? result.slice(comma + 1) : result);
         };
-        reader.onerror = () => reject(new Error("Không đọc được file"));
+        reader.onerror = () => reject(new Error("Couldn't read file"));
         reader.readAsDataURL(file);
       });
       const created = await api.uploadFile(projectId, {
@@ -76,9 +76,9 @@ export function FilesPage() {
       });
       setName("");
       setFiles((prev) => (prev ? [created, ...prev] : [created]));
-      toast.push("success", `Đã tải “${created.name}” lên.`);
+      toast.push("success", `Uploaded “${created.name}”.`);
     } catch (e) {
-      toast.push("error", e instanceof ApiError ? e.message : "Upload thất bại");
+      toast.push("error", e instanceof ApiError ? e.message : "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -88,26 +88,26 @@ export function FilesPage() {
     try {
       await api.downloadFile(f.id, f.name);
     } catch (e) {
-      toast.push("error", e instanceof ApiError ? e.message : "Download thất bại");
+      toast.push("error", e instanceof ApiError ? e.message : "Download failed");
     }
   }
 
   async function remove(f: FileAsset) {
-    if (!window.confirm(`Xóa file “${f.name}”?`)) return;
+    if (!window.confirm(`Delete file “${f.name}”?`)) return;
     setUseError("");
     try {
       await api.deleteFile(f.id);
       setFiles((prev) => prev?.filter((x) => x.id !== f.id) ?? []);
-      toast.push("success", "Đã xóa file.");
+      toast.push("success", "Deleted file.");
     } catch (e) {
       if (e instanceof ApiError && (e.code === "FILE_IN_USE" || e.status === 409)) {
         setUseError(
-          `Không xóa được “${f.name}”: file đang được dùng bởi step upload. ${e.message} ` +
-            `Hãy sửa các step đó sang file khác trước.`,
+          `Couldn't delete “${f.name}”: file is used by an upload step. ${e.message} ` +
+            `Point those steps at another file first.`,
         );
-        toast.push("error", "File đang được dùng — xem cảnh báo trên bảng.");
+        toast.push("error", "File is in use — see the warning above the table.");
       } else {
-        toast.push("error", e instanceof ApiError ? e.message : "Xóa thất bại");
+        toast.push("error", e instanceof ApiError ? e.message : "Deletion failed");
       }
     }
   }
@@ -125,13 +125,13 @@ export function FilesPage() {
         </span>
       </div>
       <p className="text-sm text-slate-500">
-        Thư viện file cho step <code>Upload</code> (theo fileId). Upload từ máy → base64, tối đa 10 MB/lần hiển thị.
+        File library for the <code>Upload</code> step (by fileId). Upload from your machine → base64, 10 MB max per upload.
       </p>
 
       {unsupported ? (
         <EmptyState
-          title="Backend chưa hỗ trợ files (API 404)"
-          hint="UI đã sẵn sàng theo contract POST/GET /projects/:id/files. Đợi backend P1 wave 2 rồi reload."
+          title="Backend files not supported (API 404)"
+          hint="UI is ready per contract POST/GET /projects/:id/files. Waiting on P1 wave 2 backend — reload later."
         />
       ) : files === null ? (
         <div className="space-y-2">
@@ -143,13 +143,13 @@ export function FilesPage() {
       ) : (
         <>
           <fieldset className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-4">
-            <Field label="Tên hiển thị (tùy chọn)">
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="vd avatar.png" className="w-52" />
+            <Field label="Display name (optional)">
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. avatar.png" className="w-52" />
             </Field>
-            <Field label="Chọn file (≤ 10 MB)">
+            <Field label="Choose file (≤ 10 MB)">
               <input
                 type="file"
-                aria-label="Chọn file tải lên"
+                aria-label="Choose file to upload"
                 disabled={uploading}
                 onChange={(e) => {
                   void onPick(e.target.files?.[0]);
@@ -158,7 +158,7 @@ export function FilesPage() {
                 className="text-xs"
               />
             </Field>
-            {uploading ? <p className="text-xs text-slate-500">Đang tải lên…</p> : null}
+            {uploading ? <p className="text-xs text-slate-500">Uploading…</p> : null}
           </fieldset>
 
           {useError ? (
@@ -168,11 +168,11 @@ export function FilesPage() {
           ) : null}
 
           {files.length === 0 ? (
-            <EmptyState title="Chưa có file" hint="Tải file đầu tiên ở ô phía trên, rồi chọn trong step Upload." />
+            <EmptyState title="No files yet" hint="Upload your first file above, then pick it in an Upload step." />
           ) : (
             <DataTable<FileAsset>
-              caption="File library của project"
-              emptyText="Chưa có file."
+              caption="Project file library"
+              emptyText="No files yet."
               rows={files}
               columns={[
                 { key: "name", header: "File", render: (r) => <span className="font-medium">{r.name}</span> },
@@ -184,13 +184,13 @@ export function FilesPage() {
                 { key: "mimeType", header: "Type", render: (r) => <span className="text-xs">{r.mimeType ?? "—"}</span> },
                 {
                   key: "usedBy",
-                  header: "Đang dùng",
+                  header: "In use",
                   render: (r) =>
                     r.usedBy && r.usedBy.length > 0 ? (
                       <span className="block max-w-52 text-[11px] text-slate-600">
                         {r.usedBy.map((u) => u.stepName ?? u.stepId).join(", ")}
                         <span className="block text-slate-400">
-                          trong {r.usedBy.map((u) => u.testName ?? u.testId).join(", ")}
+                          in {r.usedBy.map((u) => u.testName ?? u.testId).join(", ")}
                         </span>
                       </span>
                     ) : (
@@ -199,11 +199,11 @@ export function FilesPage() {
                 },
                 {
                   key: "id",
-                  header: "Thao tác",
+                  header: "Actions",
                   render: (r) => (
                     <span className="flex gap-2 text-xs">
-                      <button className="text-indigo-700 hover:underline" onClick={() => void download(r)}>Tải về</button>
-                      <button className="text-red-600 hover:underline" onClick={() => void remove(r)}>Xóa</button>
+                      <button className="text-indigo-700 hover:underline" onClick={() => void download(r)}>Download</button>
+                      <button className="text-red-600 hover:underline" onClick={() => void remove(r)}>Delete</button>
                     </span>
                   ),
                 },

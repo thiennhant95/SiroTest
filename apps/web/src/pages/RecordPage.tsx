@@ -18,7 +18,7 @@ export function RecordPage() {
       await fn();
       toast.push("success", ok);
     } catch (e) {
-      toast.push("error", e instanceof ApiError ? e.message : "Recorder call thất bại");
+      toast.push("error", e instanceof ApiError ? e.message : "Recorder call failed");
     } finally {
       setBusy(false);
     }
@@ -27,7 +27,7 @@ export function RecordPage() {
   return (
     <main className="mx-auto max-w-2xl space-y-4 p-6">
       <Link to={`/tests/${id}`} className="text-sm text-slate-500 hover:text-slate-800">
-        ← Về builder
+        ← Back to builder
       </Link>
       <h1 className="text-xl font-semibold">Record session</h1>
       <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
@@ -35,7 +35,7 @@ export function RecordPage() {
         {sessionId ? (
           <Badge tone="indigo">session {sessionId.slice(0, 12)}…</Badge>
         ) : (
-          <Badge>chưa start</Badge>
+          <Badge>not started</Badge>
         )}
         {sessionId && paused ? <Badge tone="amber">paused</Badge> : null}
         {sessionId && !paused ? <Badge tone="green">recording</Badge> : null}
@@ -43,10 +43,10 @@ export function RecordPage() {
 
       <ol className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 text-sm shadow-sm">
         {[
-          "Nhập Base URL rồi Start — browser headed bật lên trên máy chạy server.",
-          "Thao tác trên trang web: mỗi click/gõ được ghi thành step.",
-          "Pause khi cần nghỉ; Resume để tiếp tục.",
-          "Stop để merge steps vào builder rồi review.",
+          "Enter the Base URL, then Start — a headed browser opens on the server host.",
+          "Interact with the website: each click/keystroke is recorded as a step.",
+          "Pause when you need a break; Resume to continue.",
+          "Stop to merge the steps into the builder, then review.",
         ].map((s, i) => (
           <li key={i} className="flex gap-2.5">
             <span className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
@@ -69,7 +69,7 @@ export function RecordPage() {
               call(async () => {
                 const r = await api.recorderStart(id!, baseUrl || undefined);
                 setSessionId(r.sessionId);
-              }, "Đã start recorder.")
+              }, "Recorder started.")
             }
           >
             ● Start
@@ -80,7 +80,7 @@ export function RecordPage() {
               <Button
                 variant="outline"
                 disabled={busy}
-                onClick={() => call(() => api.recorderPause(sessionId).then(() => setPaused(true)), "Đã pause.")}
+                onClick={() => call(() => api.recorderPause(sessionId).then(() => setPaused(true)), "Paused.")}
               >
                 ⏸ Pause
               </Button>
@@ -88,7 +88,7 @@ export function RecordPage() {
               <Button
                 variant="outline"
                 disabled={busy}
-                onClick={() => call(() => api.recorderResume(sessionId).then(() => setPaused(false)), "Đã resume.")}
+                onClick={() => call(() => api.recorderResume(sessionId).then(() => setPaused(false)), "Resumed.")}
               >
                 ▶ Resume
               </Button>
@@ -101,7 +101,7 @@ export function RecordPage() {
                   await api.recorderStop(sessionId);
                   setSessionId(null);
                   setPaused(false);
-                }, "Đã stop — steps ghi được merge vào builder.")
+                }, "Stopped — recorded steps were merged into the builder.")
               }
             >
               ■ Stop
@@ -110,8 +110,8 @@ export function RecordPage() {
         )}
       </div>
       <p className="text-xs text-slate-500">
-        Recorder events đẩy qua WS <code>/ws?sessionId=…</code>; DB là source of truth khi
-        reconnect (xem apps/server/src/app.ts). Stop xong quay lại builder để review steps.
+        Recorder events stream over WS <code>/ws?sessionId=…</code>; the DB is the source of truth on
+        reconnect (see apps/server/src/app.ts). After stopping, return to the builder to review the steps.
       </p>
     </main>
   );

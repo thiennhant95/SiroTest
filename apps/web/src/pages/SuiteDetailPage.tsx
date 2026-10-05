@@ -42,7 +42,7 @@ export function SuiteDetailPage() {
       });
       setExecutions(runs);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Không tải được suite");
+      setError(e instanceof ApiError ? e.message : "Couldn't load suite");
     }
   }, [sid]);
 
@@ -61,7 +61,7 @@ export function SuiteDetailPage() {
       const next = await api.reorderSuiteMembers(sid, testIds);
       setSuite((s) => (s ? { ...s, tests: next } : s));
     } catch (e) {
-      toast.push("error", e instanceof ApiError ? e.message : "Reorder thất bại");
+      toast.push("error", e instanceof ApiError ? e.message : "Reorder failed");
     } finally {
       setBusy(false);
     }
@@ -101,20 +101,20 @@ export function SuiteDetailPage() {
         <h1 className="text-xl font-semibold">{suite!.name}</h1>
         <Badge>{members.length} tests</Badge>
         <span className="ml-auto flex gap-2">
-          <Button size="sm" disabled={members.length === 0 || !envId} onClick={() => setShowRun(true)} title={members.length === 0 ? "Thêm tests vào suite trước" : !envId ? "Chưa có environment" : "Run suite"}>
+          <Button size="sm" disabled={members.length === 0 || !envId} onClick={() => setShowRun(true)} title={members.length === 0 ? "Add tests to the suite first" : !envId ? "No environment yet" : "Run suite"}>
             ▶ Run suite
           </Button>
           <Button
             size="sm"
             variant="outline"
             onClick={async () => {
-              if (!sid || !window.confirm(`Xóa suite “${suite!.name}”? Lịch sử run giữ nguyên.`)) return;
+              if (!sid || !window.confirm(`Delete suite “${suite!.name}”? Run history is kept.`)) return;
               try {
                 await api.deleteSuite(sid);
-                toast.push("success", "Đã xóa suite.");
+                toast.push("success", "Deleted suite.");
                 nav(`/projects/${suite!.projectId}/suites`);
               } catch (e) {
-                toast.push("error", e instanceof ApiError ? e.message : "Xóa suite thất bại");
+                toast.push("error", e instanceof ApiError ? e.message : "Couldn't delete suite");
               }
             }}
           >
@@ -124,9 +124,9 @@ export function SuiteDetailPage() {
       </div>
 
       <section aria-label="Members" className="space-y-2">
-        <h2 className="text-sm font-semibold text-slate-700">Tests trong suite (thứ tự chạy)</h2>
+        <h2 className="text-sm font-semibold text-slate-700">Tests in suite (run order)</h2>
         {members.length === 0 ? (
-          <EmptyState title="Suite chưa có test" hint="Thêm test ở ô phía dưới." />
+          <EmptyState title="Suite has no tests yet" hint="Add a test in the field below." />
         ) : (
           <ol className="space-y-2">
             {members.map((m, i) => (
@@ -150,7 +150,7 @@ export function SuiteDetailPage() {
                       await api.removeSuiteMember(sid, m.testId);
                       setSuite((s) => (s ? { ...s, tests: (s.tests ?? []).filter((x) => x.testId !== m.testId) } : s));
                     } catch (e) {
-                      toast.push("error", e instanceof ApiError ? e.message : "Xóa member thất bại");
+                      toast.push("error", e instanceof ApiError ? e.message : "Couldn't remove member");
                     }
                   }}
                 >
@@ -169,14 +169,14 @@ export function SuiteDetailPage() {
               const added = await api.addSuiteMember(sid, addId);
               setAddId("");
               setSuite((s) => (s ? { ...s, tests: [...(s.tests ?? []), { ...added, test: tests.find((t) => t.id === added.testId) ? { id: added.testId, name: tests.find((t) => t.id === added.testId)!.name } : undefined }] } : s));
-              toast.push("success", "Đã thêm test vào suite.");
+              toast.push("success", "Added test to suite.");
             } catch (err) {
-              toast.push("error", err instanceof ApiError ? err.message : "Thêm test thất bại");
+              toast.push("error", err instanceof ApiError ? err.message : "Couldn't add test");
             }
           }}
         >
           <Select value={addId} onChange={(e) => setAddId(e.target.value)} className="flex-1" aria-label="Test to add">
-            <option value="">Chọn test để thêm…</option>
+            <option value="">Select a test to add…</option>
             {candidates.map((t) => (
               <option key={t.id} value={t.id}>{t.name}</option>
             ))}
@@ -188,11 +188,11 @@ export function SuiteDetailPage() {
       </section>
 
       <section aria-label="Executions" className="space-y-2">
-        <h2 className="text-sm font-semibold text-slate-700">Lượt chạy</h2>
+        <h2 className="text-sm font-semibold text-slate-700">Runs</h2>
         {executions === null ? (
           <Skeleton className="h-12" />
         ) : executions.length === 0 ? (
-          <p className="text-xs text-slate-500">Chưa có lượt chạy. Nhấn Run suite để chạy.</p>
+          <p className="text-xs text-slate-500">No runs yet. Click Run suite to run.</p>
         ) : (
           <ul className="space-y-2">
             {executions.map((x) => (
@@ -211,7 +211,7 @@ export function SuiteDetailPage() {
       </section>
 
       <section aria-label="Add by id" className="rounded-lg border border-slate-200 bg-white p-3">
-        <h2 className="mb-2 text-sm font-semibold text-slate-700">Thêm nhanh bằng test id</h2>
+        <h2 className="mb-2 text-sm font-semibold text-slate-700">Quick add by test ID</h2>
         <QuickAdd suiteId={sid!} onAdded={load} />
       </section>
 
@@ -225,7 +225,7 @@ export function SuiteDetailPage() {
           onStarted={() => setShowRun(false)}
           onSuiteStarted={(suiteRunId) => {
             setShowRun(false);
-            toast.push("success", `Đã tạo suite run ${suiteRunId}.`);
+            toast.push("success", `Created suite run ${suiteRunId}.`);
             nav(`/suite-runs/${suiteRunId}`);
           }}
         />
@@ -246,10 +246,10 @@ function QuickAdd({ suiteId, onAdded }: { suiteId: string; onAdded: () => void }
         try {
           await api.addSuiteMember(suiteId, id.trim());
           setId("");
-          toast.push("success", "Đã thêm test vào suite.");
+          toast.push("success", "Added test to suite.");
           onAdded();
         } catch (err) {
-          toast.push("error", err instanceof ApiError ? err.message : "Thêm test thất bại");
+          toast.push("error", err instanceof ApiError ? err.message : "Couldn't add test");
         }
       }}
     >

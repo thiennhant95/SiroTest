@@ -100,15 +100,15 @@ export function SuggestionsPanel({ testId, sessionId, onApplied }: SuggestionsPa
       {loading ? <Skeleton className="h-10" /> : null}
       {unsupported ? (
         <EmptyState
-          title="Backend chưa hỗ trợ suggestions (API 404)"
-          hint="UI đã sẵn sàng theo contract POST /tests/:id/suggestions. Đợi backend P2 rồi bấm Refresh."
+          title="Backend does not support suggestions yet (API 404)"
+          hint="UI is ready per the POST /tests/:id/suggestions contract. Waiting on the P2 backend, then click Refresh."
         />
       ) : error ? (
         <ErrorState message={error} onRetry={refresh} />
       ) : null}
       {notice && <p style={{ color: "green" }}>{notice}</p>}
       {!loading && !unsupported && !error && suggestions.length === 0 && (
-        <EmptyState title="Không có gợi ý cho steps hiện tại" hint="Thêm fill/click/goto rồi bấm Refresh." />
+        <EmptyState title="No suggestions for the current steps" hint="Add fill/click/goto steps, then click Refresh." />
       )}
       <ul style={{ listStyle: "none", padding: 0 }}>
         {suggestions.map((s) => (

@@ -42,7 +42,7 @@ export function diffSteps(oldDef: unknown, newDef: unknown): StepDiff[] {
   for (const [id, nb] of b) {
     const ob = a.get(id);
     if (!ob) {
-      out.push({ kind: "added", id, detail: `Thêm bước «${nb.name ?? nb.type}»` });
+      out.push({ kind: "added", id, detail: `Added step “${nb.name ?? nb.type}”` });
       continue;
     }
     const renamed = (ob.name ?? ob.type) !== (nb.name ?? nb.type);
@@ -52,7 +52,7 @@ export function diffSteps(oldDef: unknown, newDef: unknown): StepDiff[] {
       out.push({
         kind: "renamed",
         id,
-        detail: `Đổi bước: «${ob.name ?? ob.type}» → «${nb.name ?? nb.type}»`,
+        detail: `Renamed step: “${ob.name ?? ob.type}” → “${nb.name ?? nb.type}”`,
       });
     } else if (changedFields.length > 0) {
       const listed = changedFields
@@ -61,11 +61,11 @@ export function diffSteps(oldDef: unknown, newDef: unknown): StepDiff[] {
           return `${f}: ${stable(ob.raw[f])} → ${stable(nb.raw[f])}`;
         })
         .join("; ");
-      out.push({ kind: "modified", id, detail: `Sửa bước «${nb.name ?? nb.type}» (${listed})` });
+      out.push({ kind: "modified", id, detail: `Edited step “${nb.name ?? nb.type}” (${listed})` });
     }
   }
   for (const [id, ob] of a) {
-    if (!b.has(id)) out.push({ kind: "removed", id, detail: `Bỏ bước «${ob.name ?? ob.type}»` });
+    if (!b.has(id)) out.push({ kind: "removed", id, detail: `Removed step “${ob.name ?? ob.type}”` });
   }
   return out;
 }

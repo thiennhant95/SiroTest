@@ -61,7 +61,7 @@ export function ProfilesPage() {
         setUnsupported(true);
         setProfiles([]);
       } else {
-        setError(e instanceof ApiError ? e.message : "Không tải được profiles");
+        setError(e instanceof ApiError ? e.message : "Couldn't load profiles");
         setProfiles([]);
       }
     }
@@ -78,17 +78,17 @@ export function ProfilesPage() {
     try {
       const parsed: unknown = JSON.parse(raw);
       if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-        return "storageState phải là JSON object (vd {\"cookies\":[],\"origins\":[]}).";
+        return "storageState must be a JSON object (e.g. {\"cookies\":[],\"origins\":[]}).";
       }
       return null;
     } catch {
-      return "JSON chưa hợp lệ — kiểm tra dấu ngoặc/phẩy.";
+      return "Invalid JSON — check brackets and commas.";
     }
   }
 
   async function create() {
     if (!projectId || !name.trim()) {
-      setFormError("Nhập tên profile (vd Staging logged-in).");
+      setFormError("Enter a profile name (e.g. Staging logged-in).");
       return;
     }
     const v = validateStateJson(stateJson);
@@ -107,9 +107,9 @@ export function ProfilesPage() {
       setProfiles((prev) => (prev ? [created, ...prev] : [created]));
       setName("");
       setStateJson("");
-      toast.push("success", `Đã tạo profile “${created.name}”. Trạng thái đăng nhập đã che (masked).`);
+      toast.push("success", `Created profile “${created.name}”. Login state masked.`);
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Tạo profile thất bại";
+      const msg = e instanceof ApiError ? e.message : "Profile creation failed";
       setFormError(msg);
       toast.push("error", msg);
     } finally {
@@ -128,7 +128,7 @@ export function ProfilesPage() {
   async function saveEdit() {
     if (!editing) return;
     if (!editName.trim()) {
-      setEditError("Tên không được trống.");
+      setEditError("Name must not be empty.");
       return;
     }
     const v = validateStateJson(editState);
@@ -146,9 +146,9 @@ export function ProfilesPage() {
       });
       setProfiles((prev) => prev?.map((x) => (x.id === saved.id ? saved : x)) ?? [saved]);
       setEditing(null);
-      toast.push("success", `Đã lưu profile “${saved.name}”.`);
+      toast.push("success", `Saved profile “${saved.name}”.`);
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Lưu thất bại";
+      const msg = e instanceof ApiError ? e.message : "Save failed";
       setEditError(msg);
     } finally {
       setSaving(false);
@@ -156,13 +156,13 @@ export function ProfilesPage() {
   }
 
   async function remove(p: AuthProfile) {
-    if (!window.confirm(`Xóa profile “${p.name}”? Các run đã dùng profile này giữ nguyên lịch sử.`)) return;
+    if (!window.confirm(`Delete profile “${p.name}”? Runs that used it keep their history.`)) return;
     try {
       await api.deleteProfile(p.id);
       setProfiles((prev) => prev?.filter((x) => x.id !== p.id) ?? []);
-      toast.push("success", "Đã xóa profile.");
+      toast.push("success", "Deleted profile.");
     } catch (e) {
-      toast.push("error", e instanceof ApiError ? e.message : "Xóa thất bại");
+      toast.push("error", e instanceof ApiError ? e.message : "Deletion failed");
     }
   }
 
@@ -180,14 +180,14 @@ export function ProfilesPage() {
         </span>
       </div>
       <p className="text-sm text-slate-500">
-        Trạng thái đăng nhập dùng chung (storageState) — dán JSON từ Playwright, gắn environment.
-        Giá trị <strong>không bao giờ hiện lại</strong> sau khi lưu (masked).
+        Shared login state (storageState) — paste JSON from Playwright and attach an environment.
+        Values are <strong>never shown again</strong> after saving (masked).
       </p>
 
       {unsupported ? (
         <EmptyState
-          title="Backend chưa hỗ trợ profiles (API 404)"
-          hint="UI đã sẵn sàng theo contract GET/POST /projects/:id/profiles. Đợi backend P1 wave 2 rồi reload."
+          title="Backend profiles not supported (API 404)"
+          hint="UI is ready per contract GET/POST /projects/:id/profiles. Waiting on P1 wave 2 backend — reload later."
         />
       ) : profiles === null ? (
         <div className="space-y-2">
@@ -201,19 +201,19 @@ export function ProfilesPage() {
           <fieldset className="space-y-2 rounded-lg border border-slate-200 bg-white p-4">
             <legend className="px-1 text-sm font-semibold text-slate-700">New profile</legend>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <Field label="Tên profile">
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="vd Staging logged-in" />
+              <Field label="Profile name">
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Staging logged-in" />
               </Field>
-              <Field label="Environment (tùy chọn)">
+              <Field label="Environment (optional)">
                 <Select value={envId} onChange={(e) => setEnvId(e.target.value)}>
-                  <option value="">— Không gắn —</option>
+                  <option value="">— Unassigned —</option>
                   {envs.map((e) => (
                     <option key={e.id} value={e.id}>{e.name}</option>
                   ))}
                 </Select>
               </Field>
             </div>
-            <Field label="storageState JSON (dán từ Playwright)" hint='{"cookies":[],"origins":[]} — để trống = profile chưa có login.'>
+            <Field label="storageState JSON (paste from Playwright)" hint='{"cookies":[],"origins":[]} — blank means the profile has no login yet.'>
               <textarea
                 aria-label="storageState JSON"
                 value={stateJson}
@@ -228,16 +228,16 @@ export function ProfilesPage() {
               <p role="alert" className="text-xs text-red-700">{formError}</p>
             ) : null}
             <Button size="sm" disabled={creating} onClick={() => void create()}>
-              {creating ? "Đang tạo…" : "+ New profile"}
+              {creating ? "Creating…" : "+ New profile"}
             </Button>
           </fieldset>
 
           {profiles.length === 0 ? (
-            <EmptyState title="Chưa có profile" hint="Tạo profile đầu tiên ở ô phía trên." />
+            <EmptyState title="No profiles yet" hint="Create your first profile above." />
           ) : (
             <DataTable<AuthProfile>
-              caption="Auth profiles — storageState luôn masked"
-              emptyText="Chưa có profile."
+              caption="Auth profiles — storageState always masked"
+              emptyText="No profiles yet."
               rows={profiles}
               columns={[
                 { key: "name", header: "Profile", render: (r) => <span className="font-medium">{r.name}</span> },
@@ -254,11 +254,11 @@ export function ProfilesPage() {
                 },
                 {
                   key: "id",
-                  header: "Thao tác",
+                  header: "Actions",
                   render: (r) => (
                     <span className="flex gap-2 text-xs">
-                      <button className="text-indigo-700 hover:underline" onClick={() => openEdit(r)}>Sửa</button>
-                      <button className="text-red-600 hover:underline" onClick={() => void remove(r)}>Xóa</button>
+                      <button className="text-indigo-700 hover:underline" onClick={() => openEdit(r)}>Edit</button>
+                      <button className="text-red-600 hover:underline" onClick={() => void remove(r)}>Delete</button>
                     </span>
                   ),
                 },
@@ -268,22 +268,22 @@ export function ProfilesPage() {
         </>
       )}
 
-      <Dialog open={editing !== null} onClose={() => setEditing(null)} title={editing ? `Sửa profile “${editing.name}”` : "Sửa profile"}>
+      <Dialog open={editing !== null} onClose={() => setEditing(null)} title={editing ? `Edit profile “${editing.name}”` : "Edit profile"}>
         <div className="space-y-3">
-          <Field label="Tên profile">
+          <Field label="Profile name">
             <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
           </Field>
           <Field label="Environment">
             <Select value={editEnv} onChange={(e) => setEditEnv(e.target.value)}>
-              <option value="">— Không gắn —</option>
+              <option value="">— Unassigned —</option>
               {envs.map((e) => (
                 <option key={e.id} value={e.id}>{e.name}</option>
               ))}
             </Select>
           </Field>
-          <Field label="Thay storageState (để trống = giữ nguyên)" hint="Dán JSON mới để thay login; giá trị cũ không hiện.">
+          <Field label="Replace storageState (blank = keep current)" hint="Paste new JSON to replace the login; the old value is never shown.">
             <textarea
-              aria-label="storageState mới"
+              aria-label="New storageState"
               value={editState}
               onChange={(e) => setEditState(e.target.value)}
               rows={4}
@@ -296,9 +296,9 @@ export function ProfilesPage() {
             <p role="alert" className="text-xs text-red-700">{editError}</p>
           ) : null}
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="outline" onClick={() => setEditing(null)}>Hủy</Button>
+            <Button size="sm" variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
             <Button size="sm" disabled={saving} onClick={() => void saveEdit()}>
-              {saving ? "Đang lưu…" : "Save"}
+              {saving ? "Saving…" : "Save"}
             </Button>
           </div>
         </div>

@@ -94,13 +94,13 @@ export function StepCard({
         className="mt-1.5 hidden flex-wrap gap-1 group-hover:flex group-focus-within:flex"
         onClick={(e) => e.stopPropagation()}
       >
-        <MiniBtn title={step.enabled ? "Disable" : "Enable"} onClick={onToggleEnabled} tip={step.enabled ? "Tắt step (giữ lại trong test)" : "Bật lại step"}>
+        <MiniBtn title={step.enabled ? "Disable" : "Enable"} onClick={onToggleEnabled} tip={step.enabled ? "Disable step (keep it in the test)" : "Re-enable step"}>
           {step.enabled ? "⏸" : "▶"}
         </MiniBtn>
-        <MiniBtn title="Duplicate" tip="Nhân bản step này" onClick={onDuplicate}>⧉</MiniBtn>
-        <MiniBtn title="Insert before" tip="Thêm step mới phía trên" onClick={onInsertBefore}>↑+</MiniBtn>
-        <MiniBtn title="Insert after" tip="Thêm step mới phía dưới" onClick={onInsertAfter}>↓+</MiniBtn>
-        <MiniBtn title="Delete" tip="Xóa step (cần xác nhận)" onClick={onDelete}>🗑</MiniBtn>
+        <MiniBtn title="Duplicate" tip="Duplicate this step" onClick={onDuplicate}>⧉</MiniBtn>
+        <MiniBtn title="Insert before" tip="Add a new step above" onClick={onInsertBefore}>↑+</MiniBtn>
+        <MiniBtn title="Insert after" tip="Add a new step below" onClick={onInsertAfter}>↓+</MiniBtn>
+        <MiniBtn title="Delete" tip="Delete step (confirmation required)" onClick={onDelete}>🗑</MiniBtn>
       </div>
     </div>
   );

@@ -192,7 +192,7 @@ export function BuilderPage() {
         setSelectedId(demo.steps[0]?.id ?? null);
         setOffline(true);
       } else {
-        setLoadError(e instanceof ApiError ? e.message : "Không tải được test");
+        setLoadError(e instanceof ApiError ? e.message : "Could not load test");
       }
     } finally {
       setLoading(false);
@@ -217,7 +217,7 @@ export function BuilderPage() {
         setSaveError("");
       } catch (e) {
         setSaveState("error");
-        setSaveError(e instanceof ApiError ? e.message : "Autosave thất bại");
+        setSaveError(e instanceof ApiError ? e.message : "Autosave failed");
       }
     }, 800);
     return () => window.clearTimeout(saveTimer.current);
@@ -264,7 +264,7 @@ export function BuilderPage() {
   };
 
   const deleteStep = (stepId: string) => {
-    if (!window.confirm("Xóa step này?")) return;
+    if (!window.confirm("Delete this step?")) return;
     updateSteps((steps) => steps.filter((s) => s.id !== stepId));
     setTestResults((prev) => {
       const next = { ...prev };
@@ -305,12 +305,12 @@ export function BuilderPage() {
   // Nút Run mở RunModal (chọn env/browser/headed) → api.createRun → navigate /runs/:id.
   const runDisabled = dirty || saveState === "saving" || !envId;
   const runHint = offline
-    ? "Offline demo — bật API server để Run."
+    ? "Offline demo — start the API server to run."
     : !envId
-      ? "Chọn environment để Run."
+      ? "Select an environment to run."
       : dirty || saveState === "saving"
-        ? "Đang lưu draft… Run mở khi đã Saved (Run luôn dùng revision đã persist)."
-        : "Run revision đã lưu.";
+        ? "Saving draft… Run is available once saved (runs always use the persisted revision)."
+        : "Run the saved revision.";
 
   const envName = environments.find((e) => e.id === envId)?.name ?? "";
   const defTags: string[] = Array.isArray(definition?.tags)
@@ -334,10 +334,10 @@ export function BuilderPage() {
   if (!definition) {
     return (
       <main className="mx-auto max-w-2xl p-6">
-        <ErrorState message={loadError || "Không tìm thấy test"} onRetry={load} />
+        <ErrorState message={loadError || "Test not found"} onRetry={load} />
         <p className="mt-3">
           <Link to="/projects" className="text-sm text-indigo-700 hover:underline">
-            ← Về Projects
+            ← Back to Projects
           </Link>
         </p>
       </main>
@@ -371,7 +371,7 @@ export function BuilderPage() {
             <button
               type="button"
               aria-label={`Remove tag ${t}`}
-              title={`Gỡ tag ${t} (autosave PATCH definition.tags)`}
+              title={`Remove tag ${t} (autosave PATCH definition.tags)`}
               className="text-xs text-slate-400 hover:text-red-600"
               onClick={() =>
                 setDefinition((d) => (d ? { ...d, tags: (d.tags ?? []).filter((x) => x !== t) } : d))
@@ -402,28 +402,7 @@ export function BuilderPage() {
           ⚙ Envs
         </Button>
         {projectId && projectId !== "demo" ? (
-          <>
-            <Tooltip tip="Reusable actions / business keywords của project">
-              <Button size="sm" variant="outline" onClick={() => nav(`/projects/${projectId}/actions`)}>
-                🔁 Actions
-              </Button>
-            </Tooltip>
-            <Tooltip tip="Auth profiles (storageState) của project">
-              <Button size="sm" variant="outline" onClick={() => nav(`/projects/${projectId}/profiles`)}>
-                👤 Profiles
-              </Button>
-            </Tooltip>
-            <Tooltip tip="File library cho step Upload">
-              <Button size="sm" variant="outline" onClick={() => nav(`/projects/${projectId}/files`)}>
-                📁 Files
-              </Button>
-            </Tooltip>
-            <Tooltip tip="Lịch chạy suite/test theo cron">
-              <Button size="sm" variant="outline" onClick={() => nav(`/projects/${projectId}/schedules`)}>
-                🕒 Schedules
-              </Button>
-            </Tooltip>
-          </>
+          <ProjectMenu projectId={projectId} nav={nav} />
         ) : null}
         <Input
           aria-label="Recorder session"
@@ -435,18 +414,18 @@ export function BuilderPage() {
         />
         <span className="ml-auto flex items-center gap-2">
           <AutosaveBadge state={offline ? "saved" : saveState} dirty={dirty} error={saveError} offline={offline} />
-          <Tooltip tip="Mở Inspector trong panel trượt (mobile)">
+          <Tooltip tip="Open Inspector in the slide-over panel (mobile)">
             <Button size="sm" variant="outline" className="md:hidden" onClick={() => setShowInspector(true)}>
               Inspector
             </Button>
           </Tooltip>
-          <Tooltip tip="Thu âm thao tác thành steps">
+          <Tooltip tip="Record actions into steps">
             <Button size="sm" variant="outline" onClick={() => nav(`/tests/${id}/record`)}>
               ● Record
             </Button>
           </Tooltip>
           <span title={runHint}>
-            <Tooltip tip={runDisabled ? runHint : "Chạy revision đã lưu"}>
+            <Tooltip tip={runDisabled ? runHint : "Run the saved revision"}>
               <Button size="sm" disabled={runDisabled} onClick={() => setShowRunModal(true)}>
                 ▶ Run
               </Button>
@@ -456,8 +435,8 @@ export function BuilderPage() {
       </header>
       {offline ? (
         <p className="border-b border-amber-200 bg-amber-50 px-4 py-1.5 text-xs text-amber-800">
-          Offline demo mode — không kết nối được API (<code>/api/v1</code>). Bật server ở{" "}
-          <code>apps/server</code> rồi reload để persist thật (GET/PATCH /tests/:id).
+          Offline demo mode — could not reach the API (<code>/api/v1</code>). Start the server in{" "}
+          <code>apps/server</code> then reload to persist (GET/PATCH /tests/:id).
         </p>
       ) : null}
       {unhealthy.length > 0 ? (
@@ -470,7 +449,7 @@ export function BuilderPage() {
         <p className="flex flex-wrap items-center gap-2 border-b border-indigo-200 bg-indigo-50 px-4 py-1.5 text-xs text-indigo-900">
           {focusStep ? (
             <span>
-              Đang focus step lỗi từ run detail:{" "}
+              Focusing the failed step from run detail:{" "}
               <strong>
                 {definition?.steps.indexOf(focusStep) !== undefined
                   ? `#${(definition?.steps.indexOf(focusStep) ?? 0) + 1} `
@@ -481,12 +460,11 @@ export function BuilderPage() {
             </span>
           ) : (
             <span>
-              Không tìm thấy step <code>{focusStepId}</code> trong test này (có thể đã đổi
-              definition).
+              Step <code>{focusStepId}</code> was not found in this test (the definition may have changed).
             </span>
           )}
           <button className="text-indigo-700 underline hover:text-indigo-900" onClick={clearFocusStep}>
-            Xóa focus
+            Clear focus
           </button>
         </p>
       ) : null}
@@ -520,7 +498,7 @@ export function BuilderPage() {
             ))}
           </ul>
           {visibleSteps.length === 0 ? (
-            <p className="text-xs text-slate-400">Không khớp step nào.</p>
+            <p className="text-xs text-slate-400">No matching steps.</p>
           ) : null}
         </aside>
 
@@ -542,8 +520,8 @@ export function BuilderPage() {
           </div>
           {definition.steps.length === 0 ? (
             <EmptyState
-              title="Test chưa có step"
-              hint="Nhấn Add step và tìm theo từ quen thuộc: click, text, URL…"
+              title="This test has no steps"
+              hint="Click Add step and search familiar terms: click, text, URL…"
               action={
                 <Button size="sm" onClick={() => setPaletteOpen(true)}>
                   + Add step
@@ -608,7 +586,7 @@ export function BuilderPage() {
               onAddAssertion={() => setAssertionOpen(true)}
             />
           ) : (
-            <EmptyState title="Chưa chọn step" hint="Click một step ở giữa để chỉnh trong Inspector." />
+            <EmptyState title="No step selected" hint="Click a step in the middle column to edit it in the Inspector." />
           )}
         </aside>
       </div>
@@ -705,7 +683,7 @@ export function BuilderPage() {
             onAddAssertion={() => setAssertionOpen(true)}
           />
         ) : (
-          <EmptyState title="Chưa chọn step" hint="Click một step ở giữa để chỉnh trong Inspector." />
+          <EmptyState title="No step selected" hint="Click a step in the middle column to edit it in the Inspector." />
         )}
       </Drawer>
 
@@ -738,7 +716,7 @@ export function BuilderPage() {
           onClose={() => setShowRunModal(false)}
           onStarted={(runId) => {
             setShowRunModal(false);
-            toast.push("success", `Đã tạo run ${runId}.`);
+            toast.push("success", `Run ${runId} created.`);
             nav(`/runs/${runId}`);
           }}
         />
@@ -749,6 +727,47 @@ export function BuilderPage() {
 
 // ------------------------------------------------------------- autosave badge ---
 
+/** Project resources menu (keeps the Builder toolbar to one row). */
+function ProjectMenu({ projectId, nav }: { projectId: string; nav: (to: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const items = [
+    { to: `/projects/${projectId}/actions`, icon: "🔁", label: "Actions", hint: "Reusable actions / business keywords" },
+    { to: `/projects/${projectId}/profiles`, icon: "👤", label: "Profiles", hint: "Auth profiles (storageState)" },
+    { to: `/projects/${projectId}/files`, icon: "📁", label: "Files", hint: "File library for Upload steps" },
+    { to: `/projects/${projectId}/schedules`, icon: "🕒", label: "Schedules", hint: "Cron schedules for suites/tests" },
+    { to: `/projects/${projectId}/suites`, icon: "📦", label: "Suites", hint: "Group tests to run together" },
+  ];
+  return (
+    <span className="relative">
+      <Button size="sm" variant="outline" onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open} title="Project resources">
+        📁 Project ▾
+      </Button>
+      {open ? (
+        <>
+          <span className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden />
+          <span role="menu" className="absolute left-0 z-20 mt-1 w-60 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+            {items.map((it) => (
+              <button
+                key={it.to}
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-slate-50"
+                onClick={() => { setOpen(false); nav(it.to); }}
+              >
+                <span aria-hidden className="text-base">{it.icon}</span>
+                <span>
+                  <span className="block text-sm font-medium text-slate-800">{it.label}</span>
+                  <span className="block text-xs text-slate-500">{it.hint}</span>
+                </span>
+              </button>
+            ))}
+          </span>
+        </>
+      ) : null}
+    </span>
+  );
+}
+
 function TagsEditor({ disabled, onAdd }: { disabled?: boolean; onAdd: (tag: string) => void }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
@@ -758,7 +777,7 @@ function TagsEditor({ disabled, onAdd }: { disabled?: boolean; onAdd: (tag: stri
         type="button"
         className="text-xs text-slate-500 hover:text-indigo-700 hover:underline"
         disabled={disabled}
-        title={disabled ? "Offline — bật server để lưu tags" : "Thêm tag (autosave PATCH definition.tags)"}
+        title={disabled ? "Offline — start the server to save tags" : "Add tag (autosave PATCH definition.tags)"}
         onClick={() => setOpen(true)}
       >
         + Tag
@@ -814,9 +833,9 @@ function AutosaveBadge({
   error: string;
   offline: boolean;
 }) {
-  if (offline) return <Badge tone="amber">Offline — chưa lưu server</Badge>;
+  if (offline) return <Badge tone="amber">Offline — not saved to server</Badge>;
   if (state === "saving" || dirty) return <Badge tone="indigo">Saving…</Badge>;
-  if (state === "error") return <Badge tone="red" title={error}>Save error — thử sửa tiếp để retry</Badge>;
+  if (state === "error") return <Badge tone="red" title={error}>Save error — keep editing to retry</Badge>;
   return <Badge tone="green">Saved</Badge>;
 }
 
@@ -836,7 +855,7 @@ function VariablesEditor({
     <div className="space-y-2">
       {entries.length === 0 ? (
         <p className="text-xs text-slate-500">
-          Chưa có biến. Dùng trong step value kiểu <code>{"{{EMAIL}}"}</code>.
+          No variables yet. Reference them in step values like <code>{"{{EMAIL}}"}</code>.
         </p>
       ) : (
         <ul className="space-y-1">
@@ -858,7 +877,7 @@ function VariablesEditor({
                   onChange(next);
                 }}
               >
-                Xóa
+                Delete
               </button>
             </li>
           ))}
@@ -904,11 +923,11 @@ function RunsPanel({ testId }: { testId: string }) {
   }, [testId]);
   if (runs === null) return <Skeleton className="h-10" />;
   if (runs.length === 0)
-    return <p className="text-xs text-slate-500">Chưa có run. Chọn environment rồi nhấn Run.</p>;
+    return <p className="text-xs text-slate-500">No runs yet. Select an environment, then click Run.</p>;
   return (
     <DataTable<{ id: string; status: string; browser: string }>
-      caption="Các lượt chạy của test này"
-      emptyText="Chưa có run."
+      caption="Runs for this test"
+      emptyText="No runs yet."
       rows={runs}
       columns={[
         {

@@ -2,13 +2,13 @@
 
 export function validateCron(cron: string): string | null {
   const parts = cron.trim().split(/\s+/);
-  if (parts.length !== 5) return "Cron cần đúng 5 ô: phút giờ ngày tháng thứ (vd 0 9 * * 1-5).";
+  if (parts.length !== 5) return "Cron needs exactly 5 fields: minute hour day month weekday (e.g. 0 9 * * 1-5).";
   const [min, hour, dom, mon, dow] = parts;
-  if (!fieldOk(min)) return "Ô phút (0-59, *, lists/ranges/steps) chưa hợp lệ.";
-  if (!fieldOk(hour)) return "Ô giờ (0-23) chưa hợp lệ.";
-  if (!fieldOk(dom)) return "Ô ngày (1-31) chưa hợp lệ.";
-  if (!fieldOk(mon)) return "Ô tháng (1-12) chưa hợp lệ.";
-  if (!fieldOk(dow)) return "Ô thứ (0-7, 0/7 = Chủ nhật) chưa hợp lệ.";
+  if (!fieldOk(min)) return "Minute field (0-59, *, lists/ranges/steps) is invalid.";
+  if (!fieldOk(hour)) return "Hour field (0-23) is invalid.";
+  if (!fieldOk(dom)) return "Day field (1-31) is invalid.";
+  if (!fieldOk(mon)) return "Month field (1-12) is invalid.";
+  if (!fieldOk(dow)) return "Weekday field (0-7, 0/7 = Sunday) is invalid.";
   return null;
 }
 
@@ -70,4 +70,4 @@ export function previewNextRun(cron: string, from = new Date()): Date | null {
 }
 
 export const CRON_HINT =
-  "5 ô: phút giờ ngày tháng thứ — vd “0 9 * * 1-5” = 9:00 sáng thứ 2–6; “*/15 * * * *” = mỗi 15 phút.";
+  "5 fields: minute hour day month weekday — e.g. “0 9 * * 1-5” = 9:00 AM Mon–Fri; “*/15 * * * *” = every 15 minutes.";

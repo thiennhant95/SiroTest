@@ -97,7 +97,7 @@ export function AddStepPalette({
   const addCustom = () => {
     const t = customType.trim();
     if (!isPluginStepType(t)) {
-      setCustomError("Type phải có prefix “plugin:” (vd plugin:kv.fillMasked).");
+      setCustomError("Type must use the “plugin:” prefix (e.g. plugin:kv.fillMasked).");
       return;
     }
     setCustomError("");
@@ -108,7 +108,7 @@ export function AddStepPalette({
     <Dialog open={open} onClose={onClose} title={`Add step${insertLabel ? ` — ${insertLabel}` : ""}`} wide>
       <Input
         autoFocus
-        placeholder='Tìm step: thử "click", "text", "URL"…'
+        placeholder='Search steps: try "click", "text", "URL"...'
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
@@ -132,7 +132,7 @@ export function AddStepPalette({
                     <span className="min-w-0">
                       <span className="flex items-center gap-1.5 text-sm font-medium text-slate-800">
                         {m.label}
-                        {m.warnFixedWait ? <Badge tone="amber">Chỉ khi cần</Badge> : null}
+                        {m.warnFixedWait ? <Badge tone="amber">Only if needed</Badge> : null}
                       </span>
                       <span className="block truncate text-[11px] text-slate-500">
                         {m.description}
@@ -173,12 +173,12 @@ export function AddStepPalette({
           ) : (
             <p className="text-[11px] text-slate-500">
               {pluginsEnabled === false
-                ? "Plugins đang TẮT trên server (ALLOW_PLUGINS=1 để bật) — vẫn nhập tay type bên dưới."
-                : "Backend chưa liệt kê plugin (404/offline) — nhập tay type bên dưới."}
+                ? "Plugins are OFF on the server (set ALLOW_PLUGINS=1 to enable) — you can still enter a type manually below."
+                : "Backend did not list plugins (404/offline) — enter a type manually below."}
             </p>
           )}
           <div className="mt-2">
-            <Field label="Hoặc nhập plugin type thủ công" hint="vd plugin:kv.fillMasked — compile báo lỗi explicit nếu plugin thiếu.">
+            <Field label="Or enter a plugin type manually" hint="e.g. plugin:kv.fillMasked — compilation fails with an explicit error if the plugin is missing.">
               <span className="flex gap-2">
                 <Input
                   value={customType}
@@ -190,7 +190,7 @@ export function AddStepPalette({
                   onClick={addCustom}
                   className="shrink-0 rounded-md bg-indigo-600 px-3 text-sm font-medium text-white hover:bg-indigo-700"
                 >
-                  Thêm
+                  Add
                 </button>
               </span>
             </Field>
@@ -199,12 +199,12 @@ export function AddStepPalette({
         </section>
         {results.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-500">
-            Không tìm thấy step cho “{q}”.
+            No steps found for “{q}”.
           </p>
         ) : null}
       </div>
       <details className="mt-2 text-[11px] text-slate-500">
-        <summary className="cursor-pointer">Advanced: step type kỹ thuật</summary>
+        <summary className="cursor-pointer">Advanced: technical step types</summary>
         <p className="mt-1 font-mono">{STEP_CATALOG.map((m) => m.type).join(", ")}{pluginSteps.length > 0 ? `, ${pluginSteps.map((m) => m.type).join(", ")}` : ""}</p>
       </details>
     </Dialog>

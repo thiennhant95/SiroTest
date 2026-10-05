@@ -76,7 +76,7 @@ export function HealingPage() {
     try {
       if (action === "approve") await p2api.approveHealing(pid);
       else await p2api.rejectHealing(pid);
-      toast.push("success", action === "approve" ? "Đã duyệt proposal (primary đã viết lại)." : "Đã từ chối proposal.");
+      toast.push("success", action === "approve" ? "Approved proposal (primary rewritten)." : "Rejected proposal.");
       await load();
     } catch (e) {
       const msg = e instanceof Error ? e.message : `${action} failed`;
@@ -128,13 +128,13 @@ export function HealingPage() {
         </div>
       ) : unsupported ? (
         <EmptyState
-          title="Backend chưa hỗ trợ healing (API 404)"
-          hint="UI đã sẵn sàng theo contract GET /tests/:id/healing. Đợi backend P2 rồi reload."
+          title="Backend healing not supported (API 404)"
+          hint="UI is ready per contract GET /tests/:id/healing. Waiting on P2 backend — reload later."
         />
       ) : error ? (
         <ErrorState message={error} onRetry={load} />
       ) : proposals.length === 0 ? (
-        <EmptyState title={`Không có proposal ${filter}`} hint="Proposal xuất hiện khi alternative locator thắng primary lúc run (có bật heal flag)." />
+        <EmptyState title={`No ${filter} proposals`} hint="Proposals appear when an alternative locator beats the primary during a run (with the heal flag on)." />
       ) : null}
       <ul className="space-y-3">
         {proposals.map((p) => {

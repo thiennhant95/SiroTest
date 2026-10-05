@@ -20,7 +20,7 @@ export function SuiteRunDetailPage() {
       setDetail(await api.getSuiteRun(suiteRunId));
       setError("");
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Không tải được suite run");
+      setError(e instanceof ApiError ? e.message : "Couldn't load suite run");
     }
   }, [suiteRunId]);
 
@@ -88,9 +88,9 @@ export function SuiteRunDetailPage() {
               setBusy(true);
               try {
                 await api.downloadJUnit("suite-run", suiteRunId);
-                toast.push("success", "Đã tải JUnit XML.");
+                toast.push("success", "Downloaded JUnit XML.");
               } catch (e) {
-                toast.push("error", e instanceof ApiError ? e.message : "Tải JUnit thất bại");
+                toast.push("error", e instanceof ApiError ? e.message : "Couldn't download JUnit");
               } finally {
                 setBusy(false);
               }
@@ -108,30 +108,30 @@ export function SuiteRunDetailPage() {
                 setBusy(true);
                 try {
                   await api.cancelSuiteRun(suiteRunId);
-                  toast.push("success", "Đã gửi yêu cầu hủy suite run.");
+                  toast.push("success", "Suite run cancellation requested.");
                   await load();
                 } catch (e) {
-                  toast.push("error", e instanceof ApiError ? e.message : "Hủy thất bại");
+                  toast.push("error", e instanceof ApiError ? e.message : "Cancellation failed");
                 } finally {
                   setBusy(false);
                 }
               }}
             >
-              Hủy suite run
+              Cancel suite run
             </Button>
           ) : null}
           <Button size="sm" variant="outline" onClick={() => void load()}>
-            Tải lại
+            Reload
           </Button>
         </span>
       </div>
 
       {flat.length === 0 ? (
-        <EmptyState title="Chưa có attempt nào" hint="Suite sequential đang xếp hàng — đợi giây lát rồi tải lại." />
+        <EmptyState title="No attempts yet" hint="Sequential suite is queued — wait a moment, then reload." />
       ) : (
         <DataTable
-          caption="Kết quả từng test trong suite run"
-          emptyText="Chưa có attempt."
+          caption="Per-test results in suite run"
+          emptyText="No attempts yet."
           rows={flat}
           columns={[
             {
@@ -174,7 +174,7 @@ export function SuiteRunDetailPage() {
       )}
       {flat.some((r) => r.errorSummary) ? (
         <section aria-label="Failures" className="space-y-2">
-          <h2 className="text-sm font-semibold text-slate-700">Lỗi (attempt cuối mỗi test)</h2>
+          <h2 className="text-sm font-semibold text-slate-700">Failures (last attempt per test)</h2>
           {detail!.tests
             .filter((t) => t.attempts[t.attempts.length - 1]?.status === "failed")
             .map((t) => (

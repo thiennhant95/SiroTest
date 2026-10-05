@@ -20,7 +20,7 @@ export function ProjectsPage() {
     try {
       setProjects(await api.listProjects());
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Không tải được projects");
+      setError(e instanceof ApiError ? e.message : "Could not load projects");
       setProjects([]);
     }
   };
@@ -42,7 +42,7 @@ export function ProjectsPage() {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) {
-      setFormError("Nhập tên project.");
+      setFormError("Enter a project name.");
       return;
     }
     if (baseUrl.trim()) {
@@ -50,7 +50,7 @@ export function ProjectsPage() {
         const u = new URL(baseUrl.trim());
         if (u.protocol !== "http:" && u.protocol !== "https:") throw new Error("bad proto");
       } catch {
-        setFormError("Base URL phải là http(s) URL hợp lệ (hoặc để trống).");
+        setFormError("Base URL must be a valid http(s) URL (or left empty).");
         return;
       }
     }
@@ -63,10 +63,10 @@ export function ProjectsPage() {
         ...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
       });
       setCreating(false);
-      toast.push("success", `Đã tạo project “${created.name}”.`);
+      toast.push("success", `Project "${created.name}" created.`);
       await load();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Tạo project thất bại.");
+      setFormError(err instanceof ApiError ? err.message : "Could not create project.");
     } finally {
       setSaving(false);
     }
@@ -76,9 +76,9 @@ export function ProjectsPage() {
     <main className="mx-auto max-w-4xl space-y-4 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Projects</h1>
-        <div className="flex items-start gap-2">
-          <Link to="/settings" className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm hover:bg-slate-50">
-            Settings
+        <div className="flex items-center gap-2">
+          <Link to="/settings">
+            <Button size="sm" variant="outline">Settings</Button>
           </Link>
           <ImportProjectButton onImported={() => void load()} />
         <Button size="sm" variant="outline" onClick={openCreate}>
@@ -93,18 +93,18 @@ export function ProjectsPage() {
               {formError}
             </p>
           )}
-          <Field label="Tên project">
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="VD: LienHoa E-commerce" autoFocus />
+          <Field label="Project name">
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="E.g.: LienHoa E-commerce" autoFocus />
           </Field>
-          <Field label="Mô tả (tùy chọn)">
+          <Field label="Description (optional)">
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Pilot staging admin…" />
           </Field>
-          <Field label="Base URL (tùy chọn)" hint="http(s). Dùng làm target mặc định khi chạy test.">
+          <Field label="Base URL (optional)" hint="http(s). Used as the default target when running tests.">
             <Input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://test.aloa.asia" inputMode="url" />
           </Field>
           <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
             <Button type="button" variant="ghost" onClick={() => setCreating(false)}>Cancel</Button>
-            <Button type="submit" disabled={saving}>{saving ? "Đang tạo…" : "Tạo project"}</Button>
+            <Button type="submit" disabled={saving}>{saving ? "Creating…" : "Create project"}</Button>
           </div>
         </form>
       </Dialog>
@@ -116,7 +116,7 @@ export function ProjectsPage() {
       ) : error ? (
         <ErrorState message={error} onRetry={load} />
       ) : projects.length === 0 ? (
-        <EmptyState title="Chưa có project" hint="Bấm + New project để tạo project đầu tiên." />
+        <EmptyState title="No projects yet" hint="Click + New project to create your first project." />
       ) : (
         <ul className="space-y-2">
           {projects.map((p) => (

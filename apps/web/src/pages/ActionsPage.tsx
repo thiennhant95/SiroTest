@@ -68,7 +68,7 @@ export function ActionsPage() {
         return list[0]?.id ?? null;
       });
     } catch (e) {
-      setLoadError(e instanceof ApiError ? e.message : "Không tải được actions");
+      setLoadError(e instanceof ApiError ? e.message : "Couldn't load actions");
       setActions([]);
     }
   }, [projectId]);
@@ -174,9 +174,9 @@ export function ActionsPage() {
       setActions((prev) => prev?.map((a) => (a.id === saved.id ? saved : a)) ?? [saved]);
       setPersistedJson(JSON.stringify(saved));
       setDraft(JSON.parse(JSON.stringify(saved)) as ActionRecord);
-      toast.push("success", `Đã lưu action “${saved.name}”.`);
+      toast.push("success", `Saved action “${saved.name}”.`);
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Lưu thất bại";
+      const msg = e instanceof ApiError ? e.message : "Save failed";
       setSaveError(msg);
       toast.push("error", msg);
     } finally {
@@ -195,22 +195,22 @@ export function ActionsPage() {
       setNewName("");
       setActions((prev) => (prev ? [created, ...prev] : [created]));
       setSelectedId(created.id);
-      toast.push("success", `Đã tạo action “${created.name}”.`);
+      toast.push("success", `Created action “${created.name}”.`);
     } catch (e) {
-      toast.push("error", e instanceof ApiError ? e.message : "Tạo action thất bại");
+      toast.push("error", e instanceof ApiError ? e.message : "Action creation failed");
     }
   };
 
   const remove = async () => {
     if (!draft) return;
-    if (!window.confirm(`Xóa action “${draft.name}”?`)) return;
+    if (!window.confirm(`Delete action “${draft.name}”?`)) return;
     try {
       await api.deleteAction(draft.id);
       setActions((prev) => prev?.filter((a) => a.id !== draft.id) ?? []);
       setSelectedId(null);
-      toast.push("success", "Đã xóa action.");
+      toast.push("success", "Deleted action.");
     } catch (e) {
-      toast.push("error", e instanceof ApiError ? e.message : "Xóa thất bại");
+      toast.push("error", e instanceof ApiError ? e.message : "Deletion failed");
     }
   };
 
@@ -231,8 +231,8 @@ export function ActionsPage() {
         ) : null}
       </div>
       <p className="text-sm text-slate-500">
-        Business keywords dùng chung cho nhiều test — gọi từ step <code>Call action</code> trong
-        Builder. Body chỉ gồm P0 steps (không lồng <code>callAction</code>).
+        Shared business keywords for multiple tests — call them from the <code>Call action</code> step in
+        Builder. Body contains P0 steps only (no nested <code>callAction</code>).
       </p>
       {saveError ? (
         <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
@@ -261,14 +261,14 @@ export function ActionsPage() {
               <Input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="Tên action mới, vd Login"
+                placeholder="New action name, e.g. Login"
               />
               <Button type="submit" size="sm">
                 + New
               </Button>
             </form>
             {actions.length === 0 ? (
-              <EmptyState title="Chưa có action" hint="Tạo action đầu tiên ở ô phía trên." />
+              <EmptyState title="No actions yet" hint="Create your first action in the field above." />
             ) : (
               <ul className="space-y-1">
                 {actions.map((a) => (
@@ -295,19 +295,19 @@ export function ActionsPage() {
           {/* Right: editor */}
           <section>
             {!draft ? (
-              <EmptyState title="Chưa chọn action" hint="Chọn một action bên trái để chỉnh." />
+              <EmptyState title="No action selected" hint="Select an action on the left to edit." />
             ) : (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-4">
                   <Field label="Action name">
                     <Input value={draft.name} onChange={(e) => patchDraft({ name: e.target.value })} />
                   </Field>
-                  <Field label="Description (tùy chọn)">
+                  <Field label="Description (optional)">
                     <Textarea
                       rows={2}
                       value={draft.description ?? ""}
                       onChange={(e) => patchDraft({ description: e.target.value || undefined })}
-                      placeholder="vd Đăng nhập bằng email + password"
+                      placeholder="e.g. Log in with email + password"
                     />
                   </Field>
                   <p className="font-mono text-[11px] text-slate-400">{draft.id}</p>
@@ -330,8 +330,8 @@ export function ActionsPage() {
                   </div>
                   {draft.parameters.length === 0 ? (
                     <p className="text-xs text-slate-500">
-                      Chưa có param — body dùng giá trị cố định. Thêm param để caller truyền vào
-                      kiểu <code>{"{{TEN_PARAM}}"}</code>.
+                      No params yet — body uses fixed values. Add a param so callers can pass
+                      values like <code>{"{{PARAM_NAME}}"}</code>.
                     </p>
                   ) : (
                     <ul className="space-y-2">
@@ -340,25 +340,25 @@ export function ActionsPage() {
                           <Field label="Name (A-Za-z0-9_)">
                             <Input value={p.name} onChange={(e) => patchParam(i, { name: e.target.value })} placeholder="EMAIL" />
                           </Field>
-                          <Field label="Default (để trống = required)">
+                          <Field label="Default (blank = required)">
                             <Input
                               type={p.secret ? "password" : "text"}
                               value={p.default ?? ""}
                               onChange={(e) => patchParam(i, { default: e.target.value || undefined })}
-                              placeholder="{{BIEN}} hoặc giá trị"
+                              placeholder="{{VAR}} or value"
                             />
                           </Field>
                           <div className="flex items-end gap-2 pb-0.5">
-                            <label className="flex items-center gap-1 text-xs text-slate-600" title="Secret params phải truyền {{BIEN}}, không inline plaintext">
+                            <label className="flex items-center gap-1 text-xs text-slate-600" title="Secret params must pass {{VAR}}, never inline plaintext">
                               <Checkbox checked={!!p.secret} onChange={(e) => patchParam(i, { secret: e.target.checked || undefined })} />
                               secret
                             </label>
                             <button className="text-xs text-red-600 hover:underline" onClick={() => removeParam(i)}>
-                              Xóa
+                              Delete
                             </button>
                           </div>
-                          <Field label="Description (tùy chọn)">
-                            <Input value={p.description ?? ""} onChange={(e) => patchParam(i, { description: e.target.value || undefined })} placeholder="vd Địa chỉ email đăng nhập" />
+                          <Field label="Description (optional)">
+                            <Input value={p.description ?? ""} onChange={(e) => patchParam(i, { description: e.target.value || undefined })} placeholder="e.g. Login email address" />
                           </Field>
                         </li>
                       ))}
@@ -405,7 +405,7 @@ export function ActionsPage() {
                               })
                             }
                             onDelete={() => {
-                              if (!window.confirm("Xóa step này?")) return;
+                              if (!window.confirm("Delete this step?")) return;
                               updateSteps((steps) => steps.filter((x) => x.id !== s.id));
                               if (selectedStepId === s.id) setSelectedStepId(null);
                             }}
@@ -437,7 +437,7 @@ export function ActionsPage() {
                           projectId={projectId}
                         />
                       ) : (
-                        <EmptyState title="Chưa chọn step" hint="Click một step để chỉnh." />
+                        <EmptyState title="No step selected" hint="Click a step to edit." />
                       )}
                     </aside>
                   </div>
