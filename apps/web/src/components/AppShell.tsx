@@ -31,8 +31,8 @@ export function AppShell() {
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4 sm:px-6">
           <Link to="/projects" className="flex items-center gap-2 text-[15px] font-bold tracking-tight text-slate-900">
-            <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-indigo-600 text-sm text-white">▶</span>
-            Playwright Studio
+            <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-indigo-600 text-sm font-bold text-white">S</span>
+            SiroTest
           </Link>
           <nav className="flex items-center gap-1" aria-label="Primary">
             {NAV.map((n) => (

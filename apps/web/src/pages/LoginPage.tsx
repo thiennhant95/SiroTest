@@ -69,9 +69,9 @@ export function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
       <div className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center gap-2">
-          <span aria-hidden className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-indigo-600 text-base text-white">▶</span>
+          <span aria-hidden className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-indigo-600 text-base font-bold text-white">S</span>
           <div>
-            <h1 className="text-lg font-semibold leading-tight">Playwright Studio</h1>
+            <h1 className="text-lg font-semibold leading-tight">SiroTest</h1>
             <p className="text-xs text-slate-500">Low-code E2E · JSON is the source of truth</p>
           </div>
         </div>
