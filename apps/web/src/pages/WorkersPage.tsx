@@ -78,7 +78,7 @@ export function WorkersPage() {
         setWorkers([]);
       } else {
         setWorkers([]);
-        setError(e instanceof Error ? e.message : "Không tải được workers");
+        setError(e instanceof Error ? e.message : "Couldn't load workers");
       }
     }
   }, []);
@@ -94,10 +94,10 @@ export function WorkersPage() {
     try {
       await req("POST", `${API}/workers/register`, { name: name.trim(), capacity: 2 });
       setName("");
-      toast.push("success", "Đã đăng ký worker.");
+      toast.push("success", "Registered worker.");
       await load();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Register thất bại";
+      const msg = e instanceof Error ? e.message : "Registration failed";
       setError(msg);
       toast.push("error", msg);
     } finally {
@@ -108,10 +108,10 @@ export function WorkersPage() {
   async function deregister(id: string) {
     try {
       await req("POST", `${API}/workers/${id}/deregister`);
-      toast.push("success", "Đã gỡ worker.");
+      toast.push("success", "Removed worker.");
       await load();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Deregister thất bại";
+      const msg = e instanceof Error ? e.message : "Couldn't deregister";
       setError(msg);
       toast.push("error", msg);
     }
@@ -120,12 +120,12 @@ export function WorkersPage() {
   async function sweep() {
     try {
       const r = await req<{ staleWorkers: string[]; releasedRuns: string[] }>("POST", `${API}/workers/sweep`);
-      const msg = r.staleWorkers.length === 0 ? "Không có worker stale." : `Sweep: ${r.staleWorkers.length} stale, ${r.releasedRuns.length} runs released`;
+      const msg = r.staleWorkers.length === 0 ? "No stale workers." : `Sweep: ${r.staleWorkers.length} stale, ${r.releasedRuns.length} runs released`;
       setError(r.staleWorkers.length === 0 ? "" : msg);
       toast.push("success", msg);
       await load();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Sweep thất bại";
+      const msg = e instanceof Error ? e.message : "Sweep failed";
       setError(msg);
       toast.push("error", msg);
     }
@@ -143,14 +143,14 @@ export function WorkersPage() {
         </button>
       </div>
       <p className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-        DB job-claim protocol, không thêm infra. Distributed thật cần shared DB (Postgres) —
-        SQLite file-local chỉ demo trên cùng host. Chi tiết: <code>docs/oidc-sso.md</code> (SSO) và
+        DB job-claim protocol, no extra infra. True distribution needs a shared DB (Postgres) —
+        file-local SQLite is only a same-host demo. Details: <code>docs/oidc-sso.md</code> (SSO) and
         server route <code>apps/server/src/routes/workers.ts</code> header.
       </p>
       <div className="flex gap-2 text-sm">
         <input
           className="rounded border px-2 py-1"
-          placeholder="worker name (vd edge-01)"
+          placeholder="worker name (e.g. edge-01)"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
@@ -160,8 +160,8 @@ export function WorkersPage() {
       </div>
       {unsupported ? (
         <EmptyState
-          title="Backend chưa hỗ trợ workers (API 404)"
-          hint="UI đã sẵn sàng theo contract POST/GET /workers. Đợi backend P2 rồi reload — in-process runQueue vẫn là executor mặc định."
+          title="Backend workers not supported (API 404)"
+          hint="UI is ready per contract POST/GET /workers. Waiting on P2 backend — reload; the in-process runQueue remains the default executor."
         />
       ) : error ? (
         <ErrorState message={error} onRetry={load} />
@@ -173,8 +173,8 @@ export function WorkersPage() {
         </div>
       ) : !unsupported && !error && workers.length === 0 ? (
         <EmptyState
-          title="Chưa có worker nào"
-          hint="In-process runQueue vẫn là executor mặc định. Đăng ký worker đầu tiên ở ô phía trên."
+          title="No workers yet"
+          hint="The in-process runQueue remains the default executor. Register your first worker above."
         />
       ) : workers.length === 0 ? null : (
         <ul className="space-y-2">

@@ -5,6 +5,7 @@ const NAV = [
   { to: "/projects", label: "Projects" },
   { to: "/workers", label: "Workers" },
   { to: "/plugins", label: "Plugins" },
+  { to: "/docs", label: "Docs" },
   { to: "/settings", label: "Settings" },
 ];
 
@@ -57,7 +58,7 @@ export function AppShell() {
               onClick={logout}
               className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
             >
-              Đăng xuất
+              Log out
             </button>
           </div>
         </div>

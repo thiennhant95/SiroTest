@@ -28,7 +28,7 @@ export function ProjectTestsPage() {
       setTests(list);
       setTags(tagList);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Không tải được tests");
+      setError(e instanceof ApiError ? e.message : "Could not load tests");
       setTests([]);
     }
   };
@@ -74,7 +74,7 @@ export function ProjectTestsPage() {
         <div className="flex flex-wrap items-center gap-2">
           <ExportProjectButton projectId={projectId} />
           <ImportProjectButton onImported={() => void load()} />
-          <Button size="sm" variant="outline" onClick={() => setSpecOpen(true)} title="Dán .spec.ts để tạo test draft">
+          <Button size="sm" variant="outline" onClick={() => setSpecOpen(true)} title="Paste .spec.ts to create a test draft">
             📄 Import spec
           </Button>
         </div>
@@ -86,8 +86,8 @@ export function ProjectTestsPage() {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Tìm test theo tên…"
-          aria-label="Tìm test"
+          placeholder="Search tests by name…"
+          aria-label="Search tests"
           className="max-w-xs"
         />
         <Select value={tag} onChange={(e) => { setTag(e.target.value); void load(e.target.value); }} aria-label="Filter by tag" className="max-w-xs">
@@ -106,14 +106,14 @@ export function ProjectTestsPage() {
           try {
             const created = await api.createTest(projectId, name.trim());
             setName("");
-            toast.push("success", `Đã tạo test “${created.name}”.`);
+            toast.push("success", `Test "${created.name}" created.`);
             void load();
           } catch (err) {
-            toast.push("error", err instanceof ApiError ? err.message : "Tạo test thất bại");
+            toast.push("error", err instanceof ApiError ? err.message : "Could not create test");
           }
         }}
       >
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tên test mới, vd Login flow" />
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New test name, e.g. Login flow" />
         <Button type="submit" size="md">
           + New test
         </Button>
@@ -126,10 +126,10 @@ export function ProjectTestsPage() {
       ) : error ? (
         <ErrorState message={error} onRetry={load} />
       ) : tests.length === 0 ? (
-        <EmptyState title="Chưa có test" hint="Tạo test đầu tiên ở ô phía trên." />
+        <EmptyState title="No tests yet" hint="Create your first test using the field above." />
       ) : visible.length === 0 ? (
         <p className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
-          Không có test nào khớp “{query.trim()}”. <button type="button" className="text-indigo-700 hover:underline" onClick={() => setQuery("")}>Xóa tìm kiếm</button>
+          No tests match "{query.trim()}". <button type="button" className="text-indigo-700 hover:underline" onClick={() => setQuery("")}>Clear search</button>
         </p>
       ) : (
         <ul className="space-y-2">

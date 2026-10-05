@@ -26,7 +26,7 @@ function useRun(runId: string) {
         setRun(await api.getRun(runId));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không tải được kết quả chạy");
+      setError(e instanceof Error ? e.message : "Could not load the run result");
     } finally {
       setLoading(false);
     }
@@ -76,20 +76,20 @@ function useArtifactBlob(runId: string, artifactId: string | undefined, endpoint
 /** Trace download (authenticated) + how to open it in Playwright's viewer. */
 function TraceDownload({ runId, artifactId }: { runId: string; artifactId: string }) {
   const { url, failed } = useArtifactBlob(runId, artifactId, "download");
-  if (failed) return <span className="muted">Không tải được trace.</span>;
+  if (failed) return <span className="muted">Could not load the trace.</span>;
   if (!url)
     return (
       <span className="muted small">
-        Đang tải trace… (<code>{artifactId}.zip</code>)
+        Loading trace… (<code>{artifactId}.zip</code>)
       </span>
     );
   return (
     <>
       <a className="btn btn-primary" href={url} download="trace.zip">
-        Tải Trace
+        Download trace
       </a>
       <span className="muted small">
-        Mở bằng Trace Viewer gốc: <code>npx playwright show-trace trace.zip</code> hoặc kéo file vào https://trace.playwright.dev
+        Open with the native Trace Viewer: <code>npx playwright show-trace trace.zip</code> or drag the file into https://trace.playwright.dev
       </span>
     </>
   );
@@ -98,9 +98,9 @@ function TraceDownload({ runId, artifactId }: { runId: string; artifactId: strin
 /** Run video (authenticated bytes via object URL so <video> can play it). */
 function RunVideo({ runId, artifactId }: { runId: string; artifactId: string }) {
   const { url, failed } = useArtifactBlob(runId, artifactId, "download");
-  if (failed) return <p className="muted small">Không tải được video.</p>;
-  if (!url) return <p className="muted small">Đang tải video…</p>;
-  return <video controls src={url} aria-label="Video lượt chạy" style={{ maxWidth: "100%" }} />;
+  if (failed) return <p className="muted small">Could not load the video.</p>;
+  if (!url) return <p className="muted small">Loading video…</p>;
+  return <video controls src={url} aria-label="Run video" style={{ maxWidth: "100%" }} />;
 }
 
 /** Image served by the authenticated artifact endpoint (plain <img> cannot
@@ -134,8 +134,8 @@ function AuthArtifactImage({ runId, artifactId, label }: { runId: string; artifa
       if (url) URL.revokeObjectURL(url);
     };
   }, [runId, artifactId]);
-  if (failed) return <p className="muted small">Không tải được ảnh {label}.</p>;
-  if (!src) return <p className="muted small">Đang tải ảnh {label}…</p>;
+  if (failed) return <p className="muted small">Could not load image {label}.</p>;
+  if (!src) return <p className="muted small">Loading image {label}…</p>;
   return (
     <figure>
       <figcaption>{label}</figcaption>
@@ -238,14 +238,14 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
     setCancelling(true);
     try {
       if (run.id === sampleRun.id) {
-        toast.push("info", "Bản demo không gọi server (không hủy thật)");
+        toast.push("info", "Demo does not call the server (nothing is actually cancelled)");
       } else {
         await api.cancelRun(run.id);
-        toast.push("success", "Đã gửi yêu cầu hủy run");
+        toast.push("success", "Cancellation requested");
         await reload();
       }
     } catch (e) {
-      toast.push("error", e instanceof Error ? e.message : "Hủy run thất bại");
+      toast.push("error", e instanceof Error ? e.message : "Could not cancel the run");
     } finally {
       setCancelling(false);
     }
@@ -256,13 +256,13 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
     setRerunning(true);
     try {
       if (run.id === sampleRun.id) {
-        toast.push("info", "Đã xếp hàng chạy lại bản demo (không gọi server)");
+        toast.push("info", "Demo rerun queued (server not called)");
       } else {
         await api.rerun(run.testId, run.environmentId ?? "env_staging", run.browser);
-        toast.push("success", "Đã chạy lại — xem tiến trình ở tab Lượt chạy");
+        toast.push("success", "Rerun started — follow progress in the Runs tab");
       }
     } catch (e) {
-      toast.push("error", e instanceof Error ? e.message : "Chạy lại thất bại");
+      toast.push("error", e instanceof Error ? e.message : "Could not rerun");
     } finally {
       setRerunning(false);
     }
@@ -270,15 +270,15 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
 
   const downloadJUnit = async () => {
     if (!run || run.id === sampleRun.id) {
-      toast.push("info", "Bản demo không có JUnit trên server");
+      toast.push("info", "The demo has no JUnit XML on the server");
       return;
     }
     setDownloadingJUnit(true);
     try {
       await studioApi.downloadJUnit("run", run.id);
-      toast.push("success", "Đã tải JUnit XML.");
+      toast.push("success", "JUnit XML downloaded.");
     } catch (e) {
-      toast.push("error", e instanceof ApiError ? e.message : "Tải JUnit thất bại");
+      toast.push("error", e instanceof ApiError ? e.message : "Could not download JUnit");
     } finally {
       setDownloadingJUnit(false);
     }
@@ -286,15 +286,15 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
 
   if (loading) {
     return (
-      <section className="page" aria-label="Chi tiết lượt chạy">
-        <Skeleton lines={6} label="Đang tải kết quả chạy…" />
+      <section className="page" aria-label="Run detail">
+        <Skeleton lines={6} label="Loading run result…" />
       </section>
     );
   }
   if (error || !run) {
     return (
       <section className="page">
-        <ErrorState message={error ?? "Không tìm thấy lượt chạy"} onRetry={() => void reload()} />
+        <ErrorState message={error ?? "Run not found"} onRetry={() => void reload()} />
       </section>
     );
   }
@@ -306,17 +306,17 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
   const traceUrl = run.artifacts.traceUrl;
 
   return (
-    <section className="page" aria-label={`Kết quả chạy ${run.testName || testName || run.id}`}>
+    <section className="page" aria-label={`Run result ${run.testName || testName || run.id}`}>
       {/* Header: status + env/browser/duration */}
       <header className="run-head">
         <div>
           <p className="crumb">
-            <Link to={`/tests/${run.testId}`}>← Về bài kiểm thử</Link>
+            <Link to={`/tests/${run.testId}`}>← Back to test</Link>
           </p>
           <h1>{run.testName || testName || `Run ${run.id.slice(0, 8)}`}</h1>
           <p className="muted">
-            Môi trường <strong>{run.environment}</strong> · Trình duyệt{" "}
-            <strong>{run.browser}</strong> · Bắt đầu {formatTime(run.startedAt)} · Kéo dài{" "}
+            Environment <strong>{run.environment}</strong> · Browser{" "}
+            <strong>{run.browser}</strong> · Started {formatTime(run.startedAt)} · Duration{" "}
             <strong>{formatDuration(run.durationMs)}</strong>
           </p>
         </div>
@@ -351,7 +351,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
             />
           </div>
           <p className="muted small">
-            Run đang {run.status === "queued" ? "xếp hàng" : "chạy"} · WS:{" "}
+            Run is {run.status === "queued" ? "queued" : "running"} · WS:{" "}
             {channel.connected ? "connected" : "reconnecting…"}
             {channel.error ? ` · ${channel.error}` : null}
           </p>
@@ -362,7 +362,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
             disabled={cancelling}
             onClick={() => void cancel()}
           >
-            {cancelling ? "Đang hủy…" : "Hủy run"}
+            {cancelling ? "Cancelling…" : "Cancel run"}
           </button>
         </div>
       ) : null}
@@ -373,16 +373,16 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
         </div>
       ) : run.status === "passed" ? (
         <div className="alert alert-pass" role="status">
-          Bài kiểm thử chạy đạt — mọi bước đều ổn.
+          Test passed — all steps succeeded.
         </div>
       ) : null}
 
       {/* Timeline */}
-      <h2>Diễn biến từng bước</h2>
+      <h2>Step timeline</h2>
       {run.steps.length === 0 ? (
         <EmptyState
-          title="Chưa có bước nào được ghi nhận"
-          hint="Lượt chạy có thể bị hủy trước khi bắt đầu."
+          title="No steps recorded"
+          hint="The run may have been cancelled before it started."
         />
       ) : (
         <ol className="timeline">
@@ -396,12 +396,12 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
                 <span className="step-name">{s.name}</span>
                 <span className="step-meta">
                   {s.status === "failed"
-                    ? "Lỗi"
+                    ? "Failed"
                     : s.status === "passed"
-                      ? "Xong"
+                      ? "Passed"
                       : s.status === "skipped"
-                        ? "Bỏ qua"
-                        : "Đang chạy"}{" "}
+                        ? "Skipped"
+                        : "Running"}{" "}
                   · {formatDuration(s.durationMs)}
                 </span>
                 <span
@@ -419,11 +419,11 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
                 {s.error ? (
                   <>
                     <p>
-                      <strong>Lỗi gọn:</strong> {shortError(s.error)}
+                      <strong>Short error:</strong> {shortError(s.error)}
                     </p>
                     <p>
                       <strong>Locator:</strong>{" "}
-                      <code>{locatorFor(s) ?? "— (không có trong result/definition)"}</code>
+                      <code>{locatorFor(s) ?? "— (not present in result/definition)"}</code>
                     </p>
                     <p>
                       <strong>Timeout:</strong>{" "}
@@ -432,10 +432,10 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
                         return t ? (
                           <>
                             <code>{t.ms}ms</code>{" "}
-                            <span className="muted small">(nguồn: {t.source})</span>
+                            <span className="muted small">(source: {t.source})</span>
                           </>
                         ) : (
-                          <span className="muted">— (mặc định runner)</span>
+                          <span className="muted">— (runner default)</span>
                         );
                       })()}
                     </p>
@@ -447,7 +447,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
                           onClick={() => setShowRaw((v) => !v)}
                           aria-expanded={showRaw}
                         >
-                          {showRaw ? "Ẩn chi tiết kỹ thuật" : "Xem chi tiết kỹ thuật (raw)"}
+                          {showRaw ? "Hide technical details" : "Show technical details (raw)"}
                         </button>
                         {showRaw ? (
                           <pre className="raw">{s.rawError ?? s.error}</pre>
@@ -455,13 +455,13 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
                       </>
                     ) : (
                       <p className="muted">
-                        Bạn đang xem gọn cho Tester. Chuyển vai trò “Developer” để xem mã lỗi đầy đủ.
+                        You are viewing the concise Tester view. Switch to the "Developer" role to see the full error.
                       </p>
                     )}
                     {s.screenshotUrl ? (
                       <figure>
-                        <figcaption>Ảnh chụp lúc lỗi</figcaption>
-                        <img src={s.screenshotUrl} alt={`Ảnh chụp tại bước ${s.name}`} />
+                        <figcaption>Failure screenshot</figcaption>
+                        <img src={s.screenshotUrl} alt={`Screenshot at step ${s.name}`} />
                       </figure>
                     ) : null}
                     {s.stepId ? (
@@ -469,12 +469,12 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
                         className="btn"
                         to={`/tests/${run.testId}?focusStep=${s.stepId}`}
                       >
-                        Sửa định danh bước lỗi
+                        Fix the failing step locator
                       </Link>
                     ) : null}
                   </>
                 ) : (
-                  <p className="muted">Bước này ổn ({formatDuration(s.durationMs)}).</p>
+                  <p className="muted">This step passed ({formatDuration(s.durationMs)}).</p>
                 )}
               </div>
             </details>
@@ -483,7 +483,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
       )}
 
       {/* Artifacts */}
-      <h2>Bằng chứng (ảnh / video / trace)</h2>
+      <h2>Evidence (screenshots / video / trace)</h2>
       {shotArtifacts.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {shotArtifacts.map((a) => (
@@ -491,12 +491,12 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
               key={a.id}
               runId={run.id}
               artifactId={a.id}
-              label={(a.path.split("/").pop() ?? a.id).replace(/\.png$/, "").replace(/^sShot$/, "Ảnh chụp màn hình")}
+              label={(a.path.split("/").pop() ?? a.id).replace(/\.png$/, "").replace(/^sShot$/, "Screenshot")}
             />
           ))}
         </div>
       ) : (
-        <p className="muted small">Lượt chạy này không có ảnh chụp (thêm step “screenshot” vào test để có bằng chứng hình ảnh).</p>
+        <p className="muted small">This run has no screenshots (add a "screenshot" step to the test for image evidence).</p>
       )}
       <div className="row">
         {traceArtifact ? (
@@ -509,28 +509,28 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
               target="_blank"
               rel="noreferrer"
             >
-              Mở Trace
+              Open trace
             </a>
             <span className="muted small">
-              Mở bằng Trace Viewer gốc của Playwright (không dựng lại).
+              Open with Playwright's native Trace Viewer (not re-rendered).
             </span>
           </>
         ) : (
-          <span className="muted">Lượt chạy này không có trace.</span>
+          <span className="muted">This run has no trace.</span>
         )}
       </div>
       {traceUrl && !traceArtifact && role === "developer" ? (
         <p className="muted small">
-          Hoặc chạy local: <code>npx playwright show-trace trace.zip</code> · File gốc:{" "}
+          Or run locally: <code>npx playwright show-trace trace.zip</code> · Original file:{" "}
           <code>{traceUrl}</code>
         </p>
       ) : null}
       {videoArtifact ? (
         <RunVideo runId={run.id} artifactId={videoArtifact.id} />
       ) : run.artifacts.videoUrl ? (
-        <video controls src={run.artifacts.videoUrl} aria-label="Video lượt chạy" />
+        <video controls src={run.artifacts.videoUrl} aria-label="Run video" />
       ) : (
-        <p className="muted small">Không có video cho lượt chạy này.</p>
+        <p className="muted small">No video for this run.</p>
       )}
 
       {/* Actions */}
@@ -541,15 +541,15 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
           disabled={rerunning || run.status === "running"}
           onClick={() => void rerun()}
         >
-          {rerunning ? "Đang xếp hàng…" : "Chạy lại"}
+          {rerunning ? "Queueing…" : "Rerun"}
         </button>
         {failedStep?.stepId ? (
           <Link className="btn" to={`/tests/${run.testId}?focusStep=${failedStep.stepId}`}>
-            Sửa bước lỗi ({failedStep.name})
+            Fix failing step ({failedStep.name})
           </Link>
         ) : null}
         <button type="button" className="btn" onClick={() => void reload()}>
-          Tải lại kết quả
+          Reload result
         </button>
         <button
           type="button"
@@ -557,7 +557,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
           disabled={downloadingJUnit || run.status === "running" || run.status === "queued"}
           onClick={() => void downloadJUnit()}
         >
-          {downloadingJUnit ? "Đang tải JUnit…" : "⬇ JUnit XML"}
+          {downloadingJUnit ? "Downloading JUnit…" : "⬇ JUnit XML"}
         </button>
       </div>
     </section>
@@ -574,7 +574,7 @@ function StepTypeDetail({ stepId, def, testId }: { stepId?: string; def?: Builde
   if (!def) {
     return (
       <p className="muted small">
-        {stepId ? <>Step <code>{stepId}</code> không còn trong definition hiện tại.</> : "Không rõ step definition."}
+        {stepId ? <>Step <code>{stepId}</code> is no longer in the current definition.</> : "Unknown step definition."}
       </p>
     );
   }
@@ -585,31 +585,31 @@ function StepTypeDetail({ stepId, def, testId }: { stepId?: string; def?: Builde
       const saveAs = str(def.saveAs);
       return (
         <p className="muted small">
-          Download {url ? <>từ <code>{url}</code></> : "qua click + chờ sự kiện download"}
-          {saveAs ? <> → artifact <code>{saveAs}</code> (mục Bằng chứng bên dưới)</> : null}.
+          Download {url ? <>from <code>{url}</code></> : "via click + waiting for the download event"}
+          {saveAs ? <> → artifact <code>{saveAs}</code> (see Evidence below)</> : null}.
         </p>
       );
     }
     case "apiRequest": {
       const method = str(def.method) || "GET";
-      const url = str(def.url) || "(chưa nhập URL)";
+      const url = str(def.url) || "(no URL entered)";
       const exp = typeof def.expectedStatus === "number" ? def.expectedStatus : null;
       const saveAs = str(def.saveAs);
       return (
         <p className="muted small">
           <code>{method}</code> <code>{url}</code>
           {exp !== null ? <> · expect status <code>{exp}</code></> : null}
-          {saveAs ? <> · lưu response vào <code>{saveAs}</code></> : null}.
+          {saveAs ? <> · save response to <code>{saveAs}</code></> : null}.
         </p>
       );
     }
     case "visualCheck": {
-      const name = str(def.name) || "(chưa đặt tên)";
+      const name = str(def.name) || "(unnamed)";
       const threshold = typeof def.threshold === "number" ? def.threshold : 0.05;
       return (
         <p className="muted small">
-          So với baseline <code>{name}</code> · ngưỡng {(threshold * 100).toFixed(1)}% ·{" "}
-          <Link to={`/tests/${testId}/visual`}>mở trang Visual</Link>.
+          Compared against baseline <code>{name}</code> · threshold {(threshold * 100).toFixed(1)}% ·{" "}
+          <Link to={`/tests/${testId}/visual`}>open the Visual page</Link>.
         </p>
       );
     }
@@ -617,23 +617,23 @@ function StepTypeDetail({ stepId, def, testId }: { stepId?: string; def?: Builde
       const fileId = str(def.fileId);
       return (
         <p className="muted small">
-          Upload file {fileId ? <><code>{fileId}</code> (file library)</> : "(chưa chọn file)"}.
+          Upload file {fileId ? <><code>{fileId}</code> (file library)</> : "(no file selected)"}.
         </p>
       );
     }
     case "newTab": {
       const url = str(def.url);
-      return <p className="muted small">Mở tab mới{url ? <> → <code>{url}</code></> : null}; các step sau dùng tab này.</p>;
+      return <p className="muted small">Open a new tab{url ? <> → <code>{url}</code></> : null}; subsequent steps use this tab.</p>;
     }
     case "closeTab":
-      return <p className="muted small">Đóng tab hiện tại (lỗi explicit nếu là tab cuối).</p>;
+      return <p className="muted small">Close the current tab (explicit error if it is the last tab).</p>;
     case "handleDialog": {
       const action = str(def.action) === "dismiss" ? "Dismiss" : "Accept";
       const promptText = str(def.promptText);
       return (
         <p className="muted small">
-          Xử lý dialog kế tiếp: <code>{action}</code>
-          {promptText ? <> · nhập <code>{promptText}</code></> : null}.
+          Handle the next dialog: <code>{action}</code>
+          {promptText ? <> · type <code>{promptText}</code></> : null}.
         </p>
       );
     }
@@ -647,8 +647,8 @@ export function RunDetailRoute() {  const { id } = useParams();
   if (!id) {
     return (
       <section className="page">
-        <p className="muted">Thiếu id lượt chạy.</p>
-        <Link to="/projects">← Về Projects</Link>
+        <p className="muted">Missing run id.</p>
+        <Link to="/projects">← Back to Projects</Link>
       </section>
     );
   }

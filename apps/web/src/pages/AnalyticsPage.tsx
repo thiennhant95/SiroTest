@@ -109,7 +109,7 @@ export function AnalyticsPage() {
       if (isNotFoundError(e)) {
         setUnsupported(true);
       } else {
-        setError(e instanceof Error ? e.message : "Không tải được analytics");
+        setError(e instanceof Error ? e.message : "Couldn't load analytics");
       }
     } finally {
       setLoading(false);
@@ -129,7 +129,7 @@ export function AnalyticsPage() {
       setHistory(h.runs);
     } catch (e) {
       setHistory([]);
-      const msg = e instanceof Error ? e.message : "Không tải được history";
+      const msg = e instanceof Error ? e.message : "Couldn't load history";
       setError(msg);
       toast.push("error", msg);
     }
@@ -145,8 +145,8 @@ export function AnalyticsPage() {
       <h1 className="text-xl font-semibold">Analytics</h1>
       {unsupported ? (
         <EmptyState
-          title="Backend chưa hỗ trợ analytics (API 404)"
-          hint="UI đã sẵn sàng theo contract GET /projects/:id/analytics/*. Đợi backend P2 rồi reload."
+          title="Backend analytics not supported (API 404)"
+          hint="UI is ready per contract GET /projects/:id/analytics/*. Waiting on P2 backend — reload later."
         />
       ) : error ? (
         <ErrorState message={error} onRetry={load} />
@@ -158,7 +158,7 @@ export function AnalyticsPage() {
           <Skeleton className="h-24" />
         </div>
       ) : !unsupported && !error && summary === null ? (
-        <EmptyState title="Chưa có dữ liệu analytics" hint="Chạy vài lượt rồi quay lại." />
+        <EmptyState title="No analytics data yet" hint="Run a few times, then come back." />
       ) : summary === null ? null : (
         <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div className="rounded-lg border p-3">
@@ -190,7 +190,7 @@ export function AnalyticsPage() {
       <section>
         <h2 className="mb-2 text-sm font-semibold">Duration trend (runs/day, CSS bars)</h2>
         {trend.length === 0 ? (
-          <EmptyState title="Chưa có dữ liệu 30 ngày qua" hint="Chạy vài lượt rồi quay lại xem xu hướng." />
+          <EmptyState title="No data for the last 30 days" hint="Run a few times, then come back to see the trend." />
         ) : (
           <div className="space-y-1">
             {trend.map((t) => (
@@ -213,9 +213,9 @@ export function AnalyticsPage() {
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold">Flaky tests (passed + failed trong 20 runs gần nhất)</h2>
+        <h2 className="mb-2 text-sm font-semibold">Flaky tests (passed + failed in the last 20 runs)</h2>
         {flaky.length === 0 ? (
-          <EmptyState title="Không phát hiện flaky" hint="Cần ít nhất 2 runs gần nhất vừa pass vừa fail mới tính score." />
+          <EmptyState title="No flaky tests detected" hint="Needs at least 2 recent runs with both passes and failures to score." />
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -250,7 +250,7 @@ export function AnalyticsPage() {
         <section>
           <h2 className="mb-2 text-sm font-semibold">History — {historyTitle}</h2>
           {history.length === 0 ? (
-            <EmptyState title="Không có runs" hint="Test này chưa có lượt chạy nào trong 20 runs gần nhất." />
+            <EmptyState title="No runs" hint="This test has no runs in the last 20." />
           ) : (
             <table className="w-full text-sm">
               <thead>

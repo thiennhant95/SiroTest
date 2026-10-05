@@ -148,7 +148,7 @@ export function RunModal({ testId, suiteId, envs, envId, datasets = [], projectI
             </Select>
           </Field>
         </div>
-        <Field label="Viewport (responsive)" hint="Để trống = cỡ mặc định của test.">
+        <Field label="Viewport (responsive)" hint="Empty = test default size.">
           <Select value={viewport} onChange={(e) => setViewport(e.target.value)} aria-label="Viewport">
             {VIEWPORTS.map((v) => (
               <option key={v.value} value={v.value}>{v.label}</option>
@@ -156,7 +156,7 @@ export function RunModal({ testId, suiteId, envs, envId, datasets = [], projectI
           </Select>
         </Field>
         {!profilesUnsupported && profiles !== null && profiles.length > 0 && (
-          <Field label="Auth profile" hint="Fresh browser khi để trống.">
+          <Field label="Auth profile" hint="Fresh browser when empty.">
             <Select value={profileId} onChange={(e) => setProfileId(e.target.value)} aria-label="Auth profile">
               <option value="">No profile (fresh browser)</option>
               {profiles.map((p) => (
@@ -197,22 +197,22 @@ export function RunModal({ testId, suiteId, envs, envId, datasets = [], projectI
           </div>
         )}
         <fieldset className="space-y-2 rounded-md border border-slate-200 p-3">
-          <legend className="px-1 text-xs font-medium text-slate-600">Chế độ chạy</legend>
+          <legend className="px-1 text-xs font-medium text-slate-600">Run mode</legend>
           <label className="flex items-start gap-2 text-sm text-slate-700">
             <Checkbox checked={headed} onChange={(e) => setHeaded(e.target.checked)} />
-            <span>Hiện trình duyệt <span className="text-slate-500">(headed — xem trực tiếp)</span></span>
+            <span>Show browser <span className="text-slate-500">(headed — watch live)</span></span>
           </label>
-          <label className="flex items-start gap-2 text-sm text-slate-700" title="Hiện trình duyệt + chạy chậm 500ms mỗi thao tác + lưu trace/video kể cả khi pass (xem lại như playwright --ui)">
+          <label className="flex items-start gap-2 text-sm text-slate-700" title="Show browser + slow down 500ms per action + save trace/video even on pass (review like playwright --ui)">
             <Checkbox checked={observe} onChange={(e) => setObserve(e.target.checked)} />
-            <span>Quan sát kỹ <span className="text-slate-500">(headed + chậm + lưu trace/video)</span></span>
+            <span>Observe closely <span className="text-slate-500">(headed + slow + save trace/video)</span></span>
           </label>
-          <label className="flex items-start gap-2 text-sm text-slate-700" title="Mở Playwright Inspector trên máy chạy (≈ playwright --debug): step-through, breakpoint, thử locator trực tiếp; run treo tới khi đóng Inspector hoặc Cancel">
+          <label className="flex items-start gap-2 text-sm text-slate-700" title="Open Playwright Inspector on the runner (≈ playwright --debug): step through, breakpoints, try locators live; the run stays running until you close the Inspector or Cancel">
             <Checkbox checked={debug} onChange={(e) => setDebug(e.target.checked)} />
-            <span>Debug <span className="text-slate-500">(mở Inspector)</span></span>
+            <span>Debug <span className="text-slate-500">(open Inspector)</span></span>
           </label>
-          <label className="flex items-start gap-2 text-sm text-slate-700" title="Chỉ đề xuất alternatives khi locator hỏng (ghi evidence để review ở Healing) — KHÔNG tự áp dụng">
+          <label className="flex items-start gap-2 text-sm text-slate-700" title="Only suggest alternatives when a locator fails (records evidence for review in Healing) — NEVER auto-applied">
             <Checkbox checked={healWithAlternatives} onChange={(e) => setHealWithAlternatives(e.target.checked)} />
-            <span>Thử alternatives khi locator hỏng <span className="text-slate-500">(đề xuất, không tự áp dụng)</span></span>
+            <span>Try alternatives when a locator fails <span className="text-slate-500">(suggest only, never auto-applied)</span></span>
           </label>
         </fieldset>
         {suiteId ? (

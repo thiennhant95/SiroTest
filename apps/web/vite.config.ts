@@ -5,6 +5,10 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    // Dual-loopback: Vite mặc định bind ::1 (IPv6) khiến http://127.0.0.1
+    // không mở được. host:true nghe mọi interface loopback (v4+v6) để cả
+    // localhost lẫn 127.0.0.1 đều vào được. Dev-only (không chứa secret).
+    host: true,
     port: 5173,
     proxy: {
       "/api": {

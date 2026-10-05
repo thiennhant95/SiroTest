@@ -42,7 +42,7 @@ export interface InspectorExtraProps {
 /**
  * Inspector: fields change by step type. Locator-bearing steps show a
  * readable summary first ("Button “Login”"), raw strategy/JSON only in
- * Advanced. waitForTimeout is labelled "Chỉ khi cần".
+ * Advanced. waitForTimeout is labelled "Only if needed".
  *
  * Locator wiring (05-locator): LocatorBadge readable + Test locator
  * (0/1/N via testLocator) + Pick from page (setPickMode + WS
@@ -62,7 +62,7 @@ export function Inspector({ step, onPatch, apiBase, projectId, testId, sessionId
           {step.type.startsWith("plugin:") ? <Badge tone="indigo">plugin</Badge> : null}
         </h3>
         <p className="text-[11px] text-slate-500">
-          {meta?.description ?? (step.type.startsWith("plugin:") ? "Step từ plugin server-side" : "Step chưa hỗ trợ trong palette")}
+          {meta?.description ?? (step.type.startsWith("plugin:") ? "Server-side plugin step" : "Step not supported in the palette")}
         </p>
       </div>
 
@@ -72,7 +72,7 @@ export function Inspector({ step, onPatch, apiBase, projectId, testId, sessionId
         </p>
       ) : null}
 
-      <Field label="Step name (hiển thị trên StepCard)">
+      <Field label="Step name (shown on StepCard)">
         <Input
           value={step.name ?? ""}
           placeholder={meta?.label ?? step.type}
@@ -111,8 +111,8 @@ export function Inspector({ step, onPatch, apiBase, projectId, testId, sessionId
 
       {step.type === "waitForTimeout" ? (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          ⏱ <strong>Chỉ khi cần</strong> — fixed wait dễ gây flaky. Ưu tiên “Wait for
-          element” (theo trạng thái visible/attached) hoặc “Wait for URL”.
+          ⏱ <strong>Only if needed</strong> — fixed waits tend to be flaky. Prefer “Wait for
+          element” (visible/attached state) or “Wait for URL”.
         </p>
       ) : null}
 
@@ -120,12 +120,12 @@ export function Inspector({ step, onPatch, apiBase, projectId, testId, sessionId
         <p className="font-mono text-[11px] text-slate-500">
           type <code>{step.type}</code> · id <code>{step.id}</code>
         </p>
-        <Field label="Timeout (ms, để trống = mặc định)">
+        <Field label="Timeout (ms, empty = default)">
           <Input
             type="number"
             min={0}
             value={step.timeoutMs ?? ""}
-            placeholder="vd 10000"
+            placeholder="e.g. 10000"
             onChange={(e) => set("timeoutMs", e.target.value === "" ? undefined : Number(e.target.value))}
           />
           <TimeoutSourceBadge
@@ -162,10 +162,10 @@ export function TimeoutSourceBadge({ stepTimeoutMs, testTimeoutMs, projectTimeou
   const valid = (v: number | undefined) => typeof v === "number" && Number.isFinite(v) && v > 0;
   const source = valid(stepTimeoutMs) ? "step" : valid(testTimeoutMs) ? "test" : valid(projectTimeoutMs) ? "project" : "default";
   const effective = valid(stepTimeoutMs) ? stepTimeoutMs : valid(testTimeoutMs) ? testTimeoutMs : valid(projectTimeoutMs) ? projectTimeoutMs : 30000;
-  const label = { step: "Step override", test: "Test override", project: "Project default", default: "Mặc định 30s" }[source];
+  const label = { step: "Step override", test: "Test override", project: "Project default", default: "30s default" }[source];
   return (
     <p className="mt-1 text-[11px] text-slate-500" title={`Effective timeout ${effective}ms from ${source}`}>
-      Nguồn timeout: <Badge>{label}</Badge> <span className="text-slate-400">· hiệu lực {effective}ms</span>
+      Timeout source: <Badge>{label}</Badge> <span className="text-slate-400">· effective {effective}ms</span>
     </p>
   );
 }
@@ -224,10 +224,10 @@ function TargetEditor({
 
       {/* (3) Pick from page: sessionId + setPickMode + WS recorder.locatorPicked fills primary+alternatives. */}
       {!sessionId ? (
-        <Field label="Recorder session (để Pick / Test trên live page)">
+        <Field label="Recorder session (for Pick / Test on the live page)">
           <Input
             value={manualSessionId}
-            placeholder="vd 3fa85f64… (lấy ở Record)"
+            placeholder="e.g. 3fa85f64... (from Record)"
             onChange={(e) => setManualSessionId(e.target.value)}
           />
         </Field>
@@ -262,7 +262,7 @@ function TargetEditor({
             else setPrimary({ strategy: s, value: "" });
           }}
         >
-          <option value="role">Role (khuyên dùng)</option>
+          <option value="role">Role (recommended)</option>
           <option value="label">Label</option>
           <option value="placeholder">Placeholder</option>
           <option value="testId">Test ID</option>
@@ -284,7 +284,7 @@ function TargetEditor({
               ))}
             </Select>
           </Field>
-          <Field label="Accessible name (vd Login, Email)">
+          <Field label="Accessible name (e.g. Login, Email)">
             <Input
               value={primary.name ?? ""}
               placeholder="Login"
@@ -340,14 +340,14 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
       return <CallActionFields step={step} set={set} projectId={projectId} />;
     case "goto":
       return (
-        <Field label="URL" hint="Tương đối (/login) hoặc tuyệt đối">
+        <Field label="URL" hint="Relative (/login) or absolute">
           <Input value={str(step.url)} onChange={(e) => set("url", e.target.value)} placeholder="/login" />
         </Field>
       );
     case "fill":
       return (
         <>
-          <Field label="Value" hint='Hỗ trợ biến {{TEN_BIEN}} (tab Variables)'>
+          <Field label="Value" hint="Supports {{VARIABLE_NAME}} variables (Variables tab)">
             <Input
               type={(step as { sensitive?: boolean }).sensitive ? "password" : "text"}
               value={str(step.value)}
@@ -360,7 +360,7 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
               checked={!!(step as { sensitive?: boolean }).sensitive}
               onChange={(e) => set("sensitive", e.target.checked || undefined)}
             />
-            Sensitive (mật khẩu — che khi hiển thị)
+            Sensitive (password — masked when displayed)
           </label>
         </>
       );
@@ -372,7 +372,7 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
       );
     case "press":
       return (
-        <Field label="Key" hint="vd Enter, Tab, Escape, ArrowDown">
+        <Field label="Key" hint="e.g. Enter, Tab, Escape, ArrowDown">
           <Input value={str(step.key) || "Enter"} onChange={(e) => set("key", e.target.value)} />
         </Field>
       );
@@ -396,7 +396,7 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
           <Field label="Expected URL">
             <Input value={str(step.expected)} onChange={(e) => set("expected", e.target.value)} placeholder="**/dashboard" />
           </Field>
-          <Field label="Pattern (thay cho expected)" hint="Glob được hỗ trợ: * khớp 1 đoạn đường dẫn, ** khớp mọi thứ. VD: **/login** — không dùng {{BIẾN}} chung với *.">
+          <Field label="Pattern (instead of expected)" hint="Glob supported: * matches one path segment, ** matches everything. E.g. **/login** — do not mix {{VARIABLES}} with *.">
             <Input value={str(step.pattern)} onChange={(e) => set("pattern", e.target.value || undefined)} placeholder="**/dashboard" />
           </Field>
         </>
@@ -429,7 +429,7 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
           <Field label="URL">
             <Input value={str(step.url)} onChange={(e) => set("url", e.target.value)} />
           </Field>
-          <Field label="Pattern (thay cho URL)">
+          <Field label="Pattern (instead of URL)">
             <Input value={str(step.pattern)} onChange={(e) => set("pattern", e.target.value || undefined)} />
           </Field>
         </>
@@ -437,7 +437,7 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
     case "screenshot":
       return (
         <>
-          <Field label="Screenshot name (tùy chọn)">
+          <Field label="Screenshot name (optional)">
             <Input
               value={str((step as { screenshotName?: unknown }).screenshotName)}
               onChange={(e) => set("screenshotName", e.target.value || undefined)}
@@ -459,16 +459,16 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
       const hasTarget = !!(step.target as { primary?: unknown } | undefined)?.primary;
       return (
         <div className="space-y-3">
-          <Field label="URL trực tiếp (tùy chọn)" hint="Điền URL để tải trực tiếp, HOẶC dùng Target ở trên (click rồi chờ download).">
+          <Field label="Direct URL (optional)" hint="Enter a URL for direct download, OR use the Target above (click then wait for download).">
             <Input value={url} onChange={(e) => set("url", e.target.value || undefined)} placeholder="https://example.com/report.pdf" />
           </Field>
-          <Field label="Save as (tên file gợi ý)" hint="vd report.pdf — lưu vào artifacts của run.">
+          <Field label="Save as (suggested file name)" hint="e.g. report.pdf — saved to the run artifacts.">
             <Input value={str(step.saveAs)} onChange={(e) => set("saveAs", e.target.value || undefined)} placeholder="report.pdf" />
           </Field>
           {!url && !hasTarget ? (
             <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              Cần ít nhất một trong hai: URL trực tiếp hoặc Target để click. Compile sẽ báo lỗi
-              explicit nếu thiếu cả hai.
+              At least one is required: a direct URL or a Target to click. Compilation fails
+              with an explicit error if both are missing.
             </p>
           ) : null}
         </div>
@@ -476,15 +476,15 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
     }
     case "newTab":
       return (
-        <Field label="URL (tùy chọn)" hint="Để trống = tab trắng, các step sau dùng tab mới này.">
+        <Field label="URL (optional)" hint="Empty = blank tab; later steps use this new tab.">
           <Input value={str(step.url)} onChange={(e) => set("url", e.target.value || undefined)} placeholder="https://example.com" />
         </Field>
       );
     case "closeTab":
       return (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          ⚠ Đóng tab hiện tại. Sẽ <strong>lỗi explicit</strong> nếu đây là tab cuối cùng —
-          đảm bảo test đã mở tab mới trước đó.
+          ⚠ Close the current tab. Fails with an <strong>explicit error</strong> if this is the last tab —
+          make sure the test opened a new tab first.
         </p>
       );
     case "handleDialog": {
@@ -492,8 +492,8 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
       return (
         <div className="space-y-3">
           <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            Xử lý <strong>một lần</strong> cho hộp thoại <em>kế tiếp</em> (alert/confirm/prompt).
-            Đặt step này <strong>ngay trước</strong> step gây ra dialog.
+            Handle the <strong>next</strong> dialog <em>once</em> (alert/confirm/prompt).
+            Place this step <strong>immediately before</strong> the step that triggers the dialog.
           </p>
           <Field label="Action">
             <Select value={action} onChange={(e) => set("action", e.target.value)}>
@@ -501,8 +501,8 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
               <option value="dismiss">Dismiss (Cancel)</option>
             </Select>
           </Field>
-          <Field label="Prompt text (chỉ cho prompt())" hint="Chữ nhập vào hộp prompt; alert/confirm bỏ qua.">
-            <Input value={str(step.promptText)} onChange={(e) => set("promptText", e.target.value || undefined)} placeholder="vd Hello" />
+          <Field label="Prompt text (prompt() only)" hint="Text entered into the prompt dialog; ignored for alert/confirm.">
+            <Input value={str(step.promptText)} onChange={(e) => set("promptText", e.target.value || undefined)} placeholder="e.g. Hello" />
           </Field>
         </div>
       );
@@ -521,8 +521,8 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
       }
       return (
         <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
-          Step type <code>{step.type}</code> chưa được hỗ trợ trong Inspector — compile sẽ
-          báo lỗi explicit. Xóa step này hoặc chọn type khác trong palette.
+          Step type <code>{step.type}</code> is not supported in the Inspector — compilation
+          fails with an explicit error. Delete this step or pick another type from the palette.
         </p>
       );
   }
@@ -566,7 +566,7 @@ function CallActionFields({
       .catch((e) => {
         if (alive) {
           setActions([]);
-          setError(e instanceof ApiError ? e.message : "Không tải được actions");
+          setError(e instanceof ApiError ? e.message : "Failed to load actions");
         }
       });
     return () => {
@@ -585,9 +585,9 @@ function CallActionFields({
 
   return (
     <div className="space-y-3">
-      <Field label="Reusable action" hint="Business keyword — body steps inline lúc compile">
+      <Field label="Reusable action" hint="Business keyword — body steps are inlined at compile time">
         {actions === null ? (
-          <p className="text-xs text-slate-500">Đang tải actions…</p>
+          <p className="text-xs text-slate-500">Loading actions…</p>
         ) : actions.length > 0 ? (
           <Select
             value={actionId}
@@ -597,7 +597,7 @@ function CallActionFields({
               set("arguments", {});
             }}
           >
-            <option value="">— Chọn action —</option>
+            <option value="">— Select action —</option>
             {actions.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name} ({a.parameters.length} param{a.parameters.length === 1 ? "" : "s"}, {a.steps.length} steps)
@@ -607,7 +607,7 @@ function CallActionFields({
         ) : (
           <Input
             value={actionId}
-            placeholder="action id (vd action_xxxxxxxxxx)"
+            placeholder="action id (e.g. action_xxxxxxxxxx)"
             onChange={(e) => set("actionId", e.target.value)}
           />
         )}
@@ -622,14 +622,14 @@ function CallActionFields({
       ) : null}
       {actionId && actions !== null && !selected ? (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Action <code>{actionId}</code> không có trong project này — compile sẽ báo lỗi
-          explicit. Chọn lại action ở trên.
+          Action <code>{actionId}</code> is not in this project — compilation fails with an
+          explicit error. Select another action above.
         </p>
       ) : null}
       {selected ? (
         <div className="space-y-2 rounded-md border border-slate-200 p-3">
           <p className="text-xs font-semibold text-slate-600">
-            Arguments · {selected.parameters.length === 0 ? "action không có param" : null}
+            Arguments · {selected.parameters.length === 0 ? "action has no params" : null}
           </p>
           {selected.parameters.map((p) => (
             <Field
@@ -637,8 +637,8 @@ function CallActionFields({
               label={`Argument ${p.name}`}
               hint={
                 p.secret
-                  ? `Bắt buộc {{BIEN}} — plaintext bị compiler từ chối. ${p.description ?? ""} ${p.default !== undefined ? `(mặc định: ${p.default})` : ""}`
-                  : `${p.description ?? ""} ${p.default !== undefined ? `(mặc định: ${p.default})` : ""}`
+                  ? `Requires {{VARIABLE}} — plaintext is rejected by the compiler. ${p.description ?? ""} ${p.default !== undefined ? `(default: ${p.default})` : ""}`
+                  : `${p.description ?? ""} ${p.default !== undefined ? `(default: ${p.default})` : ""}`
               }
             >
               <span className="mb-1 flex gap-1">
@@ -648,7 +648,7 @@ function CallActionFields({
               <Input
                 type={p.secret ? "password" : "text"}
                 value={args[p.name] ?? ""}
-                placeholder={p.default ?? `{{BIEN}} hoặc giá trị cho ${p.name}`}
+                placeholder={p.default ?? `{{VARIABLE}} or value for ${p.name}`}
                 onChange={(e) => setArg(p.name, e.target.value)}
               />
             </Field>
@@ -691,7 +691,7 @@ function UploadFields({ step, set, projectId }: { step: BuilderStep; set: (k: st
           setFiles([]);
         } else {
           setFiles([]);
-          setLoadError(e instanceof ApiError ? e.message : "Không tải được file library");
+          setLoadError(e instanceof ApiError ? e.message : "Failed to load file library");
         }
       });
     return () => {
@@ -702,7 +702,7 @@ function UploadFields({ step, set, projectId }: { step: BuilderStep; set: (k: st
   async function uploadNew(file: File | undefined) {
     if (!file || !projectId || projectId === "demo") return;
     if (file.size > 10 * 1024 * 1024) {
-      toast.push("error", "File quá lớn (tối đa 10 MB hiển thị).");
+      toast.push("error", "File too large (10 MB display limit).");
       return;
     }
     setUploading(true);
@@ -714,7 +714,7 @@ function UploadFields({ step, set, projectId }: { step: BuilderStep; set: (k: st
           const comma = result.indexOf(",");
           resolve(comma >= 0 ? result.slice(comma + 1) : result);
         };
-        reader.onerror = () => reject(new Error("Không đọc được file"));
+        reader.onerror = () => reject(new Error("Could not read file"));
         reader.readAsDataURL(file);
       });
       const created = await api.uploadFile(projectId, {
@@ -725,9 +725,9 @@ function UploadFields({ step, set, projectId }: { step: BuilderStep; set: (k: st
       setFiles((prev) => (prev ? [created, ...prev] : [created]));
       set("fileId", created.id);
       setNewName("");
-      toast.push("success", `Đã tải “${created.name}” lên library.`);
+      toast.push("success", `Uploaded “${created.name}” to the library.`);
     } catch (e) {
-      toast.push("error", e instanceof ApiError ? e.message : "Upload thất bại");
+      toast.push("error", e instanceof ApiError ? e.message : "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -737,14 +737,14 @@ function UploadFields({ step, set, projectId }: { step: BuilderStep; set: (k: st
 
   return (
     <div className="space-y-3">
-      <Field label="File trong library" hint="setInputFiles vào ô Target ở trên.">
+      <Field label="Library file" hint="setInputFiles into the Target field above.">
         {unsupported ? (
-          <Input value={fileId} onChange={(e) => set("fileId", e.target.value)} placeholder="file id (backend chưa hỗ trợ library)" />
+          <Input value={fileId} onChange={(e) => set("fileId", e.target.value)} placeholder="file id (backend does not support the library yet)" />
         ) : files === null ? (
-          <p className="text-xs text-slate-500">Đang tải file library…</p>
+          <p className="text-xs text-slate-500">Loading file library…</p>
         ) : files.length > 0 ? (
           <Select value={fileId} onChange={(e) => set("fileId", e.target.value || undefined)}>
-            <option value="">— Chọn file —</option>
+            <option value="">— Select file —</option>
             {files.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.name} ({formatBytes(f.sizeBytes)})
@@ -752,30 +752,30 @@ function UploadFields({ step, set, projectId }: { step: BuilderStep; set: (k: st
             ))}
           </Select>
         ) : (
-          <Input value={fileId} onChange={(e) => set("fileId", e.target.value || undefined)} placeholder="file id (thư viện trống — tải mới bên dưới)" />
+          <Input value={fileId} onChange={(e) => set("fileId", e.target.value || undefined)} placeholder="file id (library is empty — upload a new one below)" />
         )}
       </Field>
       {loadError ? <p className="text-xs text-red-600">{loadError}</p> : null}
       {unsupported ? (
-        <p className="text-[11px] text-slate-500">Backend chưa hỗ trợ file library (404) — dán fileId thủ công, compile vẫn báo lỗi explicit nếu sai.</p>
+        <p className="text-[11px] text-slate-500">Backend does not support the file library yet (404) — paste a fileId manually; compilation still fails with an explicit error if it is wrong.</p>
       ) : null}
       {selected ? (
         <p className="text-[11px] text-slate-500">
-          Đã chọn: <strong>{selected.name}</strong> · {formatBytes(selected.sizeBytes)}
+          Selected: <strong>{selected.name}</strong> · {formatBytes(selected.sizeBytes)}
           {selected.mimeType ? ` · ${selected.mimeType}` : null}
         </p>
       ) : fileId ? (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          File <code>{fileId}</code> không có trong library project này — compile sẽ báo lỗi explicit.
+          File <code>{fileId}</code> is not in this project's library — compilation fails with an explicit error.
         </p>
       ) : null}
       {projectId && projectId !== "demo" && !unsupported ? (
         <div className="space-y-2 rounded-md border border-slate-200 p-3">
-          <p className="text-xs font-semibold text-slate-600">Tải file mới lên library (tối đa 10 MB)</p>
-          <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Tên hiển thị (để trống = tên file gốc)" />
+          <p className="text-xs font-semibold text-slate-600">Upload a new file to the library (10 MB max)</p>
+          <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Display name (empty = original file name)" />
           <input
             type="file"
-            aria-label="Tải file mới"
+            aria-label="Upload new file"
             disabled={uploading}
             onChange={(e) => {
               void uploadNew(e.target.files?.[0]);
@@ -783,9 +783,9 @@ function UploadFields({ step, set, projectId }: { step: BuilderStep; set: (k: st
             }}
             className="text-xs"
           />
-          {uploading ? <p className="text-xs text-slate-500">Đang tải lên…</p> : null}
+          {uploading ? <p className="text-xs text-slate-500">Uploading…</p> : null}
           <p className="text-[11px] text-slate-500">
-            <Link to={`/projects/${projectId}/files`} className="text-indigo-700 hover:underline">Quản lý files →</Link>
+            <Link to={`/projects/${projectId}/files`} className="text-indigo-700 hover:underline">Manage files →</Link>
           </p>
         </div>
       ) : null}
@@ -821,13 +821,13 @@ function ApiRequestFields({ step, set }: { step: BuilderStep; set: (k: string, v
       if (line.trim() === "") continue;
       const idx = line.indexOf(":");
       if (idx < 0) {
-        setHeaderError(`Dòng header thiếu dấu “:” — ${line.trim().slice(0, 40)}`);
+        setHeaderError(`Header line is missing “:” — ${line.trim().slice(0, 40)}`);
         return;
       }
       const k = line.slice(0, idx).trim();
       const v = line.slice(idx + 1).trim();
       if (!k) {
-        setHeaderError("Header key rỗng.");
+        setHeaderError("Header key is empty.");
         return;
       }
       next[k] = v;
@@ -848,18 +848,18 @@ function ApiRequestFields({ step, set }: { step: BuilderStep; set: (k: string, v
           ))}
         </Select>
       </Field>
-      <Field label="URL" hint="Tuyệt đối hoặc {{BASE_URL}}/api/…">
+      <Field label="URL" hint="Absolute or {{BASE_URL}}/api/...">
         <Input value={str(step.url)} onChange={(e) => set("url", e.target.value)} placeholder="https://api.example.com/users" />
       </Field>
-      <Field label="Headers (mỗi dòng Key: value)" hint="vd Authorization: Bearer {{TOKEN}}">
+      <Field label="Headers (one Key: value per line)" hint="e.g. Authorization: Bearer {{TOKEN}}">
         <Textarea rows={3} value={headerText} onChange={(e) => onHeaders(e.target.value)} placeholder={"Content-Type: application/json"} />
       </Field>
       {headerError ? <p className="text-xs text-red-600">{headerError}</p> : null}
-      <Field label="Body (tùy chọn)" hint="JSON/text thô — hỗ trợ {{VARIABLES}}.">
+      <Field label="Body (optional)" hint="Raw JSON/text — supports {{VARIABLES}}.">
         <Textarea rows={4} value={str(step.body)} onChange={(e) => set("body", e.target.value || undefined)} placeholder='{"name":"qa"}' />
       </Field>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Expected status" hint="Sai status = fail explicit.">
+        <Field label="Expected status" hint="A wrong status is an explicit failure.">
           <Input
             type="number"
             min={100}
@@ -869,12 +869,12 @@ function ApiRequestFields({ step, set }: { step: BuilderStep; set: (k: string, v
             onChange={(e) => set("expectedStatus", e.target.value === "" ? undefined : Number(e.target.value))}
           />
         </Field>
-        <Field label="Save as (biến)" hint="Lưu response text để step sau dùng.">
+        <Field label="Save as (variable)" hint="Save response text for later steps.">
           <Input value={saveAs} onChange={(e) => set("saveAs", e.target.value || undefined)} placeholder="API_RESULT" />
         </Field>
       </div>
       {!saveAsOk ? (
-        <p className="text-xs text-red-600">Tên biến phải khớp /^[A-Za-z_][A-Za-z0-9_]*$/.</p>
+        <p className="text-xs text-red-600">Variable name must match /^[A-Za-z_][A-Za-z0-9_]*$/.</p>
       ) : null}
     </div>
   );
@@ -887,13 +887,13 @@ function MockRouteFields({ step, set }: { step: BuilderStep; set: (k: string, v:
   return (
     <div className="space-y-3">
       <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-        Chặn request của browser <strong>trước</strong> khi app gọi — đặt step này trước goto/click gây ra request. Method khác filter sẽ đi mạng thật.
+        Intercept browser requests <strong>before</strong> the app sends them — place this step before the goto/click that triggers the request. A different method filter passes through to the real network.
       </p>
-      <Field label="URL pattern (glob)" hint="vd {{BASE_URL}}/api/users/* — hỗ trợ {{VARIABLES}}.">
+      <Field label="URL pattern (glob)" hint="e.g. {{BASE_URL}}/api/users/* — supports {{VARIABLES}}.">
         <Input value={str(step.url)} onChange={(e) => set("url", e.target.value)} placeholder="**/api/users" />
       </Field>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Method filter (tùy chọn)" hint="Trống = chặn mọi method.">
+        <Field label="Method filter (optional)" hint="Empty = intercept all methods.">
           <Select
             value={str(step.method)}
             onChange={(e) => set("method", e.target.value === "" ? undefined : e.target.value)}
@@ -904,7 +904,7 @@ function MockRouteFields({ step, set }: { step: BuilderStep; set: (k: string, v:
             ))}
           </Select>
         </Field>
-        <Field label="Status trả về">
+        <Field label="Response status">
           <Input
             type="number"
             min={100}
@@ -915,12 +915,12 @@ function MockRouteFields({ step, set }: { step: BuilderStep; set: (k: string, v:
         </Field>
       </div>
       {!statusOk ? (
-        <p className="text-xs text-red-600">Status phải là số nguyên 100–599.</p>
+        <p className="text-xs text-red-600">Status must be an integer from 100 to 599.</p>
       ) : null}
-      <Field label="Content type (tùy chọn)">
+      <Field label="Content type (optional)">
         <Input value={str(step.contentType)} onChange={(e) => set("contentType", e.target.value || undefined)} placeholder="application/json" />
       </Field>
-      <Field label="Body trả về (tùy chọn)" hint="Text thô — hỗ trợ {{VARIABLES}}.">
+      <Field label="Response body (optional)" hint="Raw text — supports {{VARIABLES}}.">
         <Textarea rows={4} value={str(step.body)} onChange={(e) => set("body", e.target.value || undefined)} placeholder='{"error":"mocked"}' />
       </Field>
     </div>
@@ -939,12 +939,12 @@ function AxeCheckFields({ step, set }: { step: BuilderStep; set: (k: string, v: 
   return (
     <div className="space-y-3">
       <p className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
-        Quét axe-core (WCAG 2.0/2.1 A+AA). Fail explicit kèm rule id khi có lỗi ở mức đã chọn. Đặt sau khi trang ổn định.
+        Axe-core scan (WCAG 2.0/2.1 A+AA). Fails explicitly with rule ids at the selected levels. Place after the page is stable.
       </p>
-      <Field label="CSS scope (tùy chọn)" hint="Trống = cả trang.">
+      <Field label="CSS scope (optional)" hint="Empty = whole page.">
         <Input value={str(step.selector)} onChange={(e) => set("selector", e.target.value || undefined)} placeholder="main, #checkout-form" />
       </Field>
-      <Field label="Fail ở mức">
+      <Field label="Fail on">
         <div className="flex flex-wrap gap-1.5">
           {AXE_IMPACTS.map((imp) => {
             const on = inc.includes(imp);
@@ -965,7 +965,7 @@ function AxeCheckFields({ step, set }: { step: BuilderStep; set: (k: string, v: 
           })}
         </div>
       </Field>
-      <Field label="Bỏ qua rules (tùy chọn)" hint="Mỗi dòng 1 rule id đã chấp nhận, vd color-contrast.">
+      <Field label="Skipped rules (optional)" hint="One accepted rule id per line, e.g. color-contrast.">
         <Textarea
           rows={2}
           value={Array.isArray(step.disableRules) ? (step.disableRules as string[]).join("\n") : ""}
@@ -989,15 +989,15 @@ function VisualCheckFields({ step, set }: { step: BuilderStep; set: (k: string, 
   const outOfRange = !Number.isFinite(threshold) || threshold < 0 || threshold > 1;
   return (
     <div className="space-y-3">
-      <Field label="Baseline name" hint="Tên duy nhất trong test — lần chạy capture đầu tiên lưu baseline này.">
-        <Input value={str(step.name)} placeholder="vd hero" onChange={(e) => set("name", e.target.value)} />
+      <Field label="Baseline name" hint="Unique name within the test — the first capture run saves this baseline.">
+        <Input value={str(step.name)} placeholder="e.g. hero" onChange={(e) => set("name", e.target.value)} />
       </Field>
       {!str(step.name) ? (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Chưa đặt tên baseline — compile sẽ báo lỗi explicit (name bắt buộc).
+          Baseline name is missing — compilation fails with an explicit error (name is required).
         </p>
       ) : null}
-      <Field label="Threshold (0–1)" hint="Tỉ lệ pixel khác cho phép — mặc định 0.05 (5%).">
+      <Field label="Threshold (0–1)" hint="Allowed pixel difference ratio — default 0.05 (5%).">
         <Input
           type="number"
           min={0}
@@ -1008,11 +1008,11 @@ function VisualCheckFields({ step, set }: { step: BuilderStep; set: (k: string, 
         />
       </Field>
       {outOfRange ? (
-        <p className="text-xs text-red-600">Threshold phải nằm trong 0–1.</p>
+        <p className="text-xs text-red-600">Threshold must be between 0 and 1.</p>
       ) : null}
       <p className="text-[11px] text-slate-500">
-        Target ở trên là tùy chọn — để trống = so toàn trang. Xem/sửa baseline tại trang Visual
-        regression của test.
+        The Target above is optional — empty compares the whole page. View/edit baselines on the test's Visual
+        regression page.
       </p>
     </div>
   );
@@ -1093,15 +1093,15 @@ function PluginStepFields({ step, set }: { step: BuilderStep; set: (k: string, v
         <p className="text-xs text-slate-600">{meta.description}</p>
       ) : null}
       {meta === undefined ? (
-        <p className="text-xs text-slate-500">Đang tải plugin metadata…</p>
+        <p className="text-xs text-slate-500">Loading plugin metadata…</p>
       ) : meta === null || !schema ? (
         <>
           <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            Không tìm thấy metadata cho <code>{step.type}</code> (plugin chưa load hoặc
-            ALLOW_PLUGINS tắt) — nhập params JSON thủ công. Compile/run báo lỗi explicit
-            (PLUGIN_NOT_FOUND) nếu plugin thiếu.
+            No metadata found for <code>{step.type}</code> (plugin not loaded or
+            ALLOW_PLUGINS is off) — enter params JSON manually. Compile/run fails explicitly
+            (PLUGIN_NOT_FOUND) if the plugin is missing.
           </p>
-          <Field label="Params (JSON)" hint='vd {"label":"Password","value":"{{LOGIN_PW}}"}'>
+          <Field label="Params (JSON)" hint='e.g. {"label":"Password","value":"{{LOGIN_PW}}"}'>
             <Textarea
               rows={5}
               value={JSON.stringify(step.params ?? {}, null, 2)}
@@ -1116,7 +1116,7 @@ function PluginStepFields({ step, set }: { step: BuilderStep; set: (k: string, v
           </Field>
         </>
       ) : Object.keys(properties).length === 0 ? (
-        <p className="text-xs text-slate-500">Plugin step này không khai báo param.</p>
+        <p className="text-xs text-slate-500">This plugin step declares no params.</p>
       ) : (
         <div className="space-y-2 rounded-md border border-slate-200 p-3">
           <p className="text-xs font-semibold text-slate-600">Params</p>
@@ -1124,7 +1124,7 @@ function PluginStepFields({ step, set }: { step: BuilderStep; set: (k: string, v
             <Field
               key={name}
               label={`Param ${name}`}
-              hint={`${prop.description ?? ""} ${prop.default !== undefined ? `(mặc định: ${prop.default})` : ""}`.trim() || undefined}
+              hint={`${prop.description ?? ""} ${prop.default !== undefined ? `(default: ${prop.default})` : ""}`.trim() || undefined}
             >
               <span className="mb-1 flex gap-1">
                 {prop.secret ? <Badge tone="red">secret</Badge> : null}
@@ -1133,16 +1133,16 @@ function PluginStepFields({ step, set }: { step: BuilderStep; set: (k: string, v
               <Input
                 type={prop.secret ? "password" : "text"}
                 value={params[name] ?? ""}
-                placeholder={prop.secret ? "{{BIEN}} (bắt buộc — plaintext bị từ chối)" : (prop.default ?? `Giá trị cho ${name}`)}
+                placeholder={prop.secret ? "{{VARIABLE}} (required — plaintext is rejected)" : (prop.default ?? `Value for ${name}`)}
                 onChange={(e) => setParam(name, e.target.value)}
               />
             </Field>
           ))}
           {Object.keys(params).filter((k) => !(k in properties)).length > 0 ? (
             <p className="text-[11px] text-slate-500">
-              Params thừa (không có trong schema):{" "}
-              {Object.keys(params).filter((k) => !(k in properties)).join(", ")} — giữ lại khi
-              compile, plugin tự quyết định.
+              Extra params (not in schema):{" "}
+              {Object.keys(params).filter((k) => !(k in properties)).join(", ")} — kept at
+              compile time; the plugin decides how to handle them.
             </p>
           ) : null}
         </div>

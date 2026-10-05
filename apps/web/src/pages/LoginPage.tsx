@@ -34,7 +34,7 @@ export function LoginPage() {
     e.preventDefault();
     const isRegister = mode === "register";
     if (!email.trim() || password.length < (isRegister ? 8 : 1)) {
-      toast.push("error", isRegister ? "Email + mật khẩu ≥ 8 ký tự." : "Nhập email + mật khẩu.");
+      toast.push("error", isRegister ? "Email + password must be at least 8 characters." : "Enter email + password.");
       return;
     }
     setBusy(true);
@@ -43,10 +43,10 @@ export function LoginPage() {
       const body = isRegister ? { email: email.trim(), name: name.trim() || undefined, password } : { email: email.trim(), password };
       const r = await postJson(path, body);
       if (!r.ok || !r.json.token) {
-        toast.push("error", r.json.message ?? `Đăng nhập thất bại (HTTP ${r.status}).`);
+        toast.push("error", r.json.message ?? `Log in failed (HTTP ${r.status}).`);
         return;
       }
-      done(r.json.token, isRegister ? `Đã tạo tài khoản ${r.json.user.email}.` : `Chào mừng ${r.json.user.email}.`);
+      done(r.json.token, isRegister ? `Account created for ${r.json.user.email}.` : `Welcome ${r.json.user.email}.`);
     } finally {
       setBusy(false);
     }
@@ -55,13 +55,13 @@ export function LoginPage() {
   const submitDev = (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId.trim()) {
-      toast.push("error", "Nhập user ID để đăng nhập (dev auth).");
+      toast.push("error", "Enter a user ID to log in (dev auth).");
       return;
     }
     // Dev stub (apps/server/src/auth.ts): user ID làm Bearer token.
     // Tắt hẳn trên host cứng bằng ALLOW_DEV_AUTH=0.
     setToken(userId.trim());
-    toast.push("success", `Đăng nhập dev với user “${userId.trim()}”.`);
+    toast.push("success", `Logged in as dev user "${userId.trim()}".`);
     nav("/projects");
   };
 
@@ -72,25 +72,25 @@ export function LoginPage() {
           <span aria-hidden className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-indigo-600 text-base text-white">▶</span>
           <div>
             <h1 className="text-lg font-semibold leading-tight">Playwright Studio</h1>
-            <p className="text-xs text-slate-500">Low-code E2E · JSON là source of truth</p>
+            <p className="text-xs text-slate-500">Low-code E2E · JSON is the source of truth</p>
           </div>
         </div>
         <Tabs<Mode>
           value={mode}
           onChange={setMode}
           tabs={[
-            { value: "session", label: "Đăng nhập" },
-            { value: "register", label: "Tạo tài khoản" },
+            { value: "session", label: "Log in" },
+            { value: "register", label: "Sign up" },
             { value: "dev", label: "Dev" },
           ]}
         />
         {mode === "dev" ? (
           <form className="space-y-4" onSubmit={submitDev}>
-            <Field label="User ID" hint="Chế độ dev — tắt trên host cứng bằng ALLOW_DEV_AUTH=0.">
+            <Field label="User ID" hint="Dev mode — disabled on hardened hosts via ALLOW_DEV_AUTH=0.">
               <Input value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="tester-1" />
             </Field>
             <Button type="submit" className="w-full" disabled={busy}>
-              Đăng nhập dev
+              Log in (dev)
             </Button>
           </form>
         ) : (
@@ -99,15 +99,15 @@ export function LoginPage() {
               <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tester@example.com" autoComplete="email" />
             </Field>
             {mode === "register" ? (
-              <Field label="Tên hiển thị (tùy chọn)">
+              <Field label="Display name (optional)">
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Manual Tester" autoComplete="name" />
               </Field>
             ) : null}
-            <Field label="Mật khẩu" hint={mode === "register" ? "Tối thiểu 8 ký tự." : undefined}>
+            <Field label="Password" hint={mode === "register" ? "At least 8 characters." : undefined}>
               <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "register" ? "new-password" : "current-password"} />
             </Field>
             <Button type="submit" className="w-full" disabled={busy}>
-              {busy ? "…" : mode === "register" ? "Tạo tài khoản" : "Đăng nhập"}
+              {busy ? "…" : mode === "register" ? "Create account" : "Log in"}
             </Button>
           </form>
         )}

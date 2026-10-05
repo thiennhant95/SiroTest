@@ -94,7 +94,7 @@ export function PluginDocs() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setData((await res.json()) as PluginsResponse);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không tải được plugins");
+      setError(e instanceof Error ? e.message : "Failed to load plugins");
       setData(null);
     }
   }, []);
@@ -108,28 +108,28 @@ export function PluginDocs() {
       <section className="page" aria-label="Plugin/action SDK">
         <h1>Plugin / action SDK (P2)</h1>
         <EmptyState
-          title="Backend chưa hỗ trợ plugins (API 404)"
-          hint="UI đã sẵn sàng theo contract GET /plugins. Cần backend đăng ký pluginRoutes rồi reload."
+          title="Backend does not support plugins yet (API 404)"
+          hint="UI is ready per the GET /plugins contract. The backend needs to register pluginRoutes, then reload."
         />
-        <h2>Cách viết plugin</h2>
+        <h2>How to write a plugin</h2>
         <pre className="vv-code">{AUTHORING_SAMPLE}</pre>
       </section>
     );
   }
   if (error) return <ErrorState message={error} onRetry={() => void load()} />;
-  if (!data) return <Skeleton lines={5} label="Đang tải plugins…" />;
+  if (!data) return <Skeleton lines={5} label="Loading plugins…" />;
 
   return (
     <section className="page" aria-label="Plugin/action SDK">
       <h1>Plugin / action SDK (P2)</h1>
       {!data.enabled && (
         <EmptyState
-          title="Plugins đang TẮT"
-          hint={`ALLOW_PLUGINS chưa bật. Đặt ALLOW_PLUGINS=1, review code trong ${data.dir}, rồi POST /plugins/reload (Developer/Admin).`}
+          title="Plugins are OFF"
+          hint={`ALLOW_PLUGINS is not enabled. Set ALLOW_PLUGINS=1, review the code in ${data.dir}, then POST /plugins/reload (Developer/Admin).`}
         />
       )}
       {data.enabled && data.plugins.length === 0 && (
-        <EmptyState title="Chưa có plugin" hint={`Thư mục ${data.dir} chưa có entry .js/.cjs/.mjs hợp lệ.`} />
+        <EmptyState title="No plugins yet" hint={`Directory ${data.dir} has no valid .js/.cjs/.mjs entries.`} />
       )}
       {data.plugins.map((p) => (
         <article key={`${p.name}@${p.version}`}>
@@ -147,7 +147,7 @@ export function PluginDocs() {
                     {(s.schema.required ?? []).map((r) => (
                       <li key={r}>
                         <code>{r}</code> (required)
-                        {s.schema?.properties?.[r]?.secret && <strong> — secret, dùng {"{{VARIABLE}}"}</strong>}
+                        {s.schema?.properties?.[r]?.secret && <strong> — secret, use {"{{VARIABLE}}"}</strong>}
                       </li>
                     ))}
                   </ul>
@@ -158,15 +158,15 @@ export function PluginDocs() {
         </article>
       ))}
 
-      <h2>Cách viết plugin</h2>
+      <h2>How to write a plugin</h2>
       <pre className="vv-code">{AUTHORING_SAMPLE}</pre>
-      <h2>Mô hình bảo mật</h2>
+      <h2>Security model</h2>
       <ul>
-        <li>Mặc định TẮT (ALLOW_PLUGINS=1 mới load; reload chỉ Developer/Admin).</li>
-        <li>Plugin là code tin cậy — KHÔNG sandbox JS tùy ý; review trước khi bật.</li>
-        <li>Step type trùng giữa plugins → load fail rõ ràng (không shadow).</li>
-        <li>Plugin không thấy → run fail với PLUGIN_NOT_FOUND (không silent skip).</li>
-        <li>Secret params phải là {"{{VARIABLE}}"} — kiểm tra lúc compile (có registry) và lúc chạy.</li>
+        <li>Off by default (loads only with ALLOW_PLUGINS=1; reload is Developer/Admin only).</li>
+        <li>Plugins are trusted code — NO arbitrary JS sandboxing; review before enabling.</li>
+        <li>Duplicate step types across plugins → explicit load failure (no shadowing).</li>
+        <li>Missing plugin → run fails with PLUGIN_NOT_FOUND (no silent skip).</li>
+        <li>Secret params must be {"{{VARIABLE}}"} — checked at compile time (with registry) and at run time.</li>
       </ul>
     </section>
   );

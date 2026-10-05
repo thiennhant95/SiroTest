@@ -29,7 +29,7 @@ export function ProjectDetailPage() {
         setTests(list.slice(0, 10));
       } catch (e) {
         if (!alive) return;
-        setError(e instanceof ApiError ? e.message : "Không tải được project");
+        setError(e instanceof ApiError ? e.message : "Could not load project");
         setTests([]);
       }
     })();
@@ -41,10 +41,10 @@ export function ProjectDetailPage() {
   if (!id) {
     return (
       <main className="mx-auto max-w-4xl p-6">
-        <ErrorState message="Thiếu id project" />
+        <ErrorState message="Missing project id" />
         <p className="mt-3">
           <Link to="/projects" className="text-sm text-indigo-700 hover:underline">
-            ← Về Projects
+            ← Back to Projects
           </Link>
         </p>
       </main>
@@ -68,6 +68,24 @@ export function ProjectDetailPage() {
     );
   }
 
+  const sections: Array<{ to: string; icon: string; label: string; hint: string; primary?: boolean }> = [
+    { to: `/projects/${id}/tests`, icon: "🧪", label: "Tests", hint: "Author + run tests", primary: true },
+    { to: `/projects/${id}/suites`, icon: "📦", label: "Suites", hint: "Group tests to run together" },
+    { to: `/projects/${id}/schedules`, icon: "🕒", label: "Schedules", hint: "Run on a cron schedule" },
+    { to: `/projects/${id}/analytics`, icon: "📊", label: "Analytics", hint: "Pass rate, flaky" },
+    { to: `/projects/${id}/ai`, icon: "✨", label: "AI Assistant", hint: "Generate steps from a description" },
+    { to: `/projects/${id}/actions`, icon: "🔁", label: "Actions", hint: "Reusable keywords" },
+    { to: `/projects/${id}/profiles`, icon: "👤", label: "Profiles", hint: "Pre-authenticated logins (storage)" },
+    { to: `/projects/${id}/files`, icon: "📁", label: "Files", hint: "Files for Upload steps" },
+    { to: `/projects/${id}/audit`, icon: "🧾", label: "Audit", hint: "Who did what, when" },
+  ];
+
+  const tools: Array<{ to: string; label: string }> = [
+    { to: "/workers", label: "Workers" },
+    { to: "/plugins", label: "Plugins" },
+    { to: "/settings", label: "Environments & Settings" },
+  ];
+
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-6">
       <Link to="/projects" className="text-sm text-slate-500 hover:text-slate-800">
@@ -80,106 +98,54 @@ export function ProjectDetailPage() {
         ) : null}
         <p className="font-mono text-[11px] text-slate-400">{project!.id}</p>
       </div>
-      <nav className="flex flex-wrap gap-2" aria-label="Project sections">
-        <Link
-          to={`/projects/${id}/tests`}
-          className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          Tests
-        </Link>
-        <Link
-          to={`/projects/${id}/suites`}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
-        >
-          Suites
-        </Link>
-        <Link
-          to={`/projects/${id}/actions`}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
-        >
-          Actions
-        </Link>
-        <Link
-          to={`/projects/${id}/profiles`}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
-        >
-          Profiles
-        </Link>
-        <Link
-          to={`/projects/${id}/files`}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
-        >
-          Files
-        </Link>
-        <Link
-          to={`/projects/${id}/schedules`}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
-        >
-          Schedules
-        </Link>
-        <Link
-          to={`/projects/${id}/analytics`}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
-        >
-          Analytics
-        </Link>
-        <Link
-          to={`/projects/${id}/audit`}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
-        >
-          Audit
-        </Link>
-        <Link
-          to={`/projects/${id}/ai`}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
-        >
-          AI Assistant
-        </Link>
-        <Link
-          to="/workers"
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
-        >
-          Workers
-        </Link>
-        <Link
-          to="/plugins"
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
-        >
-          Plugins
-        </Link>
-        <Link
-          to="/settings"
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
-        >
-          Environments &amp; Settings
-        </Link>
+      <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Project sections">
+        {sections.map((s) => (
+          <Link
+            key={s.to}
+            to={s.to}
+            className={`group rounded-lg border bg-white p-3 shadow-sm transition-colors hover:border-indigo-300 ${
+              s.primary ? "border-indigo-200 ring-1 ring-indigo-100" : "border-slate-200"
+            }`}
+          >
+            <div className="text-xl" aria-hidden>{s.icon}</div>
+            <div className="mt-1 text-sm font-semibold text-slate-800 group-hover:text-indigo-700">{s.label}</div>
+            <div className="text-xs text-slate-500">{s.hint}</div>
+          </Link>
+        ))}
       </nav>
+      <div className="flex flex-wrap gap-2 text-sm">
+        {tools.map((t) => (
+          <Link key={t.to} to={t.to} className="text-slate-500 hover:text-slate-800 hover:underline">
+            {t.label} →
+          </Link>
+        ))}
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <ExportProjectButton projectId={id} projectName={project?.name} />
         <button
           type="button"
           onClick={() => setSpecOpen(true)}
           className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
-          title="Dán .spec.ts để tạo test draft"
+          title="Paste .spec.ts to create a test draft"
         >
           📄 Import spec
         </button>
       </div>
       <ImportSpecDialog projectId={id} open={specOpen} onClose={() => setSpecOpen(false)} />
       <section aria-label="Recent tests">
-        <h2 className="mb-2 text-sm font-semibold text-slate-700">Tests gần đây</h2>
+        <h2 className="mb-2 text-sm font-semibold text-slate-700">Recent tests</h2>
         {tests === null ? (
           <Skeleton className="h-12" />
         ) : tests.length === 0 ? (
           <EmptyState
-            title="Chưa có test"
-            hint="Tạo test đầu tiên trong trang Tests."
+            title="No tests yet"
+            hint="Create your first test on the Tests page."
             action={
               <Link
                 to={`/projects/${id}/tests`}
                 className="text-sm text-indigo-700 hover:underline"
               >
-                → Tới Tests
+                → Go to Tests
               </Link>
             }
           />

@@ -17,7 +17,7 @@ export function SuitesPage() {
     try {
       setSuites(await api.listSuites(projectId));
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Không tải được suites");
+      setError(e instanceof ApiError ? e.message : "Couldn't load suites");
       setSuites([]);
     }
   };
@@ -46,14 +46,14 @@ export function SuitesPage() {
           try {
             const created = await api.createSuite(projectId, name.trim());
             setName("");
-            toast.push("success", `Đã tạo suite “${created.name}”.`);
+            toast.push("success", `Created suite “${created.name}”.`);
             void load();
           } catch (err) {
-            toast.push("error", err instanceof ApiError ? err.message : "Tạo suite thất bại");
+            toast.push("error", err instanceof ApiError ? err.message : "Suite creation failed");
           }
         }}
       >
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tên suite mới, vd Smoke" />
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New suite name, e.g. Smoke" />
         <Button type="submit" size="md">
           + New suite
         </Button>
@@ -66,7 +66,7 @@ export function SuitesPage() {
       ) : error ? (
         <ErrorState message={error} onRetry={load} />
       ) : suites.length === 0 ? (
-        <EmptyState title="Chưa có suite" hint="Tạo suite đầu tiên ở ô phía trên, rồi thêm tests vào." />
+        <EmptyState title="No suites yet" hint="Create your first suite above, then add tests." />
       ) : (
         <ul className="space-y-2">
           {suites.map((s) => (

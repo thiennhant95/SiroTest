@@ -31,7 +31,7 @@ export function CodeView({ code }: { code: string }) {
     [code],
   );
   return (
-    <pre className="code" tabIndex={0} aria-label="Mã kiểm thử Playwright">
+    <pre className="code" tabIndex={0} aria-label="Playwright test code">
       <code dangerouslySetInnerHTML={{ __html: html }} />
     </pre>
   );

@@ -125,52 +125,52 @@ export const STEP_GROUPS: StepGroup[] = [
 
 export const STEP_CATALOG: StepMeta[] = [
   // -- Navigation --
-  { type: "goto", label: "Go to page", icon: "→", group: "Navigation", description: "Mở một URL", keywords: ["goto", "navigate", "url", "trang", "mở", "điều hướng", "open", "page"], hasTarget: false, make: () => ({ url: "/login" }) },
-  { type: "reload", label: "Reload page", icon: "↻", group: "Navigation", description: "Tải lại trang", keywords: ["reload", "refresh", "tải lại", "refresh"], hasTarget: false, make: () => ({}) },
-  { type: "goBack", label: "Go back", icon: "←", group: "Navigation", description: "Quay lại trang trước", keywords: ["back", "quay lại", "history"], hasTarget: false, make: () => ({}) },
-  { type: "goForward", label: "Go forward", icon: "→", group: "Navigation", description: "Tiến tới trang sau", keywords: ["forward", "tiến", "history"], hasTarget: false, make: () => ({}) },
+  { type: "goto", label: "Go to page", icon: "→", group: "Navigation", description: "Open a URL", keywords: ["goto", "navigate", "url", "trang", "mở", "điều hướng", "open", "page"], hasTarget: false, make: () => ({ url: "/login" }) },
+  { type: "reload", label: "Reload page", icon: "↻", group: "Navigation", description: "Reload the page", keywords: ["reload", "refresh", "tải lại", "refresh"], hasTarget: false, make: () => ({}) },
+  { type: "goBack", label: "Go back", icon: "←", group: "Navigation", description: "Go back to the previous page", keywords: ["back", "quay lại", "history"], hasTarget: false, make: () => ({}) },
+  { type: "goForward", label: "Go forward", icon: "→", group: "Navigation", description: "Go forward to the next page", keywords: ["forward", "tiến", "history"], hasTarget: false, make: () => ({}) },
   // -- Interaction --
-  { type: "click", label: "Click", icon: "👆", group: "Interaction", description: "Nhấn vào một phần tử", keywords: ["click", "nhấn", "nhấp", "button", "nút", "press", "tap"], hasTarget: true, make: () => ({ target: target() }) },
-  { type: "doubleClick", label: "Double click", icon: "👆👆", group: "Interaction", description: "Nhấn đúp", keywords: ["double", "nhấp đúp", "doubleclick"], hasTarget: true, make: () => ({ target: target() }) },
-  { type: "fill", label: "Fill text field", icon: "✎", group: "Interaction", description: "Điền text vào ô nhập", keywords: ["fill", "điền", "nhập", "email", "text", "textbox", "field", "input", "type"], hasTarget: true, make: () => ({ target: target("label"), value: "" }) },
-  { type: "clear", label: "Clear field", icon: "⌫", group: "Interaction", description: "Xóa nội dung ô nhập", keywords: ["clear", "xóa", "empty"], hasTarget: true, make: () => ({ target: target("label") }) },
-  { type: "press", label: "Press key", icon: "⌨", group: "Interaction", description: "Nhấn phím (Enter, Tab…)", keywords: ["press", "key", "phím", "enter", "tab", "keyboard"], hasTarget: false, make: () => ({ key: "Enter" }) },
-  { type: "check", label: "Check checkbox", icon: "☑", group: "Interaction", description: "Tick checkbox", keywords: ["check", "tick", "checkbox", "chọn"], hasTarget: true, make: () => ({ target: target() }) },
-  { type: "uncheck", label: "Uncheck checkbox", icon: "☐", group: "Interaction", description: "Bỏ tick checkbox", keywords: ["uncheck", "untick", "bỏ chọn", "checkbox"], hasTarget: true, make: () => ({ target: target() }) },
-  { type: "select", label: "Select option", icon: "▾", group: "Interaction", description: "Chọn option trong dropdown", keywords: ["select", "dropdown", "option", "chọn", "combobox"], hasTarget: true, make: () => ({ target: target("label"), value: "" }) },
-  { type: "hover", label: "Hover", icon: "◈", group: "Interaction", description: "Di chuột lên phần tử", keywords: ["hover", "di chuột", "mouse"], hasTarget: true, make: () => ({ target: target() }) },
+  { type: "click", label: "Click", icon: "👆", group: "Interaction", description: "Click an element", keywords: ["click", "nhấn", "nhấp", "button", "nút", "press", "tap"], hasTarget: true, make: () => ({ target: target() }) },
+  { type: "doubleClick", label: "Double click", icon: "👆👆", group: "Interaction", description: "Double-click an element", keywords: ["double", "nhấp đúp", "doubleclick"], hasTarget: true, make: () => ({ target: target() }) },
+  { type: "fill", label: "Fill text field", icon: "✎", group: "Interaction", description: "Fill a text input", keywords: ["fill", "điền", "nhập", "email", "text", "textbox", "field", "input", "type"], hasTarget: true, make: () => ({ target: target("label"), value: "" }) },
+  { type: "clear", label: "Clear field", icon: "⌫", group: "Interaction", description: "Clear an input", keywords: ["clear", "xóa", "empty"], hasTarget: true, make: () => ({ target: target("label") }) },
+  { type: "press", label: "Press key", icon: "⌨", group: "Interaction", description: "Press a key (Enter, Tab…)", keywords: ["press", "key", "phím", "enter", "tab", "keyboard"], hasTarget: false, make: () => ({ key: "Enter" }) },
+  { type: "check", label: "Check checkbox", icon: "☑", group: "Interaction", description: "Check a checkbox", keywords: ["check", "tick", "checkbox", "chọn"], hasTarget: true, make: () => ({ target: target() }) },
+  { type: "uncheck", label: "Uncheck checkbox", icon: "☐", group: "Interaction", description: "Uncheck a checkbox", keywords: ["uncheck", "untick", "bỏ chọn", "checkbox"], hasTarget: true, make: () => ({ target: target() }) },
+  { type: "select", label: "Select option", icon: "▾", group: "Interaction", description: "Select a dropdown option", keywords: ["select", "dropdown", "option", "chọn", "combobox"], hasTarget: true, make: () => ({ target: target("label"), value: "" }) },
+  { type: "hover", label: "Hover", icon: "◈", group: "Interaction", description: "Hover over an element", keywords: ["hover", "di chuột", "mouse"], hasTarget: true, make: () => ({ target: target() }) },
   // -- Wait --
-  { type: "waitForElement", label: "Wait for element", icon: "⏳", group: "Wait", description: "Chờ phần tử theo trạng thái", keywords: ["wait", "chờ", "element", "visible", "state"], hasTarget: true, make: () => ({ target: target(), state: "visible" }) },
-  { type: "waitForTimeout", label: "Fixed wait", icon: "⏱", group: "Wait", description: "Chờ cứng N mili-giây", keywords: ["wait", "timeout", "sleep", "chờ", "giây", "fixed", "delay"], hasTarget: false, warnFixedWait: true, make: () => ({ milliseconds: 1000 }) },
-  { type: "waitForURL", label: "Wait for URL", icon: "🔗", group: "Wait", description: "Chờ URL đổi sang mẫu", keywords: ["wait", "url", "chờ", "redirect", "pattern"], hasTarget: false, make: () => ({ url: "" }) },
+  { type: "waitForElement", label: "Wait for element", icon: "⏳", group: "Wait", description: "Wait for an element state", keywords: ["wait", "chờ", "element", "visible", "state"], hasTarget: true, make: () => ({ target: target(), state: "visible" }) },
+  { type: "waitForTimeout", label: "Fixed wait", icon: "⏱", group: "Wait", description: "Wait a fixed N milliseconds", keywords: ["wait", "timeout", "sleep", "chờ", "giây", "fixed", "delay"], hasTarget: false, warnFixedWait: true, make: () => ({ milliseconds: 1000 }) },
+  { type: "waitForURL", label: "Wait for URL", icon: "🔗", group: "Wait", description: "Wait for the URL to match a pattern", keywords: ["wait", "url", "chờ", "redirect", "pattern"], hasTarget: false, make: () => ({ url: "" }) },
   // -- Assertions --
-  { type: "assertVisible", label: "Assert visible", icon: "✓", group: "Assertion", description: "Kiểm tra phần tử hiển thị", keywords: ["assert", "visible", "hiển thị", "check", "verify", "thấy"], hasTarget: true, make: () => ({ target: target() }) },
-  { type: "assertHidden", label: "Assert hidden", icon: "✕", group: "Assertion", description: "Kiểm tra phần tử bị ẩn", keywords: ["assert", "hidden", "ẩn", "invisible"], hasTarget: true, make: () => ({ target: target() }) },
-  { type: "assertText", label: "Assert exact text", icon: "❝", group: "Assertion", description: "Text khớp chính xác", keywords: ["assert", "text", "exact", "chữ", "nội dung", "verify"], hasTarget: true, make: () => ({ target: target("text"), expected: "" }) },
-  { type: "assertContainsText", label: "Assert contains text", icon: "≋", group: "Assertion", description: "Text chứa chuỗi mong đợi", keywords: ["assert", "contains", "chứa", "text"], hasTarget: true, make: () => ({ target: target("text"), expected: "" }) },
-  { type: "assertValue", label: "Assert field value", icon: "=✓", group: "Assertion", description: "Giá trị ô nhập", keywords: ["assert", "value", "giá trị", "input"], hasTarget: true, make: () => ({ target: target("label"), expected: "" }) },
-  { type: "assertURL", label: "Assert URL", icon: "🔗✓", group: "Assertion", description: "Kiểm tra URL hiện tại", keywords: ["assert", "url", "địa chỉ"], hasTarget: false, make: () => ({ expected: "" }) },
-  { type: "assertTitle", label: "Assert page title", icon: "T✓", group: "Assertion", description: "Kiểm tra tiêu đề trang", keywords: ["assert", "title", "tiêu đề"], hasTarget: false, make: () => ({ expected: "" }) },
-  { type: "assertEnabled", label: "Assert enabled", icon: "⚡", group: "Assertion", description: "Phần tử ở trạng thái enabled", keywords: ["assert", "enabled", "bật"], hasTarget: true, make: () => ({ target: target() }) },
-  { type: "assertDisabled", label: "Assert disabled", icon: "🚫", group: "Assertion", description: "Phần tử bị disabled", keywords: ["assert", "disabled", "tắt", "mờ"], hasTarget: true, make: () => ({ target: target() }) },
-  { type: "assertChecked", label: "Assert checked", icon: "☑✓", group: "Assertion", description: "Checkbox đã tick", keywords: ["assert", "checked", "tick"], hasTarget: true, make: () => ({ target: target() }) },
+  { type: "assertVisible", label: "Assert visible", icon: "✓", group: "Assertion", description: "Assert an element is visible", keywords: ["assert", "visible", "hiển thị", "check", "verify", "thấy"], hasTarget: true, make: () => ({ target: target() }) },
+  { type: "assertHidden", label: "Assert hidden", icon: "✕", group: "Assertion", description: "Assert an element is hidden", keywords: ["assert", "hidden", "ẩn", "invisible"], hasTarget: true, make: () => ({ target: target() }) },
+  { type: "assertText", label: "Assert exact text", icon: "❝", group: "Assertion", description: "Exact text match", keywords: ["assert", "text", "exact", "chữ", "nội dung", "verify"], hasTarget: true, make: () => ({ target: target("text"), expected: "" }) },
+  { type: "assertContainsText", label: "Assert contains text", icon: "≋", group: "Assertion", description: "Text contains the expected string", keywords: ["assert", "contains", "chứa", "text"], hasTarget: true, make: () => ({ target: target("text"), expected: "" }) },
+  { type: "assertValue", label: "Assert field value", icon: "=✓", group: "Assertion", description: "Input field value", keywords: ["assert", "value", "giá trị", "input"], hasTarget: true, make: () => ({ target: target("label"), expected: "" }) },
+  { type: "assertURL", label: "Assert URL", icon: "🔗✓", group: "Assertion", description: "Check the current URL", keywords: ["assert", "url", "địa chỉ"], hasTarget: false, make: () => ({ expected: "" }) },
+  { type: "assertTitle", label: "Assert page title", icon: "T✓", group: "Assertion", description: "Check the page title", keywords: ["assert", "title", "tiêu đề"], hasTarget: false, make: () => ({ expected: "" }) },
+  { type: "assertEnabled", label: "Assert enabled", icon: "⚡", group: "Assertion", description: "Element is enabled", keywords: ["assert", "enabled", "bật"], hasTarget: true, make: () => ({ target: target() }) },
+  { type: "assertDisabled", label: "Assert disabled", icon: "🚫", group: "Assertion", description: "Element is disabled", keywords: ["assert", "disabled", "tắt", "mờ"], hasTarget: true, make: () => ({ target: target() }) },
+  { type: "assertChecked", label: "Assert checked", icon: "☑✓", group: "Assertion", description: "Checkbox is checked", keywords: ["assert", "checked", "tick"], hasTarget: true, make: () => ({ target: target() }) },
   // -- Utility --
-  { type: "screenshot", label: "Take screenshot", icon: "📷", group: "Utility", description: "Chụp ảnh màn hình", keywords: ["screenshot", "chụp", "ảnh", "capture", "photo"], hasTarget: false, make: () => ({ fullPage: false }) },
+  { type: "screenshot", label: "Take screenshot", icon: "📷", group: "Utility", description: "Take a screenshot", keywords: ["screenshot", "chụp", "ảnh", "capture", "photo"], hasTarget: false, make: () => ({ fullPage: false }) },
   // -- P1 reusable action invocation (business keyword; body inlines at compile time) --
-  { type: "callAction", label: "Call action", icon: "🔁", group: "Utility", description: "Gọi reusable action (business keyword)", keywords: ["call", "action", "reusable", "gọi", "keyword", "business", "tái sử dụng"], hasTarget: false, make: () => ({ actionId: "", arguments: {} }) },
+  { type: "callAction", label: "Call action", icon: "🔁", group: "Utility", description: "Call a reusable action (business keyword)", keywords: ["call", "action", "reusable", "gọi", "keyword", "business", "tái sử dụng"], hasTarget: false, make: () => ({ actionId: "", arguments: {} }) },
   // -- P1 wave 2: files / tabs / dialogs / API (shapes mirror packages/test-model) --
-  { type: "upload", label: "Upload file", icon: "📤", group: "Interaction", description: "Tải file lên qua ô input", keywords: ["upload", "tải lên", "tai len", "file", "input", "setinputfiles", "đính kèm", "dinh kem"], hasTarget: true, make: () => ({ target: target(), fileId: "" }) },
-  { type: "download", label: "Download file", icon: "📥", group: "Utility", description: "Bấm để tải file / tải trực tiếp từ URL", keywords: ["download", "tải xuống", "tai xuong", "save", "lưu", "luu", "tải file", "tai file"], hasTarget: true, make: () => ({ url: "", saveAs: "" }) },
-  { type: "newTab", label: "Open new tab", icon: "🗗", group: "Navigation", description: "Mở tab mới (kèm URL tùy chọn)", keywords: ["new tab", "tab mới", "tab moi", "mở tab", "mo tab", "window", "popup"], hasTarget: false, make: () => ({ url: "" }) },
-  { type: "closeTab", label: "Close tab", icon: "✕", group: "Navigation", description: "Đóng tab hiện tại", keywords: ["close tab", "đóng tab", "dong tab", "close", "window", "đóng"], hasTarget: false, make: () => ({}) },
-  { type: "handleDialog", label: "Handle dialog", icon: "💬", group: "Utility", description: "Xử lý hộp thoại alert/confirm/prompt kế tiếp", keywords: ["dialog", "hộp thoại", "hop thoai", "alert", "confirm", "prompt", "accept", "dismiss", "popup"], hasTarget: false, make: () => ({ action: "accept" }) },
-  { type: "apiRequest", label: "API request", icon: "🌐", group: "Utility", description: "Gọi HTTP API và kiểm tra status", keywords: ["api", "request", "http", "get", "post", "put", "patch", "delete", "rest", "gọi api", "goi api"], hasTarget: false, make: () => ({ method: "GET", url: "", expectedStatus: 200 }) },
-  { type: "mockRoute", label: "Mock API route", icon: "🎭", group: "Utility", description: "Giả response API để test UI lúc lỗi (đặt trước goto/click)", keywords: ["mock", "giả", "gia", "route", "intercept", "fulfill", "stub", "fake api", "lỗi api", "loi api", "500", "offline"], hasTarget: false, make: () => ({ url: "", status: 500, body: '{"error":"mocked"}', contentType: "application/json" }) },
-  { type: "axeCheck", label: "Accessibility scan", icon: "♿", group: "Assertion", description: "Quét axe-core (WCAG) — fail khi có lỗi critical/serious", keywords: ["axe", "accessibility", "a11y", "wcag", "contrast", "tương phản", "khuyết tật", "scan", "quét"], hasTarget: false, make: () => ({}) },
+  { type: "upload", label: "Upload file", icon: "📤", group: "Interaction", description: "Upload a file via an input", keywords: ["upload", "tải lên", "tai len", "file", "input", "setinputfiles", "đính kèm", "dinh kem"], hasTarget: true, make: () => ({ target: target(), fileId: "" }) },
+  { type: "download", label: "Download file", icon: "📥", group: "Utility", description: "Click to download a file / download directly from a URL", keywords: ["download", "tải xuống", "tai xuong", "save", "lưu", "luu", "tải file", "tai file"], hasTarget: true, make: () => ({ url: "", saveAs: "" }) },
+  { type: "newTab", label: "Open new tab", icon: "🗗", group: "Navigation", description: "Open a new tab (with optional URL)", keywords: ["new tab", "tab mới", "tab moi", "mở tab", "mo tab", "window", "popup"], hasTarget: false, make: () => ({ url: "" }) },
+  { type: "closeTab", label: "Close tab", icon: "✕", group: "Navigation", description: "Close the current tab", keywords: ["close tab", "đóng tab", "dong tab", "close", "window", "đóng"], hasTarget: false, make: () => ({}) },
+  { type: "handleDialog", label: "Handle dialog", icon: "💬", group: "Utility", description: "Handle the next alert/confirm/prompt dialog", keywords: ["dialog", "hộp thoại", "hop thoai", "alert", "confirm", "prompt", "accept", "dismiss", "popup"], hasTarget: false, make: () => ({ action: "accept" }) },
+  { type: "apiRequest", label: "API request", icon: "🌐", group: "Utility", description: "Call an HTTP API and check the status", keywords: ["api", "request", "http", "get", "post", "put", "patch", "delete", "rest", "gọi api", "goi api"], hasTarget: false, make: () => ({ method: "GET", url: "", expectedStatus: 200 }) },
+  { type: "mockRoute", label: "Mock API route", icon: "🎭", group: "Utility", description: "Mock an API response to test error UI (place before goto/click)", keywords: ["mock", "giả", "gia", "route", "intercept", "fulfill", "stub", "fake api", "lỗi api", "loi api", "500", "offline"], hasTarget: false, make: () => ({ url: "", status: 500, body: '{"error":"mocked"}', contentType: "application/json" }) },
+  { type: "axeCheck", label: "Accessibility scan", icon: "♿", group: "Assertion", description: "Run an axe-core scan (WCAG) — fails on critical/serious issues", keywords: ["axe", "accessibility", "a11y", "wcag", "contrast", "tương phản", "khuyết tật", "scan", "quét"], hasTarget: false, make: () => ({}) },
   // -- P2 visual regression (target OPTIONAL: whole viewport when omitted) --
-  { type: "visualCheck", label: "Visual check", icon: "📸", group: "Assertion", description: "So ảnh với baseline đã lưu", keywords: ["visual", "baseline", "regression", "screenshot", "compare", "so sánh", "ảnh", "giao diện", "hồi quy"], hasTarget: true, make: () => ({ name: "", threshold: 0.05 }) },
+  { type: "visualCheck", label: "Visual check", icon: "📸", group: "Assertion", description: "Compare against a saved baseline", keywords: ["visual", "baseline", "regression", "screenshot", "compare", "so sánh", "ảnh", "giao diện", "hồi quy"], hasTarget: true, make: () => ({ name: "", threshold: 0.05 }) },
   // -- P2 plugin step fallback (manual type; dynamic per-plugin entries come from GET /plugins) --
-  { type: "plugin:", label: "Plugin step…", icon: "🔌", group: "Utility", description: "Step từ plugin (nhập type đầy đủ plugin:…)", keywords: ["plugin", "custom", "extension", "sdk", "mở rộng"], hasTarget: false, make: () => ({ params: {} }) },
+  { type: "plugin:", label: "Plugin step…", icon: "🔌", group: "Utility", description: "Plugin step (enter the full plugin:… type)", keywords: ["plugin", "custom", "extension", "sdk", "mở rộng"], hasTarget: false, make: () => ({ params: {} }) },
 ];
 
 /** A step type is plugin-provided when it uses the `plugin:` prefix. */
@@ -309,7 +309,7 @@ export function businessName(step: BuilderStep): string {
       const aid = typeof step.actionId === "string" ? step.actionId : "";
       const args = step.arguments as Record<string, string> | undefined;
       const n = args ? Object.keys(args).length : 0;
-      return `Call action ${aid ? `“${aid.slice(0, 24)}”` : "(chưa chọn)"}${n > 0 ? ` (${n} arg${n > 1 ? "s" : ""})` : ""}`;
+      return `Call action ${aid ? `“${aid.slice(0, 24)}”` : "(not selected)"}${n > 0 ? ` (${n} arg${n > 1 ? "s" : ""})` : ""}`;
     }
     case "upload":
       return `Upload ${typeof step.fileId === "string" && step.fileId ? `file “${String(step.fileId).slice(0, 18)}”` : "file"} to ${t}`;
@@ -333,10 +333,10 @@ export function businessName(step: BuilderStep): string {
     case "apiRequest": {
       const m = typeof step.method === "string" ? step.method : "GET";
       const u = typeof step.url === "string" ? step.url : "";
-      return `${m} ${u || "(chưa nhập URL)"}`;
+      return `${m} ${u || "(no URL entered)"}`;
     }
     case "visualCheck": {
-      const n = typeof step.name === "string" && step.name ? `“${step.name}”` : "(chưa đặt tên baseline)";
+      const n = typeof step.name === "string" && step.name ? `“${step.name}”` : "(no baseline name)";
       const th = typeof step.threshold === "number" ? ` · ${(step.threshold * 100).toFixed(1)}%` : "";
       const scope = (step as { target?: unknown }).target ? ` · ${t}` : " · whole page";
       return `Visual check ${n}${th}${scope}`;

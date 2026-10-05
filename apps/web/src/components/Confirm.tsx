@@ -20,14 +20,14 @@ export function useConfirm() {
 
   const dialog = pending ? (
     <div className="modal-backdrop">
-      <div className="modal" role="alertdialog" aria-modal="true" aria-label="Xác nhận">
+      <div className="modal" role="alertdialog" aria-modal="true" aria-label="Confirm">
         <p>{pending.message}</p>
         <div className="row">
           <button type="button" className="btn" autoFocus onClick={() => close(false)}>
-            Giữ lại
+            Keep
           </button>
           <button type="button" className="btn btn-danger" onClick={() => close(true)}>
-            Xóa
+            Delete
           </button>
         </div>
       </div>

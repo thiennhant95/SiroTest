@@ -82,7 +82,7 @@ export function SchedulesPage() {
         setUnsupported(true);
         setSchedules([]);
       } else {
-        setError(e instanceof ApiError ? e.message : "Không tải được schedules");
+        setError(e instanceof ApiError ? e.message : "Couldn't load schedules");
         setSchedules([]);
       }
     }
@@ -124,7 +124,7 @@ export function SchedulesPage() {
   async function save() {
     if (!projectId) return;
     if (!fEnvId) {
-      setFormError("Chọn environment để chạy.");
+      setFormError("Select an environment to run in.");
       return;
     }
     const v = validateCron(fCron);
@@ -133,11 +133,11 @@ export function SchedulesPage() {
       return;
     }
     if (fKind === "suite" && !fSuiteId) {
-      setFormError("Chọn suite để lên lịch.");
+      setFormError("Select a suite to schedule.");
       return;
     }
     if (fKind === "test" && !fTestId) {
-      setFormError("Chọn test để lên lịch.");
+      setFormError("Select a test to schedule.");
       return;
     }
     setSaving(true);
@@ -162,15 +162,15 @@ export function SchedulesPage() {
           retries: Math.max(0, Math.min(5, fRetries)),
         });
         setSchedules((prev) => prev?.map((x) => (x.id === saved.id ? saved : x)) ?? [saved]);
-        toast.push("success", "Đã lưu schedule.");
+        toast.push("success", "Saved schedule.");
       } else {
         const created = await api.createSchedule(projectId, payload);
         setSchedules((prev) => (prev ? [created, ...prev] : [created]));
-        toast.push("success", "Đã tạo schedule.");
+        toast.push("success", "Created schedule.");
       }
       setDialogOpen(false);
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Lưu thất bại";
+      const msg = e instanceof ApiError ? e.message : "Save failed";
       setFormError(msg);
     } finally {
       setSaving(false);
@@ -179,13 +179,13 @@ export function SchedulesPage() {
 
   async function remove(s: ScheduleRecord) {
     const label = s.name || s.suiteName || s.testName || s.id;
-    if (!window.confirm(`Xóa schedule “${label}”? Các run đã chạy giữ nguyên lịch sử.`)) return;
+    if (!window.confirm(`Delete schedule “${label}”? Past runs keep their history.`)) return;
     try {
       await api.deleteSchedule(s.id);
       setSchedules((prev) => prev?.filter((x) => x.id !== s.id) ?? []);
-      toast.push("success", "Đã xóa schedule.");
+      toast.push("success", "Deleted schedule.");
     } catch (e) {
-      toast.push("error", e instanceof ApiError ? e.message : "Xóa thất bại");
+      toast.push("error", e instanceof ApiError ? e.message : "Deletion failed");
     }
   }
 
@@ -194,7 +194,7 @@ export function SchedulesPage() {
       const saved = await api.updateSchedule(s.id, { enabled: !s.enabled });
       setSchedules((prev) => prev?.map((x) => (x.id === saved.id ? saved : x)) ?? []);
     } catch (e) {
-      toast.push("error", e instanceof ApiError ? e.message : "Đổi trạng thái thất bại");
+      toast.push("error", e instanceof ApiError ? e.message : "Couldn't change status");
     }
   }
 
@@ -211,7 +211,7 @@ export function SchedulesPage() {
       setRuns((prev) => ({ ...prev, [s.id]: list.filter((r) => !r.trigger || r.trigger === "schedule") }));
     } catch (e) {
       setRuns((prev) => ({ ...prev, [s.id]: [] }));
-      setRunsError((prev) => ({ ...prev, [s.id]: e instanceof ApiError ? e.message : "Không tải được runs" }));
+      setRunsError((prev) => ({ ...prev, [s.id]: e instanceof ApiError ? e.message : "Couldn't load runs" }));
     }
   }
 
@@ -223,7 +223,7 @@ export function SchedulesPage() {
         delete next[s.id];
         return next;
       });
-      toast.push("success", `Đã kích chạy thủ công (${res.suiteRunId ?? res.runId ?? s.id}).`);
+      toast.push("success", `Triggered a manual run (${res.suiteRunId ?? res.runId ?? s.id}).`);
       if (runsOpenId === s.id) {
         setRuns((prev) => ({ ...prev, [s.id]: null }));
         try {
@@ -234,7 +234,7 @@ export function SchedulesPage() {
         }
       }
     } catch (e) {
-      toast.push("error", e instanceof ApiError ? e.message : "Run now thất bại");
+      toast.push("error", e instanceof ApiError ? e.message : "Run now failed");
     }
   }
 
@@ -251,13 +251,13 @@ export function SchedulesPage() {
         </span>
       </div>
       <p className="text-sm text-slate-500">
-        Chạy suite/test theo giờ (cron). Server là nơi duy nhất kích chạy — preview dưới đây chỉ để kiểm tra.
+        Run suites/tests on a schedule (cron). The server is the only trigger — the preview below is for checking only.
       </p>
 
       {unsupported ? (
         <EmptyState
-          title="Backend chưa hỗ trợ schedules (API 404)"
-          hint="UI đã sẵn sàng theo contract GET/POST /projects/:id/schedules. Đợi backend P1 wave 2 rồi reload."
+          title="Backend schedules not supported (API 404)"
+          hint="UI is ready per contract GET/POST /projects/:id/schedules. Waiting on P1 wave 2 backend — reload later."
         />
       ) : schedules === null ? (
         <div className="space-y-2">
@@ -272,7 +272,7 @@ export function SchedulesPage() {
             <Button size="sm" onClick={openCreate}>+ New schedule</Button>
           </div>
           {schedules.length === 0 ? (
-            <EmptyState title="Chưa có schedule" hint="Tạo lịch đầu tiên: chọn suite/test + environment + cron." />
+            <EmptyState title="No schedules yet" hint="Create your first schedule: pick a suite/test + environment + cron." />
           ) : (
             <ul className="space-y-2">
               {schedules.map((s) => {
@@ -292,14 +292,14 @@ export function SchedulesPage() {
                       </span>
                       <span className="ml-auto flex gap-2 text-xs">
                         <button className="text-indigo-700 hover:underline" onClick={() => void toggleRuns(s)}>
-                          {open ? "Ẩn runs" : "Runs"}
+                          {open ? "Hide runs" : "Runs"}
                         </button>
                         <button className="text-indigo-700 hover:underline" onClick={() => void runNow(s)}>Run now</button>
-                        <button className="text-indigo-700 hover:underline" onClick={() => openEdit(s)}>Sửa</button>
+                        <button className="text-indigo-700 hover:underline" onClick={() => openEdit(s)}>Edit</button>
                         <button className="text-slate-600 hover:underline" onClick={() => void toggleEnabled(s)}>
-                          {s.enabled ? "Tắt" : "Bật"}
+                          {s.enabled ? "Disable" : "Enable"}
                         </button>
-                        <button className="text-red-600 hover:underline" onClick={() => void remove(s)}>Xóa</button>
+                        <button className="text-red-600 hover:underline" onClick={() => void remove(s)}>Delete</button>
                       </span>
                     </div>
                     {open ? (
@@ -309,11 +309,11 @@ export function SchedulesPage() {
                         ) : runsError[s.id] ? (
                           <p className="text-xs text-red-600">{runsError[s.id]}</p>
                         ) : list.length === 0 ? (
-                          <p className="text-xs text-slate-500">Chưa có run nào từ schedule này (trigger=‘schedule’).</p>
+                            <p className="text-xs text-slate-500">No runs from this schedule yet (trigger='schedule').</p>
                         ) : (
                           <DataTable<ScheduleRun>
-                            caption={`Runs của schedule (trigger='schedule')`}
-                            emptyText="Chưa có run."
+                            caption={`Runs of this schedule (trigger='schedule')`}
+                            emptyText="No runs yet."
                             rows={list}
                             columns={[
                               {
@@ -349,13 +349,13 @@ export function SchedulesPage() {
         </>
       )}
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} title={editing ? "Sửa schedule" : "New schedule"} wide>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} title={editing ? "Edit schedule" : "New schedule"} wide>
         <div className="space-y-3">
-          <Field label="Tên (tùy chọn)">
-            <Input value={fName} onChange={(e) => setFName(e.target.value)} placeholder="vd Nightly smoke" />
+          <Field label="Name (optional)">
+            <Input value={fName} onChange={(e) => setFName(e.target.value)} placeholder="e.g. Nightly smoke" />
           </Field>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Field label="Chạy">
+            <Field label="Run">
               <Select value={fKind} onChange={(e) => setFKind(e.target.value as "suite" | "test")}>
                 <option value="suite">Suite</option>
                 <option value="test">Test</option>
@@ -363,7 +363,7 @@ export function SchedulesPage() {
             </Field>
             <Field label="Environment">
               <Select value={fEnvId} onChange={(e) => setFEnvId(e.target.value)}>
-                <option value="">— Chọn —</option>
+                <option value="">— Select —</option>
                 {envs.map((e) => (
                   <option key={e.id} value={e.id}>{e.name}</option>
                 ))}
@@ -373,7 +373,7 @@ export function SchedulesPage() {
           {fKind === "suite" ? (
             <Field label="Suite">
               <Select value={fSuiteId} onChange={(e) => setFSuiteId(e.target.value)}>
-                <option value="">— Chọn suite —</option>
+                <option value="">— Select suite —</option>
                 {suites.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
@@ -382,7 +382,7 @@ export function SchedulesPage() {
           ) : (
             <Field label="Test">
               <Select value={fTestId} onChange={(e) => setFTestId(e.target.value)}>
-                <option value="">— Chọn test —</option>
+                <option value="">— Select test —</option>
                 {tests.map((t) => (
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
@@ -396,7 +396,7 @@ export function SchedulesPage() {
             <p role="alert" className="text-xs text-red-700">{cronError}</p>
           ) : nextRun ? (
             <p className="text-xs text-slate-600">
-              Chạy kế tiếp (preview máy bạn): <strong>{nextRun.toLocaleString()}</strong>
+              Next run (preview on your machine): <strong>{nextRun.toLocaleString()}</strong>
             </p>
           ) : null}
           <div className="grid grid-cols-2 gap-2">
@@ -412,9 +412,9 @@ export function SchedulesPage() {
             <p role="alert" className="text-xs text-red-700">{formError}</p>
           ) : null}
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="outline" onClick={() => setDialogOpen(false)}>Hủy</Button>
+            <Button size="sm" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button size="sm" disabled={saving} onClick={() => void save()}>
-              {saving ? "Đang lưu…" : editing ? "Save" : "Create"}
+              {saving ? "Saving…" : editing ? "Save" : "Create"}
             </Button>
           </div>
         </div>

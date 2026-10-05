@@ -62,37 +62,37 @@ export function CodeTab({ testId, testName }: { testId: string; testName: string
     if (!code) return;
     try {
       await navigator.clipboard.writeText(code);
-      toast.push("success", "Đã sao chép mã kiểm thử");
+      toast.push("success", "Copied test code");
     } catch {
-      toast.push("error", "Không sao chép được — hãy bôi đen và Ctrl+C");
+      toast.push("error", "Couldn't copy — select all and press Ctrl+C");
     }
   };
 
   const downloadSpec = () => {
     if (!code) return;
     downloadBlob(new Blob([code], { type: "text/x-typescript" }), `${testId}.spec.ts`);
-    toast.push("success", "Đã tải file .spec.ts");
+    toast.push("success", "Downloaded .spec.ts file");
   };
 
   const downloadZip = () => {
     if (!code) return;
     const zip = buildZip(specZipFiles(testName || testId, code));
     downloadBlob(zip, `${testId}-playwright.zip`);
-    toast.push("success", "Đã tải gói ZIP (kèm package.json/config tối thiểu)");
+    toast.push("success", "Downloaded ZIP package (with minimal package.json/config)");
   };
 
-  if (loading) return <Skeleton lines={10} label="Đang sinh mã kiểm thử…" />;
+  if (loading) return <Skeleton lines={10} label="Generating test code…" />;
   if (error || code == null)
-    return <ErrorState message={error ?? "Không sinh được mã"} onRetry={() => void load()} />;
+    return <ErrorState message={error ?? "Couldn't generate code"} onRetry={() => void load()} />;
   if (!code.trim())
-    return <EmptyState title="Chưa có mã để hiển thị" hint="Hãy thêm ít nhất một bước rồi quay lại tab Mã." />;
+    return <EmptyState title="No code to show yet" hint="Add at least one step, then return to the Code tab." />;
 
   return (
-    <div aria-label="Mã kiểm thử (nâng cao)">
+    <div aria-label="Test code (advanced)">
       <div className="callout">
-        <strong>Dành cho kỹ thuật.</strong> Tester thao tác ở các tab bên trái là đủ — không cần
-        đọc hiểu <code>page.locator()</code>. Mã dưới đây chạy được bằng{" "}
-        <code>@playwright/test</code> gốc, không cần Studio.
+        <strong>For engineers.</strong> Testers can work in the tabs on the left — no need
+        to read <code>page.locator()</code>. The code below runs with stock{" "}
+        <code>@playwright/test</code>, no Studio needed.
       </div>
       {datasets.length > 0 ? (
         <label className="row" style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -102,10 +102,10 @@ export function CodeTab({ testId, testName }: { testId: string; testName: string
             value={datasetId}
             onChange={(e) => setDatasetId(e.target.value)}
           >
-            <option value="">Không (bản đơn)</option>
+            <option value="">None (single run)</option>
             {datasets.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.name} ({d.rows.length} dòng)
+                {d.name} ({d.rows.length} rows)
               </option>
             ))}
           </select>
@@ -113,22 +113,22 @@ export function CodeTab({ testId, testName }: { testId: string; testName: string
       ) : null}
       <div className="row">
         <button type="button" className="btn" onClick={() => void copy()}>
-          Sao chép
+          Copy
         </button>
         <button type="button" className="btn" onClick={downloadSpec}>
-          Tải .spec.ts
+          Download .spec.ts
         </button>
         <button type="button" className="btn" onClick={downloadZip}>
-          Tải ZIP
+          Download ZIP
         </button>
         <button type="button" className="btn btn-ghost" onClick={() => void load()}>
-          Sinh lại
+          Regenerate
         </button>
       </div>
       <CodeView code={code} />
       <p className="muted small">
-        Chạy ở máy bạn: <code>npm install</code> → <code>npx playwright test</code>. Gói ZIP đã gồm{" "}
-        <code>package.json</code> + <code>playwright.config.ts</code> tối thiểu.
+        Run locally: <code>npm install</code> → <code>npx playwright test</code>. The ZIP already includes{" "}
+        <code>package.json</code> + <code>playwright.config.ts</code> minimal.
       </p>
     </div>
   );

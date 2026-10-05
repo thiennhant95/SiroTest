@@ -54,7 +54,7 @@ export function HistoryTab({ testId }: { testId: string }) {
   const restore = async () => {
     if (!selected || !latest || selected.id === latest.id) return;
     const ok = await confirm(
-      `Khôi phục về bản v${selected.versionNumber}? Hệ thống sẽ tạo bản mới, không xóa lịch sử cũ.`,
+      `Restore to v${selected.versionNumber}? A new version will be created; old history is kept.`,
     );
     if (!ok) return;
     setRestoring(true);
@@ -70,7 +70,7 @@ export function HistoryTab({ testId }: { testId: string }) {
                   ...selected,
                   id: `v-local-${Date.now()}`,
                   versionNumber: (prev[0]?.versionNumber ?? 0) + 1,
-                  changeMessage: `Khôi phục từ bản v${selected.versionNumber}`,
+                  changeMessage: `Restored from v${selected.versionNumber}`,
                   createdAt: new Date().toISOString(),
                 },
                 ...prev,
@@ -78,29 +78,29 @@ export function HistoryTab({ testId }: { testId: string }) {
             : prev,
         );
       }
-      toast.push("success", `Đã khôi phục bản v${selected.versionNumber} thành bản mới`);
+      toast.push("success", `Restored v${selected.versionNumber} as a new version`);
       void load();
     } catch (e) {
-      toast.push("error", e instanceof Error ? e.message : "Khôi phục thất bại");
+      toast.push("error", e instanceof Error ? e.message : "Restore failed");
     } finally {
       setRestoring(false);
     }
   };
 
-  if (loading) return <Skeleton lines={6} label="Đang tải lịch sử…" />;
+  if (loading) return <Skeleton lines={6} label="Loading history…" />;
   if (error || !versions)
-    return <ErrorState message={error ?? "Không tải được lịch sử"} onRetry={() => void load()} />;
+    return <ErrorState message={error ?? "Couldn't load history"} onRetry={() => void load()} />;
   if (versions.length === 0)
     return (
       <EmptyState
-        title="Chưa có bản lưu nào"
-        hint="Bản lưu được tạo qua meaningful save: autosave kèm changeMessage cho mỗi thay đổi có ý nghĩa — hệ thống không tạo bản cho từng phím gõ."
+        title="No saved versions yet"
+        hint="Versions are created via meaningful save: autosave with a change message for each meaningful change — no version per keystroke."
       />
     );
 
   return (
-    <div className="history" aria-label="Lịch sử bản lưu">
-      <div className="history-list" role="listbox" aria-label="Danh sách bản lưu">
+    <div className="history" aria-label="Version history">
+      <div className="history-list" role="listbox" aria-label="Version list">
         {versions.map((v) => (
           <button
             key={v.id}
@@ -113,7 +113,7 @@ export function HistoryTab({ testId }: { testId: string }) {
               setShowJson(false);
             }}
           >
-            <strong>Bản v{v.versionNumber}</strong>
+            <strong>Version v{v.versionNumber}</strong>
             <span className="muted small">
               {v.createdBy} · {formatTime(v.createdAt)}
             </span>
@@ -126,17 +126,17 @@ export function HistoryTab({ testId }: { testId: string }) {
         {selected ? (
           <>
             <h3>
-              Xem trước bản v{selected.versionNumber}{" "}
+              Preview version v{selected.versionNumber}{" "}
               {latest && selected.id !== latest.id ? (
-                <span className="muted">so với bản mới nhất v{latest.versionNumber}</span>
+                <span className="muted">vs latest v{latest.versionNumber}</span>
               ) : (
-                <span className="muted">(bản mới nhất)</span>
+                <span className="muted">(latest)</span>
               )}
             </h3>
             {selected.id === latest?.id ? (
-              <p className="muted">Đây là bản hiện tại — không có gì để so sánh.</p>
+              <p className="muted">This is the current version — nothing to compare.</p>
             ) : diffs.length === 0 ? (
-              <p className="muted">Hai bản giống nhau ở cấp bước.</p>
+              <p className="muted">Both versions match at step level.</p>
             ) : (
               <ul>
                 {diffs.map((d) => (
@@ -152,7 +152,7 @@ export function HistoryTab({ testId }: { testId: string }) {
                 checked={showJson}
                 onChange={(e) => setShowJson(e.target.checked)}
               />
-              Hiện JSON đầy đủ (cho Developer)
+              Show full JSON (for developers)
             </label>
             {showJson ? (
               <pre className="raw">{JSON.stringify(selected.definitionJson, null, 2)}</pre>
@@ -164,15 +164,15 @@ export function HistoryTab({ testId }: { testId: string }) {
                 disabled={restoring}
                 onClick={() => void restore()}
               >
-                {restoring ? "Đang khôi phục…" : `Khôi phục bản v${selected.versionNumber}`}
+                {restoring ? "Restoring…" : `Restore version v${selected.versionNumber}`}
               </button>
             ) : null}
             <p className="muted small">
-              Khôi phục luôn tạo bản mới — lịch sử cũ được giữ nguyên.
+              Restoring always creates a new version — old history is kept.
             </p>
           </>
         ) : (
-          <EmptyState title="Chọn một bản để xem trước" />
+          <EmptyState title="Select a version to preview" />
         )}
       </div>
       {dialog}

@@ -76,10 +76,10 @@ export function VariablesTab({ projectId, envId, envName, variables, onChanged, 
       if (editing.isSecret && editValue) onSecretTyped?.(editValue);
       setEditing(null);
       setEditValue('');
-      toast.push('success', `Đã lưu biến “${editing.key}”.`);
+      toast.push('success', `Saved variable “${editing.key}”.`);
       onChanged();
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : 'Lưu thất bại';
+      const msg = e instanceof ApiError ? e.message : 'Save failed';
       setEditError(msg);
     } finally {
       setSaving(false);
@@ -99,7 +99,7 @@ export function VariablesTab({ projectId, envId, envName, variables, onChanged, 
         </p>
       )}
       <DataTable<Variable>
-        caption={`Biến cho ${envName || 'môi trường đã chọn'} (env-scoped ghi đè shared)`}
+        caption={`Variables for ${envName || 'selected environment'} (env-scoped overrides shared)`}
         emptyText="No variables in this scope yet."
         rows={scoped}
         columns={[
@@ -128,27 +128,27 @@ export function VariablesTab({ projectId, envId, envName, variables, onChanged, 
         ]}
       />
 
-      <Dialog open={editing !== null} onClose={() => setEditing(null)} title={editing ? `Sửa biến “${editing.key}”` : 'Sửa biến'}>
+      <Dialog open={editing !== null} onClose={() => setEditing(null)} title={editing ? `Edit variable “${editing.key}”` : 'Edit variable'}>
         <div className="space-y-3">
           <Field
-            label={editing?.isSecret ? 'Giá trị secret mới (để trống = giữ nguyên)' : 'Giá trị'}
-            hint={editing?.isSecret ? 'Secret write-only — giá trị cũ không bao giờ hiện lại.' : undefined}
+            label={editing?.isSecret ? 'New secret value (empty = keep current)' : 'Value'}
+            hint={editing?.isSecret ? 'Secret is write-only — the old value is never shown again.' : undefined}
           >
             <Input
               type={editing?.isSecret ? 'password' : 'text'}
               autoComplete="off"
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
-              placeholder={editing?.isSecret ? 'secret mới (không hiện lại)' : 'value'}
+              placeholder={editing?.isSecret ? 'new secret (never shown again)' : 'value'}
             />
           </Field>
           {editError ? (
             <p role="alert" className="text-xs text-red-700">{editError}</p>
           ) : null}
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="outline" onClick={() => setEditing(null)}>Hủy</Button>
+            <Button size="sm" variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
             <Button size="sm" disabled={saving} onClick={() => void saveEdit()}>
-              {saving ? 'Đang lưu…' : 'Save'}
+              {saving ? 'Saving…' : 'Save'}
             </Button>
           </div>
         </div>

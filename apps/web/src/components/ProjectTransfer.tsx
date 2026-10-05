@@ -11,19 +11,19 @@ export function ExportProjectButton({ projectId, projectName }: { projectId: str
     setBusy(true);
     try {
       await api.downloadProjectExport(projectId);
-      toast.push("success", `Đã tải export của “${projectName ?? projectId}”.`);
+      toast.push("success", `Downloaded export of “${projectName ?? projectId}”.`);
     } catch (e) {
       if (isNotImplemented(e)) {
-        toast.push("error", "Backend chưa hỗ trợ export (API 404).");
+        toast.push("error", "Backend does not support export yet (API 404).");
       } else {
-        toast.push("error", e instanceof ApiError ? e.message : "Export thất bại");
+        toast.push("error", e instanceof ApiError ? e.message : "Export failed");
       }
     } finally {
       setBusy(false);
     }
   }
   return (
-    <Button size="sm" variant="outline" disabled={busy} onClick={() => void run()} title="Tải JSON export của project">
+    <Button size="sm" variant="outline" disabled={busy} onClick={() => void run()} title="Download project JSON export">
       {busy ? "Exporting…" : "⬇ Export"}
     </Button>
   );
@@ -42,7 +42,7 @@ export function ImportProjectButton({ onImported }: { onImported?: (projectId: s
   async function onPick(file: File | undefined) {
     if (!file) return;
     if (file.size > 1024 * 1024) {
-      toast.push("error", "File export quá lớn (tối đa 1 MB).");
+      toast.push("error", "Export file too large (1 MB max).");
       return;
     }
     setBusy(true);
@@ -53,19 +53,19 @@ export function ImportProjectButton({ onImported }: { onImported?: (projectId: s
       try {
         data = JSON.parse(text);
       } catch {
-        toast.push("error", "File không phải JSON hợp lệ.");
+        toast.push("error", "File is not valid JSON.");
         setBusy(false);
         return;
       }
       const res = await api.importProject({ data });
-      setNotice(`Đã tạo project “${res.name ?? res.id}”. Nhớ điền lại secret/variables — chúng không nằm trong file export.`);
-      toast.push("success", "Import project thành công.");
+      setNotice(`Created project “${res.name ?? res.id}”. Remember to re-enter secrets/variables — they are not in the export file.`);
+      toast.push("success", "Project imported successfully.");
       onImported?.(res.id);
     } catch (e) {
       if (isNotImplemented(e)) {
-        toast.push("error", "Backend chưa hỗ trợ import (API 404).");
+        toast.push("error", "Backend does not support import yet (API 404).");
       } else {
-        toast.push("error", e instanceof ApiError ? e.message : "Import thất bại");
+        toast.push("error", e instanceof ApiError ? e.message : "Import failed");
       }
     } finally {
       setBusy(false);
@@ -112,7 +112,7 @@ export function ImportSpecDialog({ projectId, open, onClose }: { projectId: stri
 
   async function doPreview() {
     if (!code.trim()) {
-      setError("Dán nội dung .spec.ts trước.");
+      setError("Paste .spec.ts content first.");
       return;
     }
     setBusy(true);
@@ -124,9 +124,9 @@ export function ImportSpecDialog({ projectId, open, onClose }: { projectId: stri
       setPreview({ definition: def, warnings: res.warnings ?? [] });
     } catch (e) {
       if (isNotImplemented(e)) {
-        setError("Backend chưa hỗ trợ import-spec (API 404). UI đã sẵn sàng — đợi backend P1 wave 2.");
+        setError("Backend does not support import-spec yet (API 404). UI is ready — waiting on the P1 wave 2 backend.");
       } else {
-        setError(e instanceof ApiError ? e.message : "Preview thất bại");
+        setError(e instanceof ApiError ? e.message : "Preview failed");
       }
     } finally {
       setBusy(false);
@@ -143,22 +143,22 @@ export function ImportSpecDialog({ projectId, open, onClose }: { projectId: stri
           : "Imported spec";
       const created = await api.createTest(projectId, baseName);
       await api.saveTest(created.id, preview.definition);
-      toast.push("success", `Đã tạo test draft “${baseName}”. Kiểm tra steps rồi Save.`);
+      toast.push("success", `Created test draft “${baseName}”. Review the steps, then save.`);
       onClose();
       nav(`/tests/${created.id}`);
     } catch (e) {
-      toast.push("error", e instanceof ApiError ? e.message : "Tạo test thất bại");
+      toast.push("error", e instanceof ApiError ? e.message : "Failed to create test");
     } finally {
       setCreating(false);
     }
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title="Import từ .spec.ts" wide>
+    <Dialog open={open} onClose={onClose} title="Import from .spec.ts" wide>
       <div className="space-y-3">
-        <Field label="Dán nội dung .spec.ts" hint="Parse ở server — preview definition + warnings trước khi tạo.">
+        <Field label="Paste .spec.ts content" hint="Parsed on the server — preview the definition + warnings before creating.">
           <textarea
-            aria-label="Nội dung .spec.ts"
+            aria-label=".spec.ts content"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             rows={10}
@@ -172,18 +172,18 @@ export function ImportSpecDialog({ projectId, open, onClose }: { projectId: stri
         ) : null}
         <div className="flex gap-2">
           <Button size="sm" variant="outline" disabled={busy} onClick={() => void doPreview()}>
-            {busy ? "Đang preview…" : "Preview"}
+            {busy ? "Previewing…" : "Preview"}
           </Button>
           {preview ? (
             <Button size="sm" disabled={creating} onClick={() => void doCreate()}>
-              {creating ? "Đang tạo…" : "Tạo test draft"}
+              {creating ? "Creating…" : "Create test draft"}
             </Button>
           ) : null}
         </div>
         {preview ? (
           <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs text-slate-700">
-              Preview: <strong>{String(preview.definition.name ?? "(chưa đặt tên)")}</strong> ·{" "}
+              Preview: <strong>{String(preview.definition.name ?? "(untitled)")}</strong> ·{" "}
               <Badge>{Array.isArray(preview.definition.steps) ? preview.definition.steps.length : 0} steps</Badge>
             </p>
             {preview.warnings.length > 0 ? (
@@ -193,7 +193,7 @@ export function ImportSpecDialog({ projectId, open, onClose }: { projectId: stri
                 ))}
               </ul>
             ) : (
-              <p className="text-xs text-green-700">Không có warning — sẵn sàng tạo draft.</p>
+              <p className="text-xs text-green-700">No warnings — ready to create the draft.</p>
             )}
           </div>
         ) : null}

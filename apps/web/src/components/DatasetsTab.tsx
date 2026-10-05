@@ -32,7 +32,7 @@ export function DatasetsTab({
 
   async function doImport() {
     if (!content.trim()) {
-      setError("Dán nội dung CSV/JSON hoặc tải file lên trước.");
+      setError("Paste CSV/JSON content or upload a file first.");
       return;
     }
     setBusy(true);
@@ -46,9 +46,9 @@ export function DatasetsTab({
       onChanged(res.definitionJson);
       setOpenId(res.dataset.id);
       setContent("");
-      toast.push("success", `Đã import ${res.dataset.rows.length} dòng vào '${res.dataset.name}'.`);
+      toast.push("success", `Imported ${res.dataset.rows.length} rows into '${res.dataset.name}'.`);
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Import thất bại";
+      const msg = e instanceof ApiError ? e.message : "Import failed";
       setError(msg);
       toast.push("error", msg);
     } finally {
@@ -57,20 +57,20 @@ export function DatasetsTab({
   }
 
   async function doDelete(ds: DataSet) {
-    if (!window.confirm(`Xóa dataset '${ds.name}' (${ds.rows.length} dòng)?`)) return;
+    if (!window.confirm(`Delete dataset '${ds.name}' (${ds.rows.length} rows)?`)) return;
     try {
       const res = await api.deleteDataset(testId, ds.id);
       onChanged(res.definitionJson);
-      toast.push("success", `Đã xóa dataset '${ds.name}'.`);
+      toast.push("success", `Deleted dataset '${ds.name}'.`);
     } catch (e) {
-      toast.push("error", e instanceof ApiError ? e.message : "Xóa thất bại");
+      toast.push("error", e instanceof ApiError ? e.message : "Delete failed");
     }
   }
 
   function onFile(file: File | undefined) {
     if (!file) return;
     if (file.size > 512 * 1024) {
-      setError("File quá lớn (tối đa 512 KB).");
+      setError("File too large (512 KB max).");
       return;
     }
     const reader = new FileReader();
@@ -89,15 +89,15 @@ export function DatasetsTab({
   return (
     <div className="space-y-3">
       <div className="callout">
-        <strong>Bảng dữ liệu chạy lặp (data-driven).</strong> Dùng{" "}
-        <code>{"{{row.COLUMN}}"}</code> trong giá trị step để mỗi dòng chạy một lần.{" "}
-        <strong>Hàng là chữ thường (plaintext)</strong> — không nhập secret vào đây, hãy dùng{" "}
+        <strong>Data-driven table.</strong> Use{" "}
+        <code>{"{{row.COLUMN}}"}</code> in step values to run once per row.{" "}
+        <strong>Rows are plaintext</strong> — never put secrets here, use{" "}
         <code>{"{{VARIABLES}}"}</code>.
       </div>
 
       {datasets.length === 0 ? (
         <p className="text-xs text-slate-500">
-          Chưa có dataset. Import CSV (dòng đầu là tên cột) hoặc JSON (mảng object) bên dưới.
+          No datasets yet. Import CSV (first row = column names) or JSON (array of objects) below.
         </p>
       ) : (
         <ul className="space-y-2">
@@ -117,7 +117,7 @@ export function DatasetsTab({
                     {open ? "▾" : "▸"} {ds.name}
                   </button>
                   <span className="text-xs text-slate-500">
-                    {ds.rows.length} dòng · cột: {headers.map((h) => `{{row.${h}}}`).join(" ")}
+                    {ds.rows.length} rows · columns: {headers.map((h) => `{{row.${h}}}`).join(" ")}
                   </span>
                   <span className="ml-auto">
                     <button
@@ -125,15 +125,15 @@ export function DatasetsTab({
                       className="text-xs text-red-600 hover:underline"
                       onClick={() => void doDelete(ds)}
                     >
-                      Xóa
+                      Delete
                     </button>
                   </span>
                 </div>
                 {open ? (
                   <div className="px-3 pb-3">
                     <DataTable<Record<string, unknown> & { id: string }>
-                      caption={`Xem trước ${Math.min(ds.rows.length, 20)}/${ds.rows.length} dòng đầu`}
-                      emptyText="Dataset rỗng."
+                      caption={`Preview first ${Math.min(ds.rows.length, 20)}/${ds.rows.length} rows`}
+                      emptyText="Empty dataset."
                       rows={preview}
                       columns={[
                         { key: "__idx", header: "#", render: (r) => r.id.split(":")[1] },
@@ -142,7 +142,7 @@ export function DatasetsTab({
                     />
                     {ds.rows.length > 20 ? (
                       <p className="mt-1 text-xs text-slate-400">
-                        Chỉ hiện 20 dòng đầu — toàn bộ {ds.rows.length} dòng vẫn được chạy.
+                        Showing the first 20 rows only — all {ds.rows.length} rows still run.
                       </p>
                     ) : null}
                   </div>
@@ -156,13 +156,13 @@ export function DatasetsTab({
       <fieldset className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
         <legend className="px-1 text-sm font-semibold text-slate-700">Import dataset</legend>
         <div className="flex flex-wrap gap-2">
-          <Field label="Định dạng">
+          <Field label="Format">
             <Select value={format} onChange={(e) => setFormat(e.target.value as "csv" | "json")}>
-              <option value="csv">CSV (dòng đầu = tên cột)</option>
-              <option value="json">JSON (mảng object)</option>
+              <option value="csv">CSV (first row = column names)</option>
+              <option value="json">JSON (array of objects)</option>
             </Select>
           </Field>
-          <Field label="Tên bảng (tùy chọn)">
+          <Field label="Table name (optional)">
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -170,18 +170,18 @@ export function DatasetsTab({
               className="w-44"
             />
           </Field>
-          <Field label="Hoặc tải file">
+          <Field label="Or upload a file">
             <input
               type="file"
               accept=".csv,.txt,.json"
-              aria-label="Tải file CSV/JSON"
+              aria-label="Upload CSV/JSON file"
               onChange={(e) => onFile(e.target.files?.[0])}
               className="text-xs"
             />
           </Field>
         </div>
         <textarea
-          aria-label="Nội dung CSV/JSON"
+          aria-label="CSV/JSON content"
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={5}
@@ -195,11 +195,11 @@ export function DatasetsTab({
           </p>
         ) : null}
         <p className="text-xs text-slate-500">
-          Tên cột phải khớp <code>/^[A-Za-z_][A-Za-z0-9_]*$/</code> để dùng{" "}
-          <code>{"{{row.NAME}}"}</code>; tối đa 500 dòng/bảng, trùng tên sẽ nối thêm dòng.
+          Column names must match <code>/^[A-Za-z_][A-Za-z0-9_]*$/</code> to use{" "}
+          <code>{"{{row.NAME}}"}</code>; 500 rows max per table; duplicate names append rows.
         </p>
         <Button size="sm" disabled={busy} onClick={() => void doImport()}>
-          {busy ? "Đang import…" : "Import"}
+          {busy ? "Importing…" : "Import"}
         </Button>
       </fieldset>
     </div>

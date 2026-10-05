@@ -33,7 +33,7 @@ export function SettingsPage() {
         setProjects(list);
         setProjectId(list[0]?.id ?? "");
       } catch (e) {
-        setError(e instanceof ApiError ? e.message : "Không tải được projects");
+        setError(e instanceof ApiError ? e.message : "Couldn't load projects");
         setProjects([]);
       } finally {
         setLoading(false);
@@ -50,7 +50,7 @@ export function SettingsPage() {
       setEnvs(e);
       setVariables(v);
     } catch (err) {
-      toast.push("error", err instanceof ApiError ? err.message : "Không tải được environments/variables");
+      toast.push("error", err instanceof ApiError ? err.message : "Couldn't load environments/variables");
     }
   };
 
@@ -76,7 +76,7 @@ export function SettingsPage() {
       ) : error ? (
         <ErrorState message={error} onRetry={() => window.location.reload()} />
       ) : !projects || projects.length === 0 ? (
-        <EmptyState title="Chưa có project" hint="Tạo project qua API rồi quay lại đây." />
+        <EmptyState title="No projects yet" hint="Create a project via API, then come back here." />
       ) : (
         <>
           <label className="block max-w-sm">
@@ -97,17 +97,17 @@ export function SettingsPage() {
                   projectId={projectId}
                   envs={envs}
                   onChanged={() => void reload(projectId)}
-                  onClose={() => toast.push("info", "Đóng panel — danh sách đã cập nhật.")}
+                  onClose={() => toast.push("info", "Panel closed — list updated.")}
                 />
               </section>
 
               <section aria-label="Shared variables">
                 <h2 className="mb-2 text-sm font-semibold text-slate-700">
-                  Biến toàn cục (shared) <Badge>{shared.length}</Badge>
+                  Global variables (shared) <Badge>{shared.length}</Badge>
                 </h2>
                 <DataTable<Variable>
-                  caption="Biến dùng chung mọi environment. Secret values are write-only."
-                  emptyText="Chưa có biến toàn cục."
+                  caption="Variables shared across environments. Secret values are write-only."
+                  emptyText="No global variables yet."
                   rows={shared}
                   columns={[
                     { key: "key", header: "Key", render: (v) => <code>{v.key}</code> },
@@ -130,13 +130,13 @@ export function SettingsPage() {
 
           <section aria-label="Retention and limits" className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <h2 className="mb-2 text-sm font-semibold text-slate-700">
-              Retention &amp; giới hạn (admin)
+              Retention &amp; limits (admin)
             </h2>
             <ul className="list-disc space-y-1 pl-5 text-xs text-slate-600">
-              <li>JSON body tối đa 1 MB · Test definition tối đa 512 KB.</li>
-              <li>Mỗi artifact tối đa 50 MB · tối đa 100 screenshots / run.</li>
-              <li>Mặc định 1–2 run đồng thời / host; vượt quá sẽ xếp hàng.</li>
-              <li>Secret values chỉ resolve lúc run, bị redact khỏi code/logs/events/result JSON.</li>
+              <li>Max JSON body 1 MB · max test definition 512 KB.</li>
+              <li>Max artifact 50 MB · max 100 screenshots / run.</li>
+              <li>Default 1–2 concurrent runs / host; excess runs queue.</li>
+              <li>Secret values resolve only at run time and are redacted from code/logs/events/result JSON.</li>
             </ul>
           </section>
         </>

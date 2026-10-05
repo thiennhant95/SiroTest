@@ -208,7 +208,7 @@ export interface DataTableColumn<R> {
 export function DataTable<R extends { id: string }>({
   columns,
   rows,
-  emptyText = "Chưa có dữ liệu.",
+  emptyText = "No data yet.",
   caption,
 }: {
   columns: DataTableColumn<R>[];
@@ -285,7 +285,7 @@ export function Drawer({
             // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus
             onClick={onClose}
-            aria-label={`Đóng ${title}`}
+            aria-label={`Close ${title}`}
             className="rounded px-2 py-1 text-slate-500 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-indigo-600"
           >
             ✕
@@ -302,7 +302,7 @@ export function Advanced({ title = "Advanced", children }: { title?: string; chi
   return (
     <details className="rounded-md border border-slate-200 bg-slate-50">
       <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-slate-600">
-        {title} <span className="text-slate-400">(locator JSON / kỹ thuật)</span>
+        {title} <span className="text-slate-400">(locator JSON / technical)</span>
       </summary>
       <div className="space-y-3 border-t border-slate-200 px-3 py-3">{children}</div>
     </details>
@@ -322,11 +322,11 @@ export function EmptyState({ title, hint, action }: { title: string; hint?: stri
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <div className="flex flex-col items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-10 text-center">
-      <p className="text-sm font-medium text-red-800">Đã xảy ra lỗi</p>
+      <p className="text-sm font-medium text-red-800">Something went wrong</p>
       <p className="max-w-md text-xs text-red-700">{message}</p>
       {onRetry ? (
         <Button size="sm" variant="outline" onClick={onRetry}>
-          Thử lại
+          Retry
         </Button>
       ) : null}
     </div>
@@ -355,7 +355,7 @@ export function RunStatusBadge({ status }: { status: string }) {
 export function RoleSwitch({ role, onChange }: { role: "tester" | "developer"; onChange: (r: "tester" | "developer") => void }) {
   return (
     <label className="flex items-center gap-1 text-xs text-slate-600">
-      Vai trò:
+      Role:
       <select aria-label="Role" value={role} onChange={(e) => onChange(e.target.value as "tester" | "developer")} className="h-7 rounded-md border border-slate-300 bg-white px-1 text-xs">
         <option value="tester">Tester</option>
         <option value="developer">Developer</option>
