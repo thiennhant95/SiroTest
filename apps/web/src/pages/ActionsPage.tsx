@@ -273,19 +273,24 @@ export function ActionsPage() {
               <ul className="space-y-1">
                 {actions.map((a) => (
                   <li key={a.id}>
-                    <button
+                    <Button
+                      variant="ghost"
                       onClick={() => setSelectedId(a.id)}
-                      className={`w-full truncate rounded px-2 py-1.5 text-left text-sm ${
+                      title={a.name}
+                      aria-current={a.id === selectedId ? "true" : undefined}
+                      className={`h-auto w-full justify-start gap-2 py-1.5 text-left ${
                         a.id === selectedId
                           ? "bg-indigo-50 font-medium text-indigo-800"
-                          : "text-slate-600 hover:bg-slate-100"
+                          : "font-normal text-slate-600"
                       }`}
                     >
-                      <span className="block truncate">🔁 {a.name}</span>
-                      <span className="block text-[11px] text-slate-400">
-                        {a.parameters.length} params · {a.steps.length} steps
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm">{a.name}</span>
+                        <span className="block text-[11px] font-normal text-slate-400">
+                          {a.parameters.length} params · {a.steps.length} steps
+                        </span>
                       </span>
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -298,7 +303,7 @@ export function ActionsPage() {
               <EmptyState title="No action selected" hint="Select an action on the left to edit." />
             ) : (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-4">
+                <div className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                   <Field label="Action name">
                     <Input value={draft.name} onChange={(e) => patchDraft({ name: e.target.value })} />
                   </Field>
@@ -310,16 +315,16 @@ export function ActionsPage() {
                       placeholder="e.g. Log in with email + password"
                     />
                   </Field>
-                  <p className="font-mono text-[11px] text-slate-400">{draft.id}</p>
+                  <p className="font-mono text-xs text-slate-400">{draft.id}</p>
                   <div>
                     <Button size="sm" variant="outline" onClick={() => void remove()}>
-                      🗑 Delete action
+                      Delete action
                     </Button>
                   </div>
                 </div>
 
                 {/* Parameters table */}
-                <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                   <div className="mb-2 flex items-center justify-between">
                     <h2 className="text-sm font-semibold text-slate-700">
                       Parameters <Badge>{draft.parameters.length}/50</Badge>
@@ -353,9 +358,9 @@ export function ActionsPage() {
                               <Checkbox checked={!!p.secret} onChange={(e) => patchParam(i, { secret: e.target.checked || undefined })} />
                               secret
                             </label>
-                            <button className="text-xs text-red-600 hover:underline" onClick={() => removeParam(i)}>
+                            <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-800" onClick={() => removeParam(i)}>
                               Delete
-                            </button>
+                            </Button>
                           </div>
                           <Field label="Description (optional)">
                             <Input value={p.description ?? ""} onChange={(e) => patchParam(i, { description: e.target.value || undefined })} placeholder="e.g. Login email address" />
@@ -367,7 +372,7 @@ export function ActionsPage() {
                 </div>
 
                 {/* Body steps */}
-                <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                   <div className="mb-2 flex items-center justify-between">
                     <h2 className="text-sm font-semibold text-slate-700">
                       Body steps <Badge>{draft.steps.filter((s) => s.enabled).length}/{draft.steps.length} enabled</Badge>

@@ -39,7 +39,7 @@ export function SuitesPage() {
         </Link>
       </div>
       <form
-        className="flex gap-2"
+        className="flex gap-2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
         onSubmit={async (e) => {
           e.preventDefault();
           if (!projectId || !name.trim()) return;

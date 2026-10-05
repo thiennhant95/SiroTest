@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { EmptyState, ErrorState, Skeleton } from "./ui";
+import { Badge, EmptyState, ErrorState, Skeleton } from "./ui";
 
 /**
  * P2 plugin docs component (route `/plugins`, wired in App.tsx).
@@ -121,7 +121,10 @@ export function PluginDocs() {
 
   return (
     <section className="page" aria-label="Plugin/action SDK">
-      <h1>Plugin / action SDK (P2)</h1>
+      <h1>Plugin / action SDK</h1>
+      <p className="mt-1 text-sm text-slate-500">
+        Custom step types for jobs the built-ins cannot do (SSO login, OTP, card swipe…). Disabled by default.
+      </p>
       {!data.enabled && (
         <EmptyState
           title="Plugins are OFF"
@@ -132,22 +135,23 @@ export function PluginDocs() {
         <EmptyState title="No plugins yet" hint={`Directory ${data.dir} has no valid .js/.cjs/.mjs entries.`} />
       )}
       {data.plugins.map((p) => (
-        <article key={`${p.name}@${p.version}`}>
-          <h2>
-            {p.name} <span className="muted">v{p.version}</span>
+        <article key={`${p.name}@${p.version}`} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-base font-semibold">
+            {p.name} <Badge tone="slate">v{p.version}</Badge>
           </h2>
-          {p.description && <p>{p.description}</p>}
-          <ul>
+          {p.description && <p className="mt-1 text-sm text-slate-600">{p.description}</p>}
+          <ul className="mt-2 space-y-2">
             {p.steps.map((s) => (
-              <li key={s.type}>
-                <code>{s.type}</code>
-                {s.description && <span> — {s.description}</span>}
-                {s.schema && (
-                  <ul>
+              <li key={s.type} className="rounded-md bg-slate-50 p-2.5 text-sm">
+                <code className="rounded bg-slate-200/70 px-1.5 py-0.5 font-mono text-xs font-semibold text-indigo-800">{s.type}</code>
+                {s.description && <span className="text-slate-600"> — {s.description}</span>}
+                {s.schema && (s.schema.required ?? []).length > 0 && (
+                  <ul className="mt-1.5 space-y-0.5 pl-4 font-mono text-xs text-slate-600">
                     {(s.schema.required ?? []).map((r) => (
                       <li key={r}>
-                        <code>{r}</code> (required)
-                        {s.schema?.properties?.[r]?.secret && <strong> — secret, use {"{{VARIABLE}}"}</strong>}
+                        <code className="rounded bg-white px-1 ring-1 ring-slate-200">{r}</code>
+                        <span className="text-slate-500"> (required)</span>
+                        {s.schema?.properties?.[r]?.secret && <strong className="text-amber-700"> — secret, use {"{{VARIABLE}}"}</strong>}
                       </li>
                     ))}
                   </ul>
@@ -161,7 +165,7 @@ export function PluginDocs() {
       <h2>How to write a plugin</h2>
       <pre className="vv-code">{AUTHORING_SAMPLE}</pre>
       <h2>Security model</h2>
-      <ul>
+      <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
         <li>Off by default (loads only with ALLOW_PLUGINS=1; reload is Developer/Admin only).</li>
         <li>Plugins are trusted code — NO arbitrary JS sandboxing; review before enabling.</li>
         <li>Duplicate step types across plugins → explicit load failure (no shadowing).</li>

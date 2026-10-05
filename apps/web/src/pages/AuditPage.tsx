@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { isNotFoundError } from "../lib/api";
-import { EmptyState, ErrorState, Skeleton, useToast } from "../components/ui";
+import { Badge, Button, DataTable, EmptyState, ErrorState, Field, Input, Skeleton, useToast } from "../components/ui";
 
 const API = "/api/v1";
 const PAGE = 50;
@@ -89,22 +89,31 @@ export function AuditPage() {
         ← Project
       </Link>
       <h1 className="text-xl font-semibold">Audit log</h1>
-      <div className="flex flex-wrap gap-2 text-sm">
-        <input
-          className="rounded border px-2 py-1"
-          placeholder="filter action (e.g. worker.claim)"
-          value={fAction}
-          onChange={(e) => setFAction(e.target.value)}
-        />
-        <input
-          className="rounded border px-2 py-1"
-          placeholder="filter user id"
-          value={fUser}
-          onChange={(e) => setFUser(e.target.value)}
-        />
-        <button className="rounded border px-3 py-1" onClick={() => { setOffset(0); void load(0); }}>
-          Filter
-        </button>
+      <p className="text-sm text-slate-500">
+        Newest first. Sensitive details are masked by the server.
+      </p>
+      <div className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-52 flex-1">
+          <Field label="Action filter" hint="e.g. worker.claim">
+            <Input
+              placeholder="Filter action (e.g. worker.claim)"
+              value={fAction}
+              onChange={(e) => setFAction(e.target.value)}
+            />
+          </Field>
+        </div>
+        <div className="min-w-52 flex-1">
+          <Field label="User filter" hint="Exact user ID">
+            <Input
+              placeholder="Filter user ID"
+              value={fUser}
+              onChange={(e) => setFUser(e.target.value)}
+            />
+          </Field>
+        </div>
+        <Button size="sm" onClick={() => { setOffset(0); void load(0); }}>
+          Apply filters
+        </Button>
       </div>
       {unsupported ? (
         <EmptyState
@@ -123,39 +132,63 @@ export function AuditPage() {
         <EmptyState title="No audit entries yet" hint="Logged operations (worker claim, healing approve, etc.) will appear here." />
       ) : rows.length === 0 ? null : (
         <>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-slate-500">
-                <th>Time</th><th>Action</th><th>User</th><th>Entity</th><th>Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-t align-top">
-                  <td className="whitespace-nowrap text-xs">{new Date(r.createdAt).toLocaleString()}</td>
-                  <td className="font-mono text-xs">{r.action}</td>
-                  <td className="text-xs">{r.userId ?? "—"}</td>
-                  <td className="text-xs">{r.entityType ? `${r.entityType}:${r.entityId?.slice(0, 8)}` : "—"}</td>
-                  <td className="max-w-md truncate font-mono text-xs text-slate-500">{r.details ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="flex gap-2 text-sm">
-            <button
-              className="rounded border px-3 py-1 disabled:opacity-40"
+          <DataTable<AuditRow>
+            caption={`${rows.length} entries (newest first)`}
+            emptyText="No audit entries yet."
+            rows={rows}
+            columns={[
+              {
+                key: "createdAt",
+                header: "Time",
+                render: (r) => (
+                  <span className="whitespace-nowrap text-xs">{new Date(r.createdAt).toLocaleString()}</span>
+                ),
+              },
+              {
+                key: "action",
+                header: "Action",
+                render: (r) => <Badge title={r.action}><span className="font-mono text-[11px]">{r.action}</span></Badge>,
+              },
+              {
+                key: "userId",
+                header: "User",
+                render: (r) => (
+                  r.userId ? <span className="font-mono text-xs">{r.userId}</span> : <span className="text-xs text-slate-400">—</span>
+                ),
+              },
+              {
+                key: "entityType",
+                header: "Entity",
+                render: (r) => (
+                  <span className="font-mono text-xs">{r.entityType ? `${r.entityType}:${r.entityId?.slice(0, 8)}` : "—"}</span>
+                ),
+              },
+              {
+                key: "details",
+                header: "Details",
+                render: (r) => (
+                  <span className="block max-w-md truncate font-mono text-xs text-slate-500" title={r.details ?? ""}>{r.details ?? "—"}</span>
+                ),
+              },
+            ]}
+          />
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
               disabled={offset === 0}
               onClick={() => { const n = Math.max(0, offset - PAGE); setOffset(n); void load(n); }}
             >
               ← Prev
-            </button>
-            <button
-              className="rounded border px-3 py-1 disabled:opacity-40"
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               disabled={rows.length < PAGE}
               onClick={() => { const n = offset + PAGE; setOffset(n); void load(n); }}
             >
               Next →
-            </button>
+            </Button>
           </div>
         </>
       )}

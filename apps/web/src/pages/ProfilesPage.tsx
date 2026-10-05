@@ -11,6 +11,7 @@ import {
   Input,
   Select,
   Skeleton,
+  Textarea,
   useToast,
 } from "../components/ui";
 import { ApiError, api, isNotImplemented, type AuthProfile, type Environment } from "../lib/api";
@@ -198,7 +199,7 @@ export function ProfilesPage() {
         <ErrorState message={error} onRetry={load} />
       ) : (
         <>
-          <fieldset className="space-y-2 rounded-lg border border-slate-200 bg-white p-4">
+          <fieldset className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <legend className="px-1 text-sm font-semibold text-slate-700">New profile</legend>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Field label="Profile name">
@@ -214,14 +215,13 @@ export function ProfilesPage() {
               </Field>
             </div>
             <Field label="storageState JSON (paste from Playwright)" hint='{"cookies":[],"origins":[]} — blank means the profile has no login yet.'>
-              <textarea
+              <Textarea
                 aria-label="storageState JSON"
                 value={stateJson}
                 onChange={(e) => setStateJson(e.target.value)}
                 rows={4}
                 spellCheck={false}
                 placeholder='{"cookies":[],"origins":[]}'
-                className="w-full rounded-md border border-slate-300 p-2 font-mono text-xs"
               />
             </Field>
             {formError ? (
@@ -256,9 +256,9 @@ export function ProfilesPage() {
                   key: "id",
                   header: "Actions",
                   render: (r) => (
-                    <span className="flex gap-2 text-xs">
-                      <button className="text-indigo-700 hover:underline" onClick={() => openEdit(r)}>Edit</button>
-                      <button className="text-red-600 hover:underline" onClick={() => void remove(r)}>Delete</button>
+                    <span className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="text-indigo-700 hover:text-indigo-900" onClick={() => openEdit(r)}>Edit</Button>
+                      <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-800" onClick={() => void remove(r)}>Delete</Button>
                     </span>
                   ),
                 },
@@ -282,14 +282,13 @@ export function ProfilesPage() {
             </Select>
           </Field>
           <Field label="Replace storageState (blank = keep current)" hint="Paste new JSON to replace the login; the old value is never shown.">
-            <textarea
+            <Textarea
               aria-label="New storageState"
               value={editState}
               onChange={(e) => setEditState(e.target.value)}
               rows={4}
               spellCheck={false}
               placeholder='{"cookies":[],"origins":[]}'
-              className="w-full rounded-md border border-slate-300 p-2 font-mono text-xs"
             />
           </Field>
           {editError ? (

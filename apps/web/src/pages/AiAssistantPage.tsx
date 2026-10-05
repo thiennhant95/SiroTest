@@ -6,7 +6,7 @@
  * PROPS CONTRACT:
  *   onInsertSteps?: (steps) => void — Builder passes a callback that inserts
  *     previewed steps at the cursor. When omitted (standalone route), the
- *     "Chèn vào Builder" buttons are HIDDEN (preview-only mode).
+ *     "Insert into Builder" buttons are HIDDEN (preview-only mode).
  *   testId?: string — pre-fills the cleanup tab (cleanup-by-test).
  *   runId?: string  — pre-fills the explain tab (explain-by-run).
  *   initialTab?: 'compose' | 'explain' | 'cleanup'.
@@ -68,9 +68,12 @@ export function AiAssistantPage({ onInsertSteps, testId, runId, initialTab = "co
   }, []);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-4">
+    <div className="mx-auto max-w-4xl space-y-4 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">AI assistant (P2 beta)</h1>
+        <div>
+          <h1 className="text-xl font-semibold">AI assistant</h1>
+          <p className="text-sm text-slate-500">Beta: every result is labeled with its engine (rules or LLM).</p>
+        </div>
         {status ? <EngineBadge engine={status.engine} /> : null}
       </div>
       <Tabs<AiTab>
@@ -125,7 +128,7 @@ function ComposeTab({ onInsertSteps }: { onInsertSteps?: (steps: AiStep[]) => vo
         <ErrorState message={error} onRetry={run} />
       ) : null}
       {result ? (
-        <div className="space-y-3">
+        <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2">
             <EngineBadge engine={result.engine} />
             <span className="text-xs text-slate-500">{result.steps.length} steps</span>
@@ -222,7 +225,7 @@ function ExplainTab({ initialRunId }: { initialRunId?: string }) {
         <ErrorState message={error} onRetry={run} />
       ) : null}
       {result && exp ? (
-        <div className="space-y-3 rounded-lg border border-slate-200 p-3">
+        <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-2">
             <EngineBadge engine={result.engine} />
             <Badge tone={exp.category === "unknown" ? "amber" : "indigo"}>{exp.category}</Badge>
@@ -300,12 +303,12 @@ function CleanupTab({ testId, onInsertSteps }: { testId?: string; onInsertSteps?
         <ErrorState message={error} onRetry={run} />
       ) : null}
       {result ? (
-        <div className="space-y-3">
+        <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2">
             <EngineBadge engine={result.engine} />
             <span className="text-xs text-slate-500">{result.steps.length} steps after cleanup · {result.changes.length} changes</span>
           </div>
-          <div className="rounded-lg border border-slate-200 p-3">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs font-semibold">Change log (review before saving):</p>
             <ul className="mt-1 space-y-1">
               {result.changes.map((c, i) => (

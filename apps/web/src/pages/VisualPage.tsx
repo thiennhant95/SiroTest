@@ -98,16 +98,26 @@ function BaselineImage({ testId, name }: { testId: string; name: string }) {
   const src = useAuthedImage(
     `${apiBase()}/tests/${encodeURIComponent(testId)}/baselines/${encodeURIComponent(name)}/image`,
   );
-  if (!src) return <div className="vv-img-fallback">Couldn't load baseline</div>;
-  return <img src={src} alt={`Baseline ${name}`} className="vv-shot" />;
+  if (!src)
+    return (
+      <div className="flex h-32 items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">
+        Couldn&apos;t load baseline
+      </div>
+    );
+  return <img src={src} alt={`Baseline ${name}`} className="mt-2 max-h-64 w-full rounded-md border border-slate-200 object-contain" />;
 }
 
 function ArtifactImage({ runId, artifactId, label }: { runId: string; artifactId: string; label: string }) {
   const src = useAuthedImage(
     `${apiBase()}/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifactId)}/image`,
   );
-  if (!src) return <div className="vv-img-fallback">No image</div>;
-  return <img src={src} alt={label} className="vv-shot" />;
+  if (!src)
+    return (
+      <div className="flex h-32 items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">
+        No image
+      </div>
+    );
+  return <img src={src} alt={label} className="mt-2 max-h-64 w-full rounded-md border border-slate-200 object-contain" />;
 }
 
 export function VisualPage() {
@@ -261,18 +271,23 @@ export function VisualPage() {
 
   if (baselines === null) {
     return (
-      <section className="page" aria-label="Visual baselines">
+      <main className="mx-auto max-w-5xl space-y-4 p-6" aria-label="Visual baselines">
         <Skeleton lines={6} label="Loading baselines…" />
-      </section>
+      </main>
     );
   }
 
   return (
-    <section className="page" aria-label="Visual baselines">
-      <nav>
-        <Link to={testId ? `/tests/${testId}` : "/projects"}>← Back to Builder</Link>
-      </nav>
-      <h1>Visual regression</h1>
+    <main className="mx-auto max-w-5xl space-y-4 p-6" aria-label="Visual baselines">
+      <Link to={testId ? `/tests/${testId}` : "/projects"} className="text-sm text-slate-500 hover:text-slate-800">
+        ← Back to Builder
+      </Link>
+      <div>
+        <h1 className="text-xl font-semibold">Visual regression</h1>
+        <p className="text-sm text-slate-500">
+          Compare baselines against run screenshots. Thresholds live in the test definition — edit them in the Builder.
+        </p>
+      </div>
       {unsupported ? (
         <EmptyState
           title="Backend visual baselines not supported (API 404)"
@@ -281,111 +296,132 @@ export function VisualPage() {
       ) : error ? (
         <ErrorState message={error} onRetry={() => void load()} />
       ) : null}
-      {notice && <p role="status">{notice}</p>}
-
-      <h2>visualCheck steps (threshold from definition)</h2>
-      {steps.length === 0 ? (
-        <EmptyState
-          title="No visualCheck steps yet"
-          hint="Add a visualCheck step in Builder (needs a server allowlist patch — see P2 docs)."
-        />
-      ) : (
-        <ul>
-          {steps.map((s) => (
-            <li key={s.stepId}>
-              <code>{s.name}</code> — threshold {(s.threshold * 100).toFixed(2)}%{" "}
-              <span className="muted">(edit in Builder)</span>
-            </li>
-          ))}
-        </ul>
+      {notice && (
+        <p role="status" className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          {notice}
+        </p>
       )}
 
-      <h2>Baselines ({baselines.length})</h2>
-      {baselines.length === 0 ? (
-        <EmptyState title="No baselines yet" hint="Run a capture (updateBaselines), then promote the actual image." />
-      ) : (
-        <ul className="vv-cards">
-          {baselines.map((b) => (
-            <li key={b.name} className="vv-card">
-              <strong>{b.name}</strong>{" "}
-              <span className="muted">
-                {b.width}×{b.height} · updated {new Date(b.updatedAt).toLocaleString()}
-              </span>
-              {testId && <BaselineImage testId={testId} name={b.name} />}
-              <div>
-                <Button size="sm" variant="outline" onClick={() => void removeBaseline(b.name)}>
-                  Delete
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="mb-2 text-sm font-semibold">visualCheck steps (threshold from definition)</h2>
+        {steps.length === 0 ? (
+          <EmptyState
+            title="No visualCheck steps yet"
+            hint="Add a visualCheck step in Builder (needs a server allowlist patch — see P2 docs)."
+          />
+        ) : (
+          <ul className="space-y-1">
+            {steps.map((s) => (
+              <li key={s.stepId} className="text-sm">
+                <code className="font-mono text-xs text-slate-800">{s.name}</code>
+                <span className="text-xs text-slate-500"> — threshold {(s.threshold * 100).toFixed(2)}%</span>{" "}
+                <span className="text-xs text-slate-400">(edit in Builder)</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
-      <h2>Compare baseline / actual / diff</h2>
-      <Field label="Run ID">
-        <Input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="run_…" />
-      </Field>
-      <div>
-        <Button size="sm" onClick={() => void loadRunArtifacts()}>
-          Load run artifacts
-        </Button>
-      </div>
-      {visualArtifacts.length > 0 && (
-        <>
-          <Field label="Baseline to compare">
-            <Input
-              value={compareName}
-              onChange={(e) => setCompareName(e.target.value)}
-              placeholder="hero"
-            />
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="mb-2 text-sm font-semibold">Baselines ({baselines.length})</h2>
+        {baselines.length === 0 ? (
+          <EmptyState title="No baselines yet" hint="Run a capture (updateBaselines), then promote the actual image." />
+        ) : (
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {baselines.map((b) => (
+              <li key={b.name} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <strong className="text-sm">{b.name}</strong>{" "}
+                <span className="text-xs text-slate-500">
+                  {b.width}×{b.height} · updated {new Date(b.updatedAt).toLocaleString()}
+                </span>
+                {testId && <BaselineImage testId={testId} name={b.name} />}
+                <div className="mt-2">
+                  <Button size="sm" variant="outline" onClick={() => void removeBaseline(b.name)}>
+                    Delete
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="mb-2 text-sm font-semibold">Compare baseline / actual / diff</h2>
+        <div className="space-y-3">
+          <Field label="Run ID" hint="Load a run to browse its visual screenshots.">
+            <Input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="run_…" />
           </Field>
-          {compareName && (
-            <div className="vv-compare">
-              <figure>
-                <figcaption>Baseline</figcaption>
-                {testId && <BaselineImage testId={testId} name={compareName} />}
-              </figure>
-              <figure>
-                <figcaption>Actual</figcaption>
-                {fileFor("actual") ? (
-                  <ArtifactImage runId={runId.trim()} artifactId={fileFor("actual")!.id} label="Actual" />
-                ) : (
-                  <div className="vv-img-fallback">No actual image</div>
-                )}
-              </figure>
-              <figure>
-                <figcaption>Diff (differences in red)</figcaption>
-                {fileFor("diff") ? (
-                  <ArtifactImage runId={runId.trim()} artifactId={fileFor("diff")!.id} label="Diff" />
-                ) : (
-                  <div className="vv-img-fallback">No diff (run passed or not compared yet)</div>
-                )}
-              </figure>
-            </div>
-          )}
-        </>
-      )}
+          <div>
+            <Button size="sm" onClick={() => void loadRunArtifacts()}>
+              Load run artifacts
+            </Button>
+          </div>
+        </div>
+        {visualArtifacts.length > 0 && (
+          <div className="mt-3 space-y-3">
+            <Field label="Baseline to compare">
+              <Input
+                value={compareName}
+                onChange={(e) => setCompareName(e.target.value)}
+                placeholder="hero"
+              />
+            </Field>
+            {compareName && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <figure className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                  <figcaption className="mb-1 text-xs font-semibold text-slate-600">Baseline</figcaption>
+                  {testId && <BaselineImage testId={testId} name={compareName} />}
+                </figure>
+                <figure className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                  <figcaption className="mb-1 text-xs font-semibold text-slate-600">Actual</figcaption>
+                  {fileFor("actual") ? (
+                    <ArtifactImage runId={runId.trim()} artifactId={fileFor("actual")!.id} label="Actual" />
+                  ) : (
+                    <div className="flex h-32 items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">No actual image</div>
+                  )}
+                </figure>
+                <figure className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                  <figcaption className="mb-1 text-xs font-semibold text-slate-600">Diff (differences in red)</figcaption>
+                  {fileFor("diff") ? (
+                    <ArtifactImage runId={runId.trim()} artifactId={fileFor("diff")!.id} label="Diff" />
+                  ) : (
+                    <div className="flex h-32 items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">No diff (run passed or not compared yet)</div>
+                  )}
+                </figure>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
 
-      <h2>Promote actual → baseline</h2>
-      <Field label="Baseline name">
-        <Input value={promoteName} onChange={(e) => setPromoteName(e.target.value)} placeholder="hero" />
-      </Field>
-      <div>
-        <Button size="sm" disabled={busy} onClick={() => void promote()}>
-          Promote from the run above
-        </Button>
-      </div>
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="mb-2 text-sm font-semibold">Promote actual → baseline</h2>
+        <div className="space-y-3">
+          <Field label="Baseline name" hint="Uses the run loaded above.">
+            <Input value={promoteName} onChange={(e) => setPromoteName(e.target.value)} placeholder="hero" />
+          </Field>
+          <div>
+            <Button size="sm" disabled={busy} onClick={() => void promote()}>
+              Promote from the run above
+            </Button>
+          </div>
+        </div>
+      </section>
 
-      <h2>Capture baselines (updateBaselines)</h2>
-      <Field label="Environment ID">
-        <Input value={envId} onChange={(e) => setEnvId(e.target.value)} placeholder="env_…" />
-      </Field>
-      <div>
-        <Button size="sm" variant="secondary" disabled={busy} onClick={() => void triggerCapture()}>
-          Run capture (visual steps always pass)
-        </Button>
-      </div>
-    </section>
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="mb-2 text-sm font-semibold">Capture baselines (updateBaselines)</h2>
+        <div className="space-y-3">
+          <Field label="Environment ID">
+            <Input value={envId} onChange={(e) => setEnvId(e.target.value)} placeholder="env_…" />
+          </Field>
+          <div>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void triggerCapture()}>
+              Run capture (visual steps always pass)
+            </Button>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }
