@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Advanced, Badge, Button, Checkbox, Field, Input, Select, Textarea, useToast } from "./ui";
+import { VariableInput } from "./VariableInput";
 import { ApiError, api, isNotImplemented, type ActionRecord, type FileAsset } from "../lib/api";
 import {
   STEP_META,
@@ -341,18 +342,20 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
     case "goto":
       return (
         <Field label="URL" hint="Relative (/login) or absolute">
-          <Input value={str(step.url)} onChange={(e) => set("url", e.target.value)} placeholder="/login" />
+          <VariableInput value={str(step.url)} onChange={(v) => set("url", v)} placeholder="{{BASE_URL}}/login" projectId={projectId} ariaLabel="URL" />
         </Field>
       );
     case "fill":
       return (
         <>
-          <Field label="Value" hint="Supports {{VARIABLE_NAME}} variables (Variables tab)">
-            <Input
+          <Field label="Value" hint="Pick variables with { } — secrets must be {{VARIABLES}}">
+            <VariableInput
               type={(step as { sensitive?: boolean }).sensitive ? "password" : "text"}
               value={str(step.value)}
-              onChange={(e) => set("value", e.target.value)}
+              onChange={(v) => set("value", v)}
               placeholder="tester@example.com"
+              projectId={projectId}
+              ariaLabel="Value"
             />
           </Field>
           <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -367,7 +370,7 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
     case "select":
       return (
         <Field label="Option value">
-          <Input value={str(step.value)} onChange={(e) => set("value", e.target.value)} />
+          <VariableInput value={str(step.value)} onChange={(v) => set("value", v)} projectId={projectId} ariaLabel="Option value" />
         </Field>
       );
     case "press":
@@ -381,20 +384,20 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
     case "assertValue":
       return (
         <Field label="Expected">
-          <Input value={str(step.expected)} onChange={(e) => set("expected", e.target.value)} />
+          <VariableInput value={str(step.expected)} onChange={(v) => set("expected", v)} projectId={projectId} ariaLabel="Expected" />
         </Field>
       );
     case "assertTitle":
       return (
         <Field label="Expected title">
-          <Input value={str(step.expected)} onChange={(e) => set("expected", e.target.value)} />
+          <VariableInput value={str(step.expected)} onChange={(v) => set("expected", v)} projectId={projectId} ariaLabel="Expected title" />
         </Field>
       );
     case "assertURL":
       return (
         <>
           <Field label="Expected URL">
-            <Input value={str(step.expected)} onChange={(e) => set("expected", e.target.value)} placeholder="**/dashboard" />
+            <VariableInput value={str(step.expected)} onChange={(v) => set("expected", v)} placeholder="**/dashboard" projectId={projectId} ariaLabel="Expected URL" />
           </Field>
           <Field label="Pattern (instead of expected)" hint="Glob supported: * matches one path segment, ** matches everything. E.g. **/login** — do not mix {{VARIABLES}} with *.">
             <Input value={str(step.pattern)} onChange={(e) => set("pattern", e.target.value || undefined)} placeholder="**/dashboard" />
@@ -508,9 +511,9 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
       );
     }
     case "apiRequest":
-      return <ApiRequestFields step={step} set={set} />;
+      return <ApiRequestFields step={step} set={set} projectId={projectId} />;
     case "mockRoute":
-      return <MockRouteFields step={step} set={set} />;
+      return <MockRouteFields step={step} set={set} projectId={projectId} />;
     case "axeCheck":
       return <AxeCheckFields step={step} set={set} />;
     case "visualCheck":
@@ -802,7 +805,7 @@ function formatBytes(n: number): string {
 
 // ------------------------------------------------------- P1 wave 2 API ---
 
-function ApiRequestFields({ step, set }: { step: BuilderStep; set: (k: string, v: unknown) => void }) {
+function ApiRequestFields({ step, set, projectId }: { step: BuilderStep; set: (k: string, v: unknown) => void; projectId?: string }) {
   const str = (v: unknown) => (typeof v === "string" ? v : "");
   const headers = (step.headers as Record<string, string> | undefined) ?? {};
   const headerText = Object.entries(headers)
@@ -849,7 +852,7 @@ function ApiRequestFields({ step, set }: { step: BuilderStep; set: (k: string, v
         </Select>
       </Field>
       <Field label="URL" hint="Absolute or {{BASE_URL}}/api/...">
-        <Input value={str(step.url)} onChange={(e) => set("url", e.target.value)} placeholder="https://api.example.com/users" />
+        <VariableInput value={str(step.url)} onChange={(v) => set("url", v)} placeholder="https://api.example.com/users" projectId={projectId} ariaLabel="URL" />
       </Field>
       <Field label="Headers (one Key: value per line)" hint="e.g. Authorization: Bearer {{TOKEN}}">
         <Textarea rows={3} value={headerText} onChange={(e) => onHeaders(e.target.value)} placeholder={"Content-Type: application/json"} />
@@ -880,7 +883,7 @@ function ApiRequestFields({ step, set }: { step: BuilderStep; set: (k: string, v
   );
 }
 
-function MockRouteFields({ step, set }: { step: BuilderStep; set: (k: string, v: unknown) => void }) {
+function MockRouteFields({ step, set, projectId }: { step: BuilderStep; set: (k: string, v: unknown) => void; projectId?: string }) {
   const str = (v: unknown) => (typeof v === "string" ? v : "");
   const status = typeof step.status === "number" ? step.status : 200;
   const statusOk = Number.isInteger(status) && status >= 100 && status <= 599;
@@ -890,7 +893,7 @@ function MockRouteFields({ step, set }: { step: BuilderStep; set: (k: string, v:
         Intercept browser requests <strong>before</strong> the app sends them — place this step before the goto/click that triggers the request. A different method filter passes through to the real network.
       </p>
       <Field label="URL pattern (glob)" hint="e.g. {{BASE_URL}}/api/users/* — supports {{VARIABLES}}.">
-        <Input value={str(step.url)} onChange={(e) => set("url", e.target.value)} placeholder="**/api/users" />
+        <VariableInput value={str(step.url)} onChange={(v) => set("url", v)} placeholder="**/api/users" projectId={projectId} ariaLabel="URL pattern" />
       </Field>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Method filter (optional)" hint="Empty = intercept all methods.">

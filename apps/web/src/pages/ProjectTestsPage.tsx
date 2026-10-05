@@ -14,6 +14,7 @@ export function ProjectTestsPage() {
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [name, setName] = useState("");
+  const [nameError, setNameError] = useState("");
   const [specOpen, setSpecOpen] = useState(false);
   const toast = useToast();
 
@@ -83,6 +84,7 @@ export function ProjectTestsPage() {
         <ImportSpecDialog projectId={projectId} open={specOpen} onClose={() => setSpecOpen(false)} />
       ) : null}
       <div className="flex items-center gap-2">
+        <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Filter</span>
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -99,10 +101,14 @@ export function ProjectTestsPage() {
         {tag ? <Badge>{tag}</Badge> : null}
       </div>
       <form
-        className="flex gap-2"
+        className="flex flex-wrap items-end gap-2"
         onSubmit={async (e) => {
           e.preventDefault();
-          if (!projectId || !name.trim()) return;
+          if (!projectId || !name.trim()) {
+            setNameError("Enter a test name first.");
+            return;
+          }
+          setNameError("");
           try {
             const created = await api.createTest(projectId, name.trim());
             setName("");
@@ -113,7 +119,15 @@ export function ProjectTestsPage() {
           }
         }}
       >
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New test name, e.g. Login flow" />
+        <div className="min-w-52 flex-1">
+          <Input
+            value={name}
+            onChange={(e) => { setName(e.target.value); if (nameError) setNameError(""); }}
+            placeholder="New test name, e.g. Login flow"
+            aria-label="New test name"
+          />
+          {nameError ? <p role="alert" className="mt-1 text-xs text-red-600">{nameError}</p> : null}
+        </div>
         <Button type="submit" size="md">
           + New test
         </Button>

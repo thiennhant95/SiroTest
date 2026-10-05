@@ -6,6 +6,7 @@ import { DatasetsTab } from "../components/DatasetsTab";
 import { EnvironmentsPanel } from "../components/EnvironmentsPanel";
 import { Inspector } from "../components/Inspector";
 import { RunModal } from "../components/RunModal";
+import { BuilderTour, restartBuilderTour } from "../components/GuidedTour";
 import { StepCard } from "../components/StepCard";
 import { SuggestionsPanel } from "../components/SuggestionsPanel";
 import { VariablesTab } from "../components/VariablesTab";
@@ -426,11 +427,18 @@ export function BuilderPage() {
           </Tooltip>
           <span title={runHint}>
             <Tooltip tip={runDisabled ? runHint : "Run the saved revision"}>
-              <Button size="sm" disabled={runDisabled} onClick={() => setShowRunModal(true)}>
-                ▶ Run
-              </Button>
+              <span data-tour="run">
+                <Button size="sm" disabled={runDisabled} onClick={() => setShowRunModal(true)}>
+                  ▶ Run
+                </Button>
+              </span>
             </Tooltip>
           </span>
+          <Tooltip tip="Replay the guided tour">
+            <Button size="sm" variant="ghost" onClick={() => restartBuilderTour()} aria-label="Replay guided tour">
+              ?
+            </Button>
+          </Tooltip>
         </span>
       </header>
       {offline ? (
@@ -503,13 +511,14 @@ export function BuilderPage() {
         </aside>
 
         {/* Middle: steps list */}
-        <section className="thin-scroll min-h-0 overflow-y-auto p-4">
+        <section data-tour="steps" className="thin-scroll min-h-0 overflow-y-auto p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-700">
               Steps <Badge>{definition.steps.filter((s) => s.enabled).length}/{definition.steps.length} enabled</Badge>
             </h2>
             <Button
               size="sm"
+              data-tour="add-step"
               onClick={() => {
                 setInsertAt(null);
                 setPaletteOpen(true);
@@ -569,7 +578,7 @@ export function BuilderPage() {
         </section>
 
         {/* Right: inspector */}
-        <aside className="thin-scroll min-h-0 overflow-y-auto border-l border-slate-200 bg-white p-4">
+        <aside data-tour="inspector" className="thin-scroll min-h-0 overflow-y-auto border-l border-slate-200 bg-white p-4">
           <h2 className="mb-3 text-sm font-semibold text-slate-700">Inspector</h2>
           {selectedStep ? (
             <Inspector
@@ -592,7 +601,7 @@ export function BuilderPage() {
       </div>
 
       {/* ================= Bottom tabs ================= */}
-      <footer className="border-t border-slate-200 bg-white">
+      <footer data-tour="tabs" className="border-t border-slate-200 bg-white">
         <div className="px-4 pt-1">
           <Tabs<BottomTab>
             value={bottomTab}
@@ -695,6 +704,7 @@ export function BuilderPage() {
         onInsert={insertAssertion}
         onClose={() => setAssertionOpen(false)}
       />
+      <BuilderTour />
 
       {/* Header env select đồng bộ với EnvironmentsPanel (chung envId state). */}
       <Dialog open={showEnvs} onClose={() => setShowEnvs(false)} title="Environments" wide>
