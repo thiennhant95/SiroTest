@@ -29,6 +29,7 @@ export interface StepResult {
 export interface RunDetail {
   id: string;
   testId: string;
+  projectId?: string;
   testName: string;
   status: RunStatus;
   environment: string;

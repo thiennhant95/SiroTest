@@ -19,6 +19,11 @@ const baseStep = z.object({
   enabled: z.boolean(),
   timeoutMs: z.number().int().positive().optional(),
   continueOnFailure: z.boolean().optional(),
+  /** Iframe scope for locator-bearing steps (Stripe Elements etc.). */
+  frame: z.object({
+    url: z.string().min(1).max(2000).optional(),
+    name: z.string().min(1).max(500).optional(),
+  }).optional(),
 });
 
 // -------------------------------------------------------------- locator ---

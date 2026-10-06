@@ -297,8 +297,28 @@ export const projectImport = z.object({
   payload: projectExportPayload,
 });
 
-export function parseOrThrow<T>(schema: z.ZodSchema<T>, data: unknown): T {
-  const r = schema.safeParse(data);
+/** Outbound integrations (bug-from-failure): provider config + secrets. */
+export const integrationCreate = z.object({
+  provider: z.enum(['jira', 'backlog', 'slack', 'lark']),
+  name: z.string().min(1).max(120),
+  enabled: z.boolean().optional(),
+  config: z.record(z.string()).optional(),
+  secrets: z.record(z.string()).optional(),
+});
+export const integrationUpdate = z.object({
+  name: z.string().min(1).max(120).optional(),
+  enabled: z.boolean().optional(),
+  config: z.record(z.string()).optional(),
+  secrets: z.record(z.string()).optional(),
+});
+export const bugReportCreate = z.object({
+  integrationId: z.string().min(1).optional(),
+  summary: z.string().min(1).max(300).optional(),
+  /** Attach run screenshots (Backlog; max 5, failures/trace excluded). */
+  attachScreenshots: z.boolean().optional(),
+});
+
+export function parseOrThrow<T>(schema: z.ZodSchema<T>, data: unknown): T {  const r = schema.safeParse(data);
   if (!r.success) {
     throw new ApiError('VALIDATION_ERROR', 'Invalid request payload', 400, r.error.flatten());
   }

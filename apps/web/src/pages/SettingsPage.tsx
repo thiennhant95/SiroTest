@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ApiError, api, type Environment, type ProjectRecord, type Variable } from "../lib/api";
 import { SECRET_MASK } from "../lib/variables";
 import { EnvironmentsPanel } from "../components/EnvironmentsPanel";
+import { IntegrationsPanel } from "../components/IntegrationsPanel";
 import {
   Badge,
   DataTable,
@@ -104,8 +105,7 @@ export function SettingsPage() {
               <section aria-label="Shared variables">
                 <h2 className="mb-2 text-sm font-semibold text-slate-700">
                   Global variables (shared) <Badge>{shared.length}</Badge>
-                </h2>
-                <DataTable<Variable>
+                </h2>                <DataTable<Variable>
                   caption="Variables shared across environments. Secret values are write-only."
                   emptyText="No global variables yet."
                   rows={shared}
@@ -127,6 +127,8 @@ export function SettingsPage() {
               </section>
             </>
           ) : null}
+
+          {projectId ? <IntegrationsPanel projectId={projectId} /> : null}
 
           <section aria-label="Retention and limits" className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <h2 className="mb-2 text-sm font-semibold text-slate-700">

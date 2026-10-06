@@ -205,12 +205,34 @@ function expectTimeout(step: TestStep): string {
   return typeof ms === 'number' && Number.isFinite(ms) && ms > 0 ? `{ timeout: ${Math.trunc(ms)} }` : '';
 }
 
+/**
+ * Iframe scope for locator-bearing steps: `page.frameLocator(...)` when
+ * step.frame is set (Stripe Elements etc.), else the page itself.
+ * Page-level calls (goto, route, screenshot, keyboard) keep pageVar.
+ */
+function frameScopeExpr(step: TestStep, pageVar: string): string {
+  const rec = step as unknown as { frame?: { url?: unknown; name?: unknown } };
+  const cssEscape = (v: string): string => v.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const url = rec.frame?.url;
+  const name = rec.frame?.name;
+  if (typeof url === 'string' && url.length > 0 && url.length <= 2000) {
+    return `${pageVar}.frameLocator(${esc(`iframe[src*="${cssEscape(url)}"]`)})`;
+  }
+  if (typeof name === 'string' && name.length > 0 && name.length <= 500) {
+    return `${pageVar}.frameLocator(${esc(`iframe[name="${cssEscape(name)}"]`)})`;
+  }
+  if (rec.frame !== undefined) {
+    throw new CompileError(step.id, `Step '${step.id}': frame needs url (substring of the iframe src)`);
+  }
+  return pageVar;
+}
+
 function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string {
   // P2 plugin steps dispatch before the literal switch (prefix-matched).
   if (typeof step.type === 'string' && PLUGIN_STEP_PATTERN.test(step.type)) {
     return pluginStepBody(step, pageVar);
   }
-  const loc = () => locatorExpr(step.target, step.id, pageVar);
+  const loc = () => locatorExpr(step.target, step.id, frameScopeExpr(step, pageVar));
   switch (step.type) {
     case 'goto':
       return `await ${pageVar}.goto(${templateExpr(step.url ?? '', 'url', step.id)});`;
@@ -303,7 +325,7 @@ function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string
       const rec = step as unknown as Record<string, unknown>;
       const target = rec['target'] as TestStep['target'];
       if (!target?.primary) throw new CompileError(step.id, `Step '${step.id}': upload requires target.primary`);
-      const l = locatorExpr(target, step.id, pageVar);
+      const l = locatorExpr(target, step.id, frameScopeExpr(step, pageVar));
       return [
         `const vvFile = (JSON.parse(process.env.VV_FILE_PATHS ?? process.env.FILE_PATHS ?? '{}') as Record<string, string>)[${esc(step.fileId)}];`,
         `if (!vvFile) throw new Error(${esc(`upload '${step.id}': no file path for fileId '${step.fileId}' (runner injects VV_FILE_PATHS map)`)});`,
@@ -320,7 +342,7 @@ function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string
       }
       if (target) {
         if (!target.primary) throw new CompileError(step.id, `Step '${step.id}': download requires target.primary`);
-        const l = locatorExpr(target, step.id, pageVar);
+        const l = locatorExpr(target, step.id, frameScopeExpr(step, pageVar));
         const saveExpr = saveAs ? esc(saveAs) : 'download.suggestedFilename()';
         return [
           `const downloadPromise = ${pageVar}.waitForEvent('download');`,
@@ -392,7 +414,7 @@ function visualCheckBody(step: TestStep, pageVar: string): string {
   }
   const fileName = sanitizeVisualFileName(name);
   const target = rec['target'] as TestStep['target'] | undefined;
-  const shotTarget = target ? locatorExpr(target, step.id, pageVar) : pageVar;
+  const shotTarget = target ? locatorExpr(target, step.id, frameScopeExpr(step, pageVar)) : pageVar;
   if (target && !target.primary) {
     throw new CompileError(step.id, `Step '${step.id}': visualCheck requires target.primary`);
   }

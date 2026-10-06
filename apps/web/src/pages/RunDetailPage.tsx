@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, traceViewerUrl } from "../api/client";
 import { ApiError, api as studioApi, apiBase, authHeaders } from "../lib/api";
+import { BugReportDialog } from "../components/BugReportDialog";
 import { useRunChannel } from "../hooks/useRunChannel";
 import { locatorPreview, type BuilderStep } from "../lib/steps";
 import { sampleRun } from "../mocks/sampleRun";
@@ -165,6 +166,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
   const [rerunning, setRerunning] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [downloadingJUnit, setDownloadingJUnit] = useState(false);
+  const [showBug, setShowBug] = useState(false);
   const [defSteps, setDefSteps] = useState<Map<string, BuilderStep>>(new Map());
   const [testName, setTestName] = useState<string | null>(null);
 
@@ -559,7 +561,19 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
         >
           {downloadingJUnit ? "Downloading JUnit…" : "⬇ JUnit XML"}
         </button>
+        <button
+          type="button"
+          className="btn"
+          disabled={run.status === "running" || run.status === "queued"}
+          onClick={() => setShowBug(true)}
+          title="Build a Markdown bug report, download .md, or file to Jira/Backlog/Slack/Lark"
+        >
+          🐞 Report bug
+        </button>
       </div>
+      {showBug && run.projectId ? (
+        <BugReportDialog runId={run.id} projectId={run.projectId} open={showBug} onClose={() => setShowBug(false)} />
+      ) : null}
     </section>
   );
 }

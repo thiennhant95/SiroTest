@@ -36,6 +36,8 @@ export interface BaseStep {
   enabled: boolean;
   timeoutMs?: number;
   continueOnFailure?: boolean;
+  /** Iframe scope for locator-bearing steps (Stripe Elements etc.). */
+  frame?: { url?: string; name?: string };
 }
 
 // ---------------------------------------------------------------- Locator ---

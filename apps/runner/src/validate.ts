@@ -279,6 +279,13 @@ function validateStep(step: TestStep, index: number, issues: ValidationIssue[]):
       issues.push({ code: 'STEP_AXE_RULES_INVALID', message: `${where} of type 'axeCheck' requires disableRules string[<=100]`, stepId: step.id });
     }
   }
+  // Iframe scope (Stripe Elements etc.): url or name, not both empty.
+  if (step.frame !== undefined) {
+    const f = step.frame as unknown;
+    if (!isRecord(f) || ((typeof (f as Record<string, unknown>).url !== 'string' || ((f as Record<string, unknown>).url as string).length === 0) && (typeof (f as Record<string, unknown>).name !== 'string' || ((f as Record<string, unknown>).name as string).length === 0))) {
+      issues.push({ code: 'STEP_FRAME_INVALID', message: `${where} frame needs url or name`, stepId: step.id });
+    }
+  }
   // ---- P2 field checks (explicit failures, never silent skips) ----
   if (step.type === 'visualCheck') {
     const rec = step as unknown as Record<string, unknown>;
