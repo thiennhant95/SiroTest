@@ -20,6 +20,7 @@ import { nanoid } from 'nanoid';
 import { db } from './db.js';
 import { stripServerPaths } from './security.js';
 import { maybeCreateHealingProposals, resolveRunInputs } from './run-inputs.js';
+import { notifyRunWebhooks } from './integrations.js';
 import {
   broadcastRunEvent as broadcast,
   markQueuedEmittedByRoute,
@@ -203,6 +204,19 @@ export async function enqueueSuiteMember(
         retriesLeft: opts.retriesLeft - 1,
       });
       return retry.done;
+    }
+    // Member FINAL outcome (after retries — the retry branch returned above):
+    // generic webhook fan-out for this member line.
+    {
+      const settled = await prismaRunStore.getRun(run.id).catch(() => null);
+      const memberTest = await db().test.findUnique({ where: { id: opts.testId }, select: { name: true } }).catch(() => null);
+      void notifyRunWebhooks({
+        projectId: opts.projectId,
+        event: terminal === 'passed' ? 'run.passed' : terminal === 'cancelled' ? 'run.cancelled' : 'run.failed',
+        runId: run.id, status: terminal, trigger: opts.trigger, suiteRunId: opts.suiteRunId,
+        testName: memberTest?.name ?? undefined,
+        errorSummary: settled?.errorSummary ?? null,
+      });
     }
     return terminal;
   })().catch(() => 'failed');

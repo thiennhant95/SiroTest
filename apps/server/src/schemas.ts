@@ -303,7 +303,7 @@ export const projectImport = z.object({
 
 /** Outbound integrations (bug-from-failure): provider config + secrets. */
 export const integrationCreate = z.object({
-  provider: z.enum(['jira', 'backlog', 'slack', 'lark']),
+  provider: z.enum(['jira', 'backlog', 'slack', 'lark', 'webhook']),
   name: z.string().min(1).max(120),
   enabled: z.boolean().optional(),
   config: z.record(z.string()).optional(),

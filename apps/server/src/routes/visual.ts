@@ -15,6 +15,7 @@ import {
 import { db } from '../db.js';
 import { requireAuth, requirePrivileged, requireProjectAccess } from '../auth.js';
 import { requireProjectWrite } from '../rbac.js';
+import { notifyRunWebhooks } from '../integrations.js';
 import { ApiError } from '../errors.js';
 import { ARTIFACT_MAX_BYTES, checkAllowedHttpUrl, stripServerPaths } from '../security.js';
 import { resolveRunInputs } from '../run-inputs.js';
@@ -344,6 +345,17 @@ export async function visualRoutes(app: FastifyInstance): Promise<void> {
         const current = await prismaRunStore.getRun(run.id);
         if (current?.status === 'cancelled') return { status: 'cancelled' as const, runId: run.id };
         return runTest(request, { store: prismaRunStore, publish: workerPublish });
+      })
+      .then(async (outcome) => {
+        const status = outcome.status === 'passed' ? 'passed' : outcome.status === 'cancelled' ? 'cancelled' : 'failed';
+        const settled = await prismaRunStore.getRun(run.id).catch(() => null);
+        void notifyRunWebhooks({
+          projectId: test.projectId,
+          event: status === 'passed' ? 'run.passed' : status === 'cancelled' ? 'run.cancelled' : 'run.failed',
+          runId: run.id, status, trigger: 'visual', testName: test.name,
+          errorSummary: settled?.errorSummary ?? null,
+        });
+        return outcome;
       })
       .catch(async (err: unknown) => {
         const message = err instanceof Error ? err.message : String(err);

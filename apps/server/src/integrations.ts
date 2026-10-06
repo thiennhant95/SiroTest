@@ -1,24 +1,27 @@
 import { decryptSecret, encryptSecret } from './security.js';
 import { ApiError } from './errors.js';
+import { db } from './db.js';
 
 /**
- * Outbound integrations for bug-from-failure (Jira / Backlog / Slack / Lark).
+ * Outbound integrations: bug-from-failure (Jira / Backlog / Slack / Lark)
+ * plus generic HMAC webhooks (`webhook`) for run-terminal events.
  * Secrets (tokens/keys) are AES-256-GCM encrypted in Integration.secretJson
  * and never returned to clients; config (space, project key, webhook URL…)
  * is plaintext. Outbound targets pass the SSRF URL guard.
  */
 
-export type Provider = 'jira' | 'backlog' | 'slack' | 'lark';
+export type Provider = 'jira' | 'backlog' | 'slack' | 'lark' | 'webhook';
 
 export const PROVIDERS: Record<Provider, { configFields: string[]; secretFields: string[] }> = {
   jira: { configFields: ['site', 'projectKey', 'issueType'], secretFields: ['email', 'apiToken'] },
   backlog: { configFields: ['space', 'projectId', 'issueTypeId'], secretFields: ['apiKey'] },
   slack: { configFields: ['webhookUrl'], secretFields: [] },
   lark: { configFields: ['webhookUrl'], secretFields: [] },
+  webhook: { configFields: ['url'], secretFields: ['signingSecret'] },
 };
 
 export function parseProvider(raw: unknown): Provider {
-  if (raw === 'jira' || raw === 'backlog' || raw === 'slack' || raw === 'lark') return raw;
+  if (raw === 'jira' || raw === 'backlog' || raw === 'slack' || raw === 'lark' || raw === 'webhook') return raw;
   throw new ApiError('VALIDATION_ERROR', `provider must be one of ${Object.keys(PROVIDERS).join('|')}`, 400);
 }
 
@@ -47,6 +50,8 @@ export interface BugPayload {
   title: string;
   markdown: string;
   runUrl?: string;
+  /** Event name for generic webhooks (e.g. 'run.passed' | 'run.failed'). */
+  event?: string;
   /** PNG bytes to attach (Backlog only for now; capped by caller). */
   attachments?: Array<{ filename: string; bytes: Buffer; mimeType: string }>;
 }
@@ -56,6 +61,50 @@ export interface Delivery {
   externalId?: string;
   externalUrl?: string;
   provider: Provider;
+}
+
+/**
+ * Generic run-terminal fan-out to enabled `webhook` integrations.
+ * Fire-and-forget by design: callers use `void notifyRunWebhooks(…)` —
+ * delivery failures never fail or delay the run. Only terminal outcomes
+ * (passed/failed/cancelled) are sent; retries emit per-attempt only when
+ * the caller passes each attempt explicitly.
+ */
+export async function notifyRunWebhooks(opts: {
+  projectId: string;
+  event: 'run.passed' | 'run.failed' | 'run.cancelled';
+  runId: string;
+  status: string;
+  trigger?: string;
+  testName?: string;
+  suiteRunId?: string;
+  errorSummary?: string | null;
+}): Promise<void> {
+  try {
+    const rows = await db().integration.findMany({
+      where: { projectId: opts.projectId, enabled: true, provider: 'webhook' },
+    });
+    if (rows.length === 0) return;
+    const subject = opts.testName ? `test "${opts.testName}"` : `run ${opts.runId}`;
+    const title = `[Studio] ${opts.event}: ${subject} (${opts.status})`;
+    const lines = [
+      `run: ${opts.runId}`,
+      `trigger: ${opts.trigger ?? 'manual'}`,
+      ...(opts.suiteRunId ? [`suite run: ${opts.suiteRunId}`] : []),
+      (opts.errorSummary ?? '').slice(0, 1500),
+    ].filter((l) => l.length > 0);
+    const payload = { event: opts.event, title, markdown: lines.join('\n') };
+    for (const row of rows) {
+      try {
+        const config = JSON.parse(row.configJson || '{}') as Record<string, string>;
+        await sendToProvider('webhook', config, decryptSecrets(row.secretJson), payload);
+      } catch {
+        // per-target best-effort — one bad webhook never blocks the rest
+      }
+    }
+  } catch {
+    // lookup failure must never break run settlement
+  }
 }
 
 function trunc(s: string, n: number): string {
@@ -270,6 +319,31 @@ export async function sendToProvider(
       const code = (r.json as { StatusCode?: number; code?: number } | null)?.StatusCode ?? (r.json as { code?: number } | null)?.code;
       if (r.status < 200 || r.status >= 300 || (code !== undefined && code !== 0)) {
         throw new ApiError('VALIDATION_ERROR', `lark rejected the message (HTTP ${r.status}): ${r.text.slice(0, 300)}`, 400);
+      }
+      return { ok: true, provider };
+    }
+    case 'webhook': {
+      // Generic HMAC webhook for run-terminal events (CI dashboards, chat
+      // relays). Body is JSON; signed with the optional signingSecret so the
+      // receiver can verify authenticity (X-VV-Signature: v1=<hex hmac>).
+      const url = config.url ?? '';
+      if (!url) throw new ApiError('VALIDATION_ERROR', 'webhook needs config.url', 400);
+      const body = {
+        event: payload.event ?? 'run.update',
+        title: payload.title,
+        markdown: trunc(payload.markdown, 3000),
+        ...(payload.runUrl ? { runUrl: payload.runUrl } : {}),
+      };
+      const raw = JSON.stringify(body);
+      const headers: Record<string, string> = { 'X-VV-Event': body.event };
+      const secret = secrets.signingSecret ?? '';
+      if (secret) {
+        const { createHmac } = await import('node:crypto');
+        headers['X-VV-Signature'] = `v1=${createHmac('sha256', secret).update(raw, 'utf8').digest('hex')}`;
+      }
+      const r = await postJson(url, { headers, body: JSON.parse(raw) as unknown });
+      if (r.status < 200 || r.status >= 300) {
+        throw new ApiError('VALIDATION_ERROR', `webhook rejected the event (HTTP ${r.status}): ${r.text.slice(0, 300)}`, 400);
       }
       return { ok: true, provider };
     }
