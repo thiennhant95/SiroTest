@@ -7,6 +7,7 @@ const PROVIDERS = [
   { id: "backlog", label: "Backlog", config: ["space", "projectId", "issueTypeId", "priorityId"], secrets: ["apiKey"], hints: { space: "https://xxx.backlog.com", projectId: "123", issueTypeId: "2", priorityId: "3" } as Record<string, string> },
   { id: "slack", label: "Slack", config: ["webhookUrl"], secrets: [], hints: { webhookUrl: "https://hooks.slack.com/…" } as Record<string, string> },
   { id: "lark", label: "Lark", config: ["webhookUrl"], secrets: [], hints: { webhookUrl: "https://open.larksuite.com/… (custom bot)" } as Record<string, string> },
+  { id: "webhook", label: "Webhook (run events)", config: ["url"], secrets: ["signingSecret"], hints: { url: "https://ci.example.com/hook", signingSecret: "optional HMAC secret" } as Record<string, string> },
 ];
 
 /** Project integrations for bug-from-failure (Jira/Backlog/Slack/Lark). */

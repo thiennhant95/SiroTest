@@ -39,7 +39,7 @@ import { runTest } from '@playwright-studio/runner';
 import { resolveRunInputs } from './run-inputs.js';
 import { db } from './db.js';
 import { checkAllowedHttpUrl, stripServerPaths } from './security.js';
-import { decryptSecrets, parseProvider, sendToProvider } from './integrations.js';
+import { decryptSecrets, notifyRunWebhooks, parseProvider, sendToProvider } from './integrations.js';
 import { writeAudit } from './routes/audit.js';
 import { enqueueSuiteMember, newSuiteRunId } from './suite-runs.js';
 import {
@@ -381,6 +381,8 @@ async function fireSuiteSchedule(s: ScheduleRow): Promise<string> {
     .then(async (results) => {
       // Suite aggregate: any failure fails the schedule (cancelled counts
       // as failed for alerting — a cancelled nightly is still worth a look).
+      // Member runs already fanned out per-run webhooks (with suiteRunId);
+      // the aggregate only drives lastStatus + opt-in chat notify.
       const statuses = results.map((r) => (r.status === 'fulfilled' ? r.value : 'failed'));
       const status: ScheduleTerminalStatus = statuses.every((x) => x === 'passed') ? 'passed' : 'failed';
       await onScheduleRunSettled(s.id, { status, suiteRunId });
@@ -557,6 +559,12 @@ async function fireTestSchedule(s: ScheduleRow): Promise<string> {
         runId: run.id,
         errorSummary: settled?.errorSummary ?? null,
       });
+      void notifyRunWebhooks({
+        projectId: test.projectId,
+        event: status === 'passed' ? 'run.passed' : status === 'cancelled' ? 'run.cancelled' : 'run.failed',
+        runId: run.id, status, trigger: 'schedule', testName: test.name,
+        errorSummary: settled?.errorSummary ?? null,
+      }).catch(() => undefined);
       return result;
     })
     .catch(async (err: unknown) => {

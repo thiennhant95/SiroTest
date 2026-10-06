@@ -15,6 +15,7 @@ import { checkAllowedHttpUrl, stripServerPaths } from '../security.js';
 import { db } from '../db.js';
 import { runEvent } from '../ws/events.js';
 import { resolveRunInputs, maybeCreateHealingProposals } from '../run-inputs.js';
+import { notifyRunWebhooks } from '../integrations.js';
 import {
   markQueuedEmittedByRoute,
   prismaRunStore,
@@ -170,6 +171,15 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
       .then(async (outcome) => {
         // P2 healing proposals are review aids derived from terminal evidence.
         await maybeCreateHealingProposals(outcome, healCtx);
+        // Generic webhooks (opt-in per project): run-terminal fan-out.
+        const status = outcome.status === 'passed' ? 'passed' : outcome.status === 'cancelled' ? 'cancelled' : 'failed';
+        const settled = await prismaRunStore.getRun(run.id).catch(() => null);
+        void notifyRunWebhooks({
+          projectId: test.projectId,
+          event: status === 'passed' ? 'run.passed' : status === 'cancelled' ? 'run.cancelled' : 'run.failed',
+          runId: run.id, status, trigger: 'manual', testName: test.name,
+          errorSummary: settled?.errorSummary ?? null,
+        });
       })
       .catch(async (err: unknown) => {
         // runTest settles internally; this is a last-resort guard against a

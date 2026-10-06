@@ -760,7 +760,7 @@ export interface Run {
 export interface Integration {
   id: string;
   projectId: string;
-  provider: "jira" | "backlog" | "slack" | "lark";
+  provider: "jira" | "backlog" | "slack" | "lark" | "webhook";
   name: string;
   enabled: boolean;
   config: Record<string, string>;
