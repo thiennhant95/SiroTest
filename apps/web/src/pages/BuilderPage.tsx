@@ -4,6 +4,7 @@ import { AddStepPalette } from "../components/AddStepPalette";
 import { AssertionPickerModal, type InsertPosition } from "../components/AssertionPickerModal";
 import { DatasetsTab } from "../components/DatasetsTab";
 import { EnvironmentsPanel } from "../components/EnvironmentsPanel";
+import { GherkinTab } from "../components/GherkinTab";
 import { Inspector } from "../components/Inspector";
 import { RunModal } from "../components/RunModal";
 import { BuilderTour, restartBuilderTour } from "../components/GuidedTour";
@@ -39,7 +40,7 @@ import {
 import { CodeTab } from "./builder/CodeTab";
 import { HistoryTab } from "./builder/HistoryTab";
 
-type BottomTab = "steps" | "variables" | "datasets" | "runs" | "code" | "history" | "suggest";
+type BottomTab = "steps" | "variables" | "datasets" | "runs" | "code" | "history" | "suggest" | "gherkin";
 type SaveState = "saved" | "saving" | "error";
 
 /**
@@ -614,6 +615,7 @@ export function BuilderPage() {
               { value: "code", label: "Code" },
               { value: "history", label: "History" },
               { value: "suggest", label: "Suggest" },
+              { value: "gherkin", label: "Gherkin" },
             ]}
           />
         </div>
@@ -661,6 +663,9 @@ export function BuilderPage() {
           {bottomTab === "history" ? <HistoryTab testId={id!} /> : null}
           {bottomTab === "suggest" ? (
             <SuggestionsPanel testId={id!} onApplied={() => void load()} />
+          ) : null}
+          {bottomTab === "gherkin" ? (
+            <GherkinTab testId={id!} projectId={projectId || undefined} onInserted={() => void load()} />
           ) : null}
         </div>
       </footer>

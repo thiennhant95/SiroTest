@@ -8,6 +8,8 @@
  * Endpoints (all requireAuth; preview only — no write to tests/runs):
  *   GET  /ai/status      → { engine, provider, model? } (never leaks the key)
  *   POST /ai/nl-to-steps → { engine, steps, unparsed[] }
+ *   POST /ai/gherkin     → { engine: 'rules', steps, unparsed[], warnings[],
+ *                           scenarioName?, tags[] } (Vietnamese Gherkin, rules only)
  *   POST /ai/explain     → { engine, explanation }
  *   POST /ai/cleanup     → { engine, steps, changes[] } (sorted definition is
  *                          NOT written back — caller PATCHes /tests/:id itself)
@@ -16,13 +18,15 @@
  * `engine: 'rules'` (deterministic @vv/ai rule engines). With a key,
  * nl-to-steps and explain attempt the LLM and fall back to rules on any
  * failure (parse error, timeout, HTTP error) — the reported `engine` always
- * reflects the path that actually produced the payload.
+ * reflects the path that actually produced the payload (`/ai/gherkin` is
+ * always rules: deterministic Vietnamese-Gherkin parser, no LLM involved).
  */
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
   cleanupRecording,
   explainFailure,
+  gherkinViToSteps,
   nlToSteps,
   nlToStepsSystemPrompt,
   validateGeneratedSteps,
@@ -39,6 +43,12 @@ import { aiStatus, getAIProvider, loadProjectSecrets, redactForLLM } from '../ai
 const nlBody = z.object({
   text: z.string().min(1).max(8000),
   /** Accepted for future project scoping; unused by the stateless rule path. */
+  projectId: z.string().min(1).optional(),
+});
+
+const gherkinBody = z.object({
+  text: z.string().min(1).max(8000),
+  /** When present, the caller must have read access to the project. Nothing is persisted. */
   projectId: z.string().min(1).optional(),
 });
 
@@ -69,6 +79,8 @@ interface LlmNlPayload {
   steps?: unknown;
   unparsed?: unknown;
 }
+
+/** Vietnamese-Gherkin parser (Agent A contract: `packages/ai/src/gherkin-vi.ts`). */
 
 /** LLM attempt for nl-to-steps; throws on any failure (caller falls back). */
 async function nlViaLlm(text: string): Promise<{ steps: unknown[]; unparsed: string[] }> {
@@ -108,6 +120,16 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       const rules = nlToSteps(body.text);
       return { engine: 'rules' as const, steps: rules.steps, unparsed: rules.unparsed };
     }
+  });
+
+  app.post('/ai/gherkin', { preHandler: requireAuth }, async (req) => {
+    const body = parseOrThrow(gherkinBody, req.body);
+    if (body.projectId !== undefined) {
+      await requireReadAccessToProject(req, body.projectId);
+    }
+    // Always deterministic rules; stateless preview — nothing is persisted.
+    const result = gherkinViToSteps(body.text);
+    return { engine: 'rules' as const, ...result };
   });
 
   app.post('/ai/explain', { preHandler: requireAuth }, async (req) => {

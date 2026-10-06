@@ -35,7 +35,7 @@ export interface NlToStepsResult {
   unparsed: string[];
 }
 
-type LooseStep = Record<string, unknown>;
+export type LooseStep = Record<string, unknown>;
 
 let counter = 0;
 
@@ -462,6 +462,19 @@ const MATCHERS: Array<(clause: string) => LooseStep | null> = [
 ];
 
 /**
+ * Run one clause through the matcher pipeline. Returns the first match
+ * (with a minted `nl_<n>` id) or null when nothing understands the clause.
+ * Pure except for the deterministic id counter — see resetNlStepCounter.
+ */
+export function parseNlClause(clause: string): LooseStep | null {
+  for (const match of MATCHERS) {
+    const emitted = match(clause);
+    if (emitted) return emitted;
+  }
+  return null;
+}
+
+/**
  * Parse free text into P0/P1 steps. Pure + deterministic.
  * Unknown clauses → `unparsed` (never fabricated into steps).
  */
@@ -469,11 +482,7 @@ export function nlToSteps(text: string): NlToStepsResult {
   const steps: LooseStep[] = [];
   const unparsed: string[] = [];
   for (const clause of splitClauses(text)) {
-    let emitted: LooseStep | null = null;
-    for (const match of MATCHERS) {
-      emitted = match(clause);
-      if (emitted) break;
-    }
+    const emitted = parseNlClause(clause);
     if (!emitted) {
       unparsed.push(clause);
       continue;
