@@ -266,6 +266,9 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
   activeRuns.set(runId, { token });
 
   const browser = req.browser ?? req.test.browser;
+  // Validate BEFORE createRun: an id-less/invalid definition must fail with an
+  // explicit ValidationError, never crash the store upsert (testId undefined).
+  validateTestDefinition(req.test);
   await store.createRun({
     id: runId,
     projectId: req.projectId,
@@ -286,7 +289,6 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
   // once with `{}` when the dataset is empty — never silently skipped).
   let datasetRows: Record<string, string>[] = [];
   try {
-    validateTestDefinition(req.test);
     datasetRows = resolveDatasetRows(req.test, req.datasetId, req.rowIndex);
     // P1 wave-2 run inputs fail fast (before any workspace/spawn).
     if (req.filePaths !== undefined) {

@@ -32,6 +32,22 @@ function blankDefinition(projectId: string, name: string, browser = 'chromium'):
   };
 }
 
+/**
+ * Backfill invariant: stored definitions always carry `id` + `projectId`.
+ * API/CLI authors may submit a definition without them — mint in place
+ * (explicit, deterministic) instead of crashing the worker later.
+ */
+function withDefinitionIds(definition: unknown, projectId: string): Record<string, unknown> {
+  const def = (definition ?? {}) as Record<string, unknown>;
+  if (typeof def['id'] !== 'string' || (def['id'] as string).length === 0) {
+    def['id'] = `test_${nanoid(10)}`;
+  }
+  if (typeof def['projectId'] !== 'string' || (def['projectId'] as string).length === 0) {
+    def['projectId'] = projectId;
+  }
+  return def;
+}
+
 export async function testRoutes(app: FastifyInstance): Promise<void> {
   // list under project; ?tag=X filters by TestDefinition.tags (P1, additive).
   app.get('/projects/:projectId/tests', { preHandler: requireAuth }, async (req) => {
@@ -54,12 +70,13 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
     await requireProjectAccess(req);
     const body = parseOrThrow(testCreate, req.body);
     assertStorableDefinition(body.definitionJson);
+    const withIds = withDefinitionIds(body.definitionJson ?? blankDefinition(projectId, body.name, body.browser), projectId);
     const created = await db().test.create({
       data: {
         projectId,
         name: body.name,
         description: body.description,
-        definitionJson: JSON.stringify(body.definitionJson ?? blankDefinition(projectId, body.name, body.browser)),
+        definitionJson: JSON.stringify(withIds),
         createdBy: req.user!.id,
       },
     });
@@ -93,7 +110,7 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
       data: {
         ...(body.name ? { name: body.name } : {}),
         ...(body.description !== undefined ? { description: body.description } : {}),
-        ...(body.definitionJson ? { definitionJson: JSON.stringify(body.definitionJson) } : {}),
+        ...(body.definitionJson ? { definitionJson: JSON.stringify(withDefinitionIds(body.definitionJson, existing.projectId)) } : {}),
       },
     });
     if (body.definitionJson) {

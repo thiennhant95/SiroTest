@@ -2,6 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import {
   cancelRun,
   runTest,
+  validateTestDefinition,
+  ValidationError,
   type RunRequest,
   type TestDefinition,
 } from '@playwright-studio/runner';
@@ -93,6 +95,16 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
     // orphan queued runs for bad selections).
     const definitionPre = JSON.parse(test.definitionJson) as TestDefinition;
     const validatedDataset = validateRunDataset(definitionPre, body.datasetId, body.rowIndex);
+    // Fail fast: full definition validation BEFORE the run row is created —
+    // no orphan queued runs, no worker store crashes on invalid definitions.
+    try {
+      validateTestDefinition(definitionPre);
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        throw new ApiError('VALIDATION_ERROR', `Invalid test definition: ${err.issues.map((i) => i.message).join('; ')}`, 400);
+      }
+      throw err;
+    }
     const run = await db().run.create({
       data: {
         projectId: test.projectId, testId: id,
