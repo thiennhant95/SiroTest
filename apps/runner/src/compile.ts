@@ -26,6 +26,7 @@ import type {
   TestStep,
 } from './types.js';
 import { findTemplateVars } from './env.js';
+import { HEALING_PROBE_BUDGET_MS, isLocatorBearingStep } from './healing.js';
 
 type CompileDataSet = NonNullable<TestDefinition['datasets']>[number];
 
@@ -151,28 +152,45 @@ function secretAwareValueExpr(step: TestStep): string {
   return templateExpr(value, 'value', step.id);
 }
 
+function candidateExpr(candidate: LocatorCandidate, stepId: string, scopeExpr: string): string {
+  switch (candidate.strategy) {
+    case 'role': {
+      const c = candidate as { role: string; name?: string; exact?: boolean };
+      const opts = c.name !== undefined ? `, { name: ${esc(c.name)}${c.exact ? ', exact: true' : ''} }` : '';
+      return `${scopeExpr}.getByRole(${esc(c.role)}${opts})`;
+    }
+    case 'label': {
+      const c = candidate as { value: string; exact?: boolean };
+      return `${scopeExpr}.getByLabel(${esc(c.value)}${c.exact ? ', { exact: true }' : ''})`;
+    }
+    case 'placeholder': {
+      const c = candidate as { value: string; exact?: boolean };
+      return `${scopeExpr}.getByPlaceholder(${esc(c.value)}${c.exact ? ', { exact: true }' : ''})`;
+    }
+    case 'testId': {
+      const c = candidate as { value: string };
+      return `${scopeExpr}.getByTestId(${esc(c.value)})`;
+    }
+    case 'text': {
+      const c = candidate as { value: string; exact?: boolean };
+      return `${scopeExpr}.getByText(${esc(c.value)}${c.exact ? ', { exact: true }' : ''})`;
+    }
+    case 'css': {
+      const c = candidate as { value: string };
+      return `${scopeExpr}.locator(${esc(c.value)})`;
+    }
+    case 'xpath': {
+      const c = candidate as { value: string };
+      return `${scopeExpr}.locator(${esc(`xpath=${c.value}`)})`;
+    }
+    default:
+      throw new CompileError(stepId, `Step '${stepId}': unsupported locator strategy '${(candidate as { strategy: string }).strategy}'`);
+  }
+}
+
 function locatorExpr(target: TestStep['target'], stepId: string, pageVar = 'page'): string {  const primary: LocatorCandidate | undefined = target?.primary;
   if (!primary) throw new CompileError(stepId, `Step '${stepId}': missing target.primary`);
-  switch (primary.strategy) {
-    case 'role': {
-      const opts = primary.name !== undefined ? `, { name: ${esc(primary.name)}${primary.exact ? ', exact: true' : ''} }` : '';
-      return `${pageVar}.getByRole(${esc(primary.role)}${opts})`;
-    }
-    case 'label':
-      return `${pageVar}.getByLabel(${esc(primary.value)}${primary.exact ? ', { exact: true }' : ''})`;
-    case 'placeholder':
-      return `${pageVar}.getByPlaceholder(${esc(primary.value)}${primary.exact ? ', { exact: true }' : ''})`;
-    case 'testId':
-      return `${pageVar}.getByTestId(${esc(primary.value)})`;
-    case 'text':
-      return `${pageVar}.getByText(${esc(primary.value)}${primary.exact ? ', { exact: true }' : ''})`;
-    case 'css':
-      return `${pageVar}.locator(${esc(primary.value)})`;
-    case 'xpath':
-      return `${pageVar}.locator(${esc(`xpath=${primary.value}`)})`;
-    default:
-      throw new CompileError(stepId, `Step '${stepId}': unsupported locator strategy '${(primary as { strategy: string }).strategy}'`);
-  }
+  return candidateExpr(primary, stepId, pageVar);
 }
 
 /**
@@ -700,18 +718,60 @@ function interpolateActionStep(step: TestStep, args: Record<string, string>): Te
 }
 
 /** One `await test.step(...)` line-block; inner/outer share timeout + continueOnFailure handling. */
+/**
+ * P2 healing probe wrapper (flag-gated, `compileSpec(test, { healingProbe })`).
+ * On primary failure, each stored alternative is counted read-only
+ * (`.count()` never waits — bounded, immediate) and one JSON line is
+ * appended to VV_HEALING_PATH. The original error is always rethrown: the
+ * step keeps `failed`, nothing is silently healed. Without the flag the
+ * output is byte-identical to before (P0 primary-only unchanged).
+ */
+const HEALING_PROBE_MAX = 8;
+
+function safeStepVar(stepId: string): string {
+  const s = stepId.replace(/[^A-Za-z0-9_$]/g, '_');
+  return s.length > 0 ? s : 'step';
+}
+
+function healingProbeBody(step: TestStep, body: string, scopeExpr: string): string | null {
+  const alternatives = step.target?.alternatives ?? [];
+  if (!isLocatorBearingStep(step) || alternatives.length === 0) return null;
+  const v = safeStepVar(step.id);
+  const checks = alternatives.slice(0, HEALING_PROBE_MAX).map((alt, i) => {
+    const expr = candidateExpr(alt, step.id, scopeExpr);
+    return `if (vvWinner_${v} === -1) { try { const vvN_${v}_${i} = await (${expr}).count(); vvTried_${v}.push(vvN_${v}_${i}); if (vvN_${v}_${i} === 1) { vvWinner_${v} = ${i}; } } catch { vvTried_${v}.push(-1); } }`;
+  });
+  return [
+    `try {`,
+    ...body.split('\n').map((l) => `  ${l}`),
+    `} catch (vvErr_${v}) {`,
+    `  const vvTried_${v}: number[] = [];`,
+    `  let vvWinner_${v} = -1;`,
+    ...checks.map((c) => `  ${c}`),
+    `  if (process.env.VV_HEALING_PATH) { try { require('node:fs').appendFileSync(process.env.VV_HEALING_PATH, JSON.stringify({ stepId: ${esc(step.id)}, tried: vvTried_${v}, winner: vvWinner_${v} }) + '\\n'); } catch { /* evidence best-effort; original error still throws */ } }`,
+    `  throw vvErr_${v};`,
+    `}`,
+  ].join('\n');
+}
+
 function emitRunnerStep(
   titleExpr: string,
   body: string,
-  opts: { timeoutMs?: number; continueOnFailure?: boolean; stepId: string },
+  opts: { timeoutMs?: number; continueOnFailure?: boolean; stepId: string; healing?: { step: TestStep; scopeExpr: string } },
   baseIndent: string,
 ): string[] {
+  // P2 healing headroom: the probe wrapper needs budget past the step
+  // timeout, otherwise probes die with the timed-out step (unverified).
+  const timeoutMs = opts.healing && typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs)
+    ? opts.timeoutMs + HEALING_PROBE_BUDGET_MS
+    : opts.timeoutMs;
   const timeoutOpt =
-    typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs)
-      ? `, { timeout: ${opts.timeoutMs} }`
+    typeof timeoutMs === 'number' && Number.isFinite(timeoutMs)
+      ? `, { timeout: ${timeoutMs} }`
       : '';
   const inner = `${baseIndent}  `;
-  const bodyLines = body.split('\n').map((line) => `${inner}${line}`);
+  const probed = opts.healing ? healingProbeBody(opts.healing.step, body, opts.healing.scopeExpr) : null;
+  const bodyLines = (probed ?? body).split('\n').map((line) => `${inner}${line}`);
   let lines = bodyLines;
   if (opts.continueOnFailure === true) {
     lines = [
@@ -735,6 +795,7 @@ function emitCallAction(
   baseIndent: string,
   dataset: boolean,
   pageVar = 'page',
+  healingProbe = false,
 ): string[] {
   const args = resolveActionArguments(caller, action);
   const title = `[${caller.id}] ${caller.name ?? action.name}`;
@@ -761,6 +822,7 @@ function emitCallAction(
         timeoutMs: interpolated.timeoutMs,
         continueOnFailure: interpolated.continueOnFailure,
         stepId: interpolated.id,
+        ...(healingProbe ? { healing: { step: interpolated, scopeExpr: frameScopeExpr(interpolated, pageVar) } } : {}),
       }, innerIndent),
     );
   }
@@ -788,7 +850,7 @@ function emitCallAction(
 /** Deterministic spec source for one enabled-steps test. Disabled steps are omitted (reporter marks them skipped). */
 export function compileSpec(
   test: TestDefinition,
-  opts?: { testTimeoutMs?: number; datasetId?: string; actions?: ActionsContext; plugins?: Record<string, PluginCompileInfo> },
+  opts?: { testTimeoutMs?: number; datasetId?: string; actions?: ActionsContext; plugins?: Record<string, PluginCompileInfo>; healingProbe?: boolean },
 ): string {
   const dataset = resolveCompileDataset(test, opts?.datasetId);
   const enabled = test.steps.filter((s) => s.enabled);
@@ -822,12 +884,16 @@ export function compileSpec(
   // `page`/`page2`/… stack; `closeTab` on the last tab fails explicitly.
   const pageStack: string[] = ['page'];
   let pageCounter = 1;
-  const emitTopLevel = (step: TestStep, body: string): void => {
+  const emitTopLevel = (step: TestStep, body: string, pageVar: string): void => {
     const title = `[${step.id}] ${step.name ?? step.type}`;
     const titleExpr = dataset ? `\`${escTemplate(title)} #\${_vvIteration + 1}\`` : esc(title);
+    const probed = opts?.healingProbe === true
+      ? (healingProbeBody(step, body, frameScopeExpr(step, pageVar)) ?? body)
+      : body;
     lines.push(`${pad}  await test.step(${titleExpr}, async () => {`);
-    for (const raw of body.split('\n')) lines.push(`${pad}    ${raw}`);
-    if (step.timeoutMs) lines.push(`${pad}  }, { timeout: ${step.timeoutMs} });`);
+    for (const raw of probed.split('\n')) lines.push(`${pad}    ${raw}`);
+    const healingHeadroom = opts?.healingProbe === true && typeof step.timeoutMs === 'number' && Number.isFinite(step.timeoutMs);
+    if (step.timeoutMs) lines.push(`${pad}  }, { timeout: ${step.timeoutMs + (healingHeadroom ? HEALING_PROBE_BUDGET_MS : 0)} });`);
     else lines.push(`${pad}  });`);
   };
   for (const step of enabled) {
@@ -835,7 +901,7 @@ export function compileSpec(
       pageCounter += 1;
       const newPageVar = pageCounter === 2 ? 'page2' : `page${pageCounter}`;
       const currentPage = pageStack[pageStack.length - 1];
-      emitTopLevel(step, stepBody(step, currentPage, newPageVar));
+      emitTopLevel(step, stepBody(step, currentPage, newPageVar), currentPage);
       pageStack.push(newPageVar);
       continue;
     }
@@ -844,7 +910,7 @@ export function compileSpec(
         throw new CompileError(step.id, `Step '${step.id}': closeTab cannot close the last remaining tab — at least one page must stay open`);
       }
       const currentPage = pageStack[pageStack.length - 1];
-      emitTopLevel(step, stepBody(step, currentPage));
+      emitTopLevel(step, stepBody(step, currentPage), currentPage);
       pageStack.pop();
       continue;
     }
@@ -856,7 +922,7 @@ export function compileSpec(
           ? `Step '${step.id}': callAction references unknown action '${actionId}' — pass it via compileSpec(test, { actions })`
           : `Step '${step.id}': callAction requires actionId`);
       }
-      lines.push(...emitCallAction(step, action, `${pad}  `, dataset !== undefined, pageStack[pageStack.length - 1]));
+      lines.push(...emitCallAction(step, action, `${pad}  `, dataset !== undefined, pageStack[pageStack.length - 1] as string, opts?.healingProbe === true));
       continue;
     }
     // P2 plugin fail-fast when the registry snapshot is available (otherwise
@@ -864,7 +930,8 @@ export function compileSpec(
     if (typeof step.type === 'string' && PLUGIN_STEP_PATTERN.test(step.type)) {
       assertPluginStep(step, opts?.plugins);
     }
-    emitTopLevel(step, stepBody(step, pageStack[pageStack.length - 1]));
+    const currentTop = pageStack[pageStack.length - 1] as string;
+    emitTopLevel(step, stepBody(step, currentTop), currentTop);
   }
   if (dataset) lines.push(`  }`);
   lines.push(`});`, ``);
@@ -948,6 +1015,12 @@ export interface RunConfigOptions {
    * byte-identical to P0 (fresh context per run, never reused).
    */
   storageStateFile?: string;
+  /**
+   * P2 healing headroom: caps primary actions at this ms so a failing
+   * locator cannot eat the whole test timeout before probes run. Only
+   * emitted when set (flag-gated runs); P0 config stays byte-identical.
+   */
+  healingActionTimeoutMs?: number;
 }
 
 /** Playwright config for the isolated run: per-run context + custom reporter. */
@@ -974,6 +1047,9 @@ export function compileConfig(opts: RunConfigOptions): string {
     ...(opts.baseUrl ? [`    baseURL: process.env.RUN_BASE_URL ?? ${esc(opts.baseUrl)},`] : []),
     `    browserName: ${esc(opts.browser)},`,
     `    headless: ${opts.headed ? 'false' : 'true'},`,
+    ...(typeof opts.healingActionTimeoutMs === 'number' && Number.isFinite(opts.healingActionTimeoutMs)
+      ? [`    actionTimeout: ${Math.trunc(opts.healingActionTimeoutMs)}, // P2 healing: primary capped, probes keep headroom`]
+      : []),
     ...(opts.slowMoMs ? [`    launchOptions: { slowMo: ${Math.trunc(opts.slowMoMs)} }, // observe mode`] : []),
     ...(opts.viewport ? [`    viewport: { width: ${opts.viewport.width}, height: ${opts.viewport.height} },`] : []),
     `    trace: ${esc(opts.trace)},`,

@@ -33,6 +33,14 @@ export const STEP_HEALED_EVENT = 'step.healed' as const;
 /* eslint-enable @typescript-eslint/naming-convention */
 
 /**
+ * Probe headroom (ms) reserved when healing probes are compiled in. The
+ * primary action is capped by `actionTimeout` at the plain timeout while the
+ * test/step timeout is extended by this budget, so read-only alternative
+ * counts still run after a primary failure instead of dying with the test.
+ */
+export const HEALING_PROBE_BUDGET_MS = 15_000;
+
+/**
  * Live match counter for one alternative candidate.
  * In production (no live page handle in the runner host — the browser lives
  * inside the Playwright child) this is injected by the caller when a probe

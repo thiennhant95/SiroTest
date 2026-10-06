@@ -20,7 +20,7 @@ import { visualHelperSource } from './visual-compare.js';
 import { buildDatasetEnvValue, resolveDatasetRows, VV_DATASET_ROWS_ENV } from './datasets.js';
 import { redactSecrets, resolveEnv } from './env.js';
 import { buildEvent, type EventPublisher, type RunEventName } from './events.js';
-import { attemptHealing, STEP_HEALED_EVENT, type HealAttempt, type HealProbe } from './healing.js';
+import { attemptHealing, HEALING_PROBE_BUDGET_MS, isLocatorFailure, previewHealingCandidate, STEP_HEALED_EVENT, type HealAttempt, type HealProbe } from './healing.js';
 import { now, terminalRunStatusOf, type RunStore } from './persist.js';
 import { CancellationToken, killProcessTree, spawnArgs } from './process.js';
 import { resolveTestTimeout, resolveTimeouts } from './timeout.js';
@@ -376,7 +376,10 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
 
   try {
     // ---- Step 4: compile ----
-    const testTimeoutMs = resolveTestTimeout(test, req.projectDefaultTimeoutMs);
+    const healingOptIn = req.healWithAlternatives === true;
+    const testTimeoutMs = resolveTestTimeout(test, req.projectDefaultTimeoutMs)
+      // P2 healing headroom: probes need budget past the plain timeout.
+      + (healingOptIn ? HEALING_PROBE_BUDGET_MS : 0);
     const reporterPath = deps.reporterPath ?? process.env.REPORTER_PATH ?? defaultReporterPath();
     const eventsPath = join(ws.workDir, 'events.jsonl');
     // P1 auth context: materialize the decrypted storageState JSON as
@@ -429,6 +432,11 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
       // passing the snapshot makes unknown types / bad secret literals fail
       // here instead of inside the worker (same explicit codes either way).
       ...(pluginRegistry !== undefined ? { plugins: pluginRegistry } : {}),
+      // P2 healing probes: compiled into the spec only on explicit opt-in
+      // (healWithAlternatives). P0 output is byte-identical without it.
+      // Primary actions are capped at the plain timeout via actionTimeout so
+      // a failing locator cannot eat the probe headroom added above.
+      ...(healingOptIn ? { healingProbe: true as const } : {}),
     });
     const configSource = compileConfig({
       browser,
@@ -446,6 +454,9 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
       // P1 auth context: materialized per run, removed with the workDir in
       // step 8. Undefined keeps the P0 fresh-context default.
       ...(storageStateFile !== undefined ? { storageStateFile } : {}),
+      // P2 healing: cap primary actions at the plain timeout (testTimeoutMs
+      // already includes the probe headroom above).
+      ...(healingOptIn ? { healingActionTimeoutMs: testTimeoutMs - HEALING_PROBE_BUDGET_MS } : {}),
     });
     await writeWorkFile(ws.workDir, 'run.spec.ts', specSource);
     await writeWorkFile(ws.workDir, 'playwright.config.ts', configSource);
@@ -503,6 +514,11 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
             ),
           }
         : {}),
+      // P2 healing probes: per-run evidence path read by the compiled spec
+      // on primary failure (read-only alternative counts, one JSON line per
+      // failed step). Per-run env (not process-global) so concurrent runs on
+      // the same host never share evidence.
+      ...(healingOptIn ? { VV_HEALING_PATH: join(ws.workDir, 'healing.jsonl') } : {}),
       // P2 plugins: type -> { file, schema } for the `vv-plugins.cjs` shim.
       ...(pluginRegistry !== undefined ? { VV_PLUGINS: JSON.stringify(pluginRegistry) } : {}),
       RUN_STEPS_META_JSON: JSON.stringify(
@@ -592,20 +608,71 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     }
     // ---- Step 7b: P2 opt-in healing analysis (proposal-only) ----
     // Runs only when `healWithAlternatives === true` (default false keeps P0
-    // behavior byte-identical: no extra events, empty `healing`). For every
-    // FAILED locator-bearing step whose error is a locator failure and whose
-    // definition carries stored alternatives, walk the alternatives in order
-    // (healing.ts). The step keeps `failed`; a `step.healed` event carries
-    // runId + stepId + evidence (informational, like all WS events), and the
-    // attempt is collected below for the server to persist as a reviewable
-    // `HealingProposal` (pending). Nothing is rewritten here — the runner
-    // has no DB and never mutates the stored definition.
+    // behavior byte-identical: no extra events, empty `healing`). Verified
+    // evidence comes from the compiled in-spec probes (healing.jsonl): on a
+    // primary failure the spec counts each stored alternative read-only
+    // against the live page BEFORE the browser closes, so winners are
+    // genuinely verified. The post-run walk below stays as the unverified
+    // fallback (proposal queue skips attempts without a winner). The step
+    // keeps `failed`; a `step.healed` event carries runId + stepId + evidence
+    // (informational, like all WS events). Nothing is rewritten here — the
+    // runner has no DB and never mutates the stored definition.
     if (req.healWithAlternatives === true && !token.cancelled) {
+      const healedSteps = new Set<string>();
+      // Verified path: in-spec probe evidence (healing.jsonl in the workdir).
+      try {
+        const raw = await readFile(join(ws.workDir, 'healing.jsonl'), 'utf8');
+        const settled = await store.getSummary(runId);
+        const errByStep = new Map((settled?.steps ?? []).map((s) => [s.stepId, s.errorMessage ?? '']));
+        const defById = new Map(test.steps.map((s) => [s.id, s]));
+        for (const line of raw.split('\n')) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          let parsed: { stepId?: unknown; tried?: unknown; winner?: unknown };
+          try {
+            parsed = JSON.parse(trimmed) as { stepId?: unknown; tried?: unknown; winner?: unknown };
+          } catch {
+            continue; // corrupt line never fails the run
+          }
+          if (typeof parsed.stepId !== 'string') continue;
+          const defStep = defById.get(parsed.stepId);
+          const primary = defStep?.target?.primary;
+          const alternatives = defStep?.target?.alternatives ?? [];
+          if (!defStep || !primary || !isLocatorFailure(errByStep.get(parsed.stepId) ?? '')) continue;
+          if (typeof parsed.winner !== 'number' || !alternatives[parsed.winner]) continue;
+          const winner = alternatives[parsed.winner]!;
+          const attempt: HealAttempt = {
+            stepId: parsed.stepId,
+            fromLocator: primary,
+            evidence: {
+              tried: alternatives.map((a) => previewHealingCandidate(a)),
+              succeededWith: winner,
+              matchCount: 1,
+              preview: previewHealingCandidate(winner),
+              verified: true,
+              durationMs: 0,
+              reason: 'locator-timeout',
+            },
+          };
+          healing.push(attempt);
+          healedSteps.add(parsed.stepId);
+          publish(
+            buildEvent(STEP_HEALED_EVENT, runId, {
+              stepId: attempt.stepId,
+              status: 'failed',
+              evidence: { fromLocator: attempt.fromLocator, ...attempt.evidence },
+            }),
+          );
+        }
+      } catch {
+        // no evidence file (no primary failure, or probes disabled) — fallback below
+      }
+      // Unverified fallback: post-run walk without a live probe.
       const settled = await store.getSummary(runId);
       if (settled) {
         const defById = new Map(test.steps.map((s) => [s.id, s]));
         for (const rec of settled.steps) {
-          if (rec.status !== 'failed') continue;
+          if (rec.status !== 'failed' || healedSteps.has(rec.stepId)) continue;
           const defStep = defById.get(rec.stepId);
           if (!defStep) continue;
           const attempt = attemptHealing(defStep, rec.errorMessage ?? '', deps.healProbe);
