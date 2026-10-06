@@ -190,6 +190,19 @@ function matchFill(clause: string): LooseStep | null {
     if (!kv) return null;
     label = q[0]!;
     value = kv[2]!;
+  } else if (
+    (m = /(?:nhập|điền|nhap|dien|enter|type|gõ)\s+(.+?)\s+(?:là|la|=|:)\s*(.+)/i.exec(clause)) !== null
+  ) {
+    // Unquoted VI: nhập mật khẩu là 123456 (label up to `là`, value after).
+    label = m[1]!.trim(); value = m[2]!.trim().replace(/^["“”']|["“”']$/g, '');
+    if (!label || !value) return null;
+  } else if (
+    (m = /(?:nhập|điền|nhap|dien|enter|type|gõ)\s+(.+?)\s+([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|https?:\/\/\S+|\d[\d\s.]*\d|\d+)/i.exec(clause)) !== null
+  ) {
+    // Unquoted `verb label value`: điền email test@x.io — value must look
+    // like an email/URL/number, otherwise the boundary is unknowable.
+    label = m[1]!.trim(); value = m[2]!.trim();
+    if (!label || !value) return null;
   } else {
     return null;
   }

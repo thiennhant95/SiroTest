@@ -70,6 +70,21 @@ Nhập "Email" là "a@x.io"`);
     assertAllValid(r.steps);
   });
 
+  it('parses unquoted fill (nhập mật khẩu là 123 / điền email a@x.io)', () => {
+    const r = nlToSteps(`Nhập mật khẩu là secret123
+Điền email tester@example.com`);
+    expect(r.unparsed).toEqual([]);
+    expect(r.steps.map((s) => s.type)).toEqual(["fill", "fill"]);
+    const pw = r.steps[0] as { target: { primary: { value: string } }; value: string; sensitive?: boolean };
+    expect(pw.target.primary.value).toBe("mật khẩu");
+    expect(pw.value).toBe("secret123");
+    expect(pw.sensitive).toBe(true);
+    const em = r.steps[1] as { target: { primary: { value: string } }; value: string };
+    expect(em.target.primary.value).toBe("email");
+    expect(em.value).toBe("tester@example.com");
+    assertAllValid(r.steps);
+  });
+
   it("parses chờ N giây + chọn trong ô + URL/title assertions", () => {
     const r = nlToSteps(`Chờ 2 giây
 Chờ "Dashboard" xuất hiện
