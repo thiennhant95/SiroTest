@@ -165,6 +165,33 @@ Trigger a suite or a single test on cron:
 Create them in **Schedules** (suite or test + environment + cron). Keep the switch **disabled** until the target is side-effect free, and never schedule headed/debug runs.`,
   },
   {
+    id: "schedule-alerts",
+    group: "Running",
+    title: "Schedule failure alerts",
+    body: `## Opt in per schedule
+New/edit schedule dialog → tick **Notify on failure**. The row shows a **notify on failure** badge.
+
+## Needs an enabled chat integration
+**Settings → Integrations** (per project): add **Slack** (incoming webhook URL) or **Lark** (custom bot webhook URL) and keep it **enabled**. No enabled Slack/Lark → the failure is logged, nobody is pinged.
+
+## What happens
+A failed scheduled run posts one message (target suite/test, run id, error summary) and the row updates **last run failed** / \`last <status>\`. Passing and cancelled runs never notify.
+
+> Best-effort: delivery failures are logged, never retried, never fail the run. Still red on the next firing → notified again.`,
+  },
+  {
+    id: "webhooks",
+    group: "Running",
+    title: "Webhook run events",
+    body: `## Setup
+**Settings → Integrations** → provider **Webhook (run events)**: \`url\` + optional \`signingSecret\` (stored encrypted, never shown). Only **enabled** webhooks receive events.
+
+## Verification
+Every delivery carries \`X-VV-Event\` (\`run.passed\` / \`run.failed\` / \`run.cancelled\`). When \`signingSecret\` is set it also carries \`X-VV-Signature: v1=<hex>\` = HMAC-SHA256 of the raw JSON body. Reject mismatches — see \`docs/notify-webhooks.md\` for the snippet.
+
+> Best-effort, no retries: delivery failures are logged and never fail the run. Terminal outcomes only.`,
+  },
+  {
     id: "api-tests",
     group: "Testing",
     title: "API tests",
@@ -229,6 +256,27 @@ Diffs against a stored baseline within a threshold. Workflow: run once in captur
 Combine with \`axeCheck\` (contrast, labels) for an objective responsive pass.`,
   },
   {
+    id: "gherkin",
+    group: "Testing",
+    title: "Gherkin tab (Vietnamese)",
+    body: `## Where
+Builder → **Gherkin** bottom tab (next to Suggest). Paste \`Cho rằng / Khi / Thì\` text → **Parse** → preview → **Insert N step(s) at end of test** (a normal versioned save).
+
+\`\`\`
+Kịch bản: Đăng nhập thành công
+  Cho rằng mở trang https://staging.example.com/admin/login
+  Khi nhập "Email Address" là "admin@example.com"
+  Và bấm nút "Sign In"
+  Thì kiểm tra "Dashboard" hiển thị
+\`\`\`
+
+## Honest limits
+- \`Bối cảnh:\` (Background) steps are prepended to the scenario.
+- First scenario only — later \`Kịch bản:\` blocks go to **Warnings**, not steps.
+- Unrecognized lines go to **Unparsed lines** (red). The parser never invents steps — fix the line or add the step by hand.
+- Tags (\`@smoke\`) show as badges for later filtering, never written into the test.`,
+  },
+  {
     id: "bug-reports",
     group: "Running",
     title: "Bug reports (Jira / Backlog / Slack / Lark)",
@@ -273,6 +321,23 @@ Was a duplicate \`Content-Type\` header bug in the web client — fixed. If you 
 
 ## Order blocked: unpaid orders warning
 Staging guard: the account cannot place new orders while old ones are unpaid. Cancel them (account → Orders → Hủy, or admin) before re-running purchase tests — each purchase run places one real staging order.`,
+  },
+  {
+    id: "roles",
+    group: "Reference",
+    title: "Roles (viewer / editor / owner)",
+    body: `## Project roles
+| Role | Can |
+|---|---|
+| viewer | Read everything, write nothing |
+| editor | Create/edit/run everything except project deletes |
+| owner | All of editor + delete project |
+
+Global \`admin\` bypasses membership; global \`viewer\` is read-only everywhere.
+
+## 403 vs 409
+- **403** — no access: not a member, or role too low (\`Requires project role 'editor'…\`). Ask an owner for membership or a higher role.
+- **409** — conflict with live state: deleting a test/suite/project with queued/running runs (cancel them first), or a duplicate name. Fix the conflict, retry.`,
   },
 ];
 

@@ -24,8 +24,9 @@ export async function pluginRoutes(app: FastifyInstance): Promise<void> {
     try {
       const loaded = await loadPluginsFromDir();
       return { enabled: true, dirName: basename(loaded.dir), plugins: loaded.plugins.map(describePlugin) };
-    } catch (err) {
-      throw new ApiError('VALIDATION_ERROR', `Cannot list plugins: ${(err as Error).message}`, 400);
+    } catch {
+      // Generic message: loader errors embed the absolute dir (server path).
+      throw new ApiError('VALIDATION_ERROR', 'Cannot list plugins: directory unreadable (check server PLUGINS_DIR)', 400);
     }
   });
 
@@ -35,15 +36,15 @@ export async function pluginRoutes(app: FastifyInstance): Promise<void> {
     if (!isPluginsEnabled()) {
       throw new ApiError(
         'FORBIDDEN',
-        `Plugin loading is disabled (set ALLOW_PLUGINS=1 after reviewing ${pluginsDir()})`,
+        'Plugin loading is disabled (set ALLOW_PLUGINS=1 after a Developer/Admin review)',
         403,
       );
     }
     try {
       const loaded = await loadPluginsFromDir();
       return { enabled: true, dirName: basename(loaded.dir), plugins: loaded.plugins.map(describePlugin) };
-    } catch (err) {
-      throw new ApiError('VALIDATION_ERROR', `Plugin reload failed: ${(err as Error).message}`, 400);
+    } catch {
+      throw new ApiError('VALIDATION_ERROR', 'Plugin reload failed: directory unreadable (check server PLUGINS_DIR)', 400);
     }
   });
 }
