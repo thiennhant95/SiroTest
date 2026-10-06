@@ -14,3 +14,9 @@ MVP is shippable when all conditions below pass:
 - Generated code can run under upstream `@playwright/test` without Studio runtime dependencies, except explicitly exported helper/custom-action packages.
 - Existing test definitions remain readable after application restart.
 - Unit/integration tests cover model validation, compiler and locator conversion.
+
+## Post-MVP (shipped 2026-10)
+- Project viewer is read-only; outsiders get 403; deletes under live runs fail 409 with an explicit message.
+- Schedules record lastStatus and can notify Slack/Lark/webhook on failure (opt-in).
+- Healing never applies silently: proposals are verified, reviewed, versioned.
+- Secrets stay encrypted at rest, masked on read, redacted in logs/artifacts.
