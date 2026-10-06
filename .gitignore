@@ -15,3 +15,5 @@ playwright-report/
 
 *.tsbuildinfo
 **/storage/files/
+
+docs/github-ideas.md
