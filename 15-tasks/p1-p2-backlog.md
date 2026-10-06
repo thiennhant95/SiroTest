@@ -1,5 +1,9 @@
 # P1 / P2 Backlog
 
+Status 2026-10-06: every item below has shipped (see CHANGELOG.md).
+Remaining open work lives in `docs/github-ideas.md` (local-only notes) and
+the Open list in `00-overview/scope.md`.
+
 ## P1
 - Reusable actions/business keywords
 - Parameters for reusable actions

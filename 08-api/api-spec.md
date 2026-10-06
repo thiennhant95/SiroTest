@@ -29,8 +29,13 @@ Prefix: `/api/v1`.
 `POST /tests/:id/recorder/start`
 `POST /recorder/:sessionId/pause`
 `POST /recorder/:sessionId/resume`
-`POST /recorder/:sessionId/stop`
+`POST /recorder/:sessionId/stop` (persists draft steps, mints version)
+`POST /recorder/:sessionId/interrupt`
+`GET /recorder/:sessionId`
+`POST /recorder/:sessionId/locator/pick`
 `POST /recorder/:sessionId/locator/test`
+`POST /recorder/:sessionId/assertion/pick`
+`POST /recorder/:sessionId/assertion` (appends assertion step)
 
 ## Runs
 `POST /tests/:id/runs`
