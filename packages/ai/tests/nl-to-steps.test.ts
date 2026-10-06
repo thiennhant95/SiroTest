@@ -59,6 +59,17 @@ Kiểm tra "Dashboard" hiển thị`);
     expect(pw.sensitive).toBe(true);
   });
 
+  it('parses natural "nhập X là Y" (label first, value second)', () => {
+    const r = nlToSteps(`Mở trang https://shop.example.com
+Nhập "Email" là "a@x.io"`);
+    expect(r.unparsed).toEqual([]);
+    expect(r.steps.map((s) => s.type)).toEqual(["goto", "fill"]);
+    const fill = r.steps[1] as { target: { primary: { value: string } }; value: string };
+    expect(fill.target.primary.value).toBe("Email");
+    expect(fill.value).toBe("a@x.io");
+    assertAllValid(r.steps);
+  });
+
   it("parses chờ N giây + chọn trong ô + URL/title assertions", () => {
     const r = nlToSteps(`Chờ 2 giây
 Chờ "Dashboard" xuất hiện

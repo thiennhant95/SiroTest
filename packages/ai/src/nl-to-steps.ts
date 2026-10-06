@@ -176,6 +176,11 @@ function matchFill(clause: string): LooseStep | null {
     (m = /(?:ô|field|textbox|trường)\s+["“”']([^"“”']+)["“”']\s*(?:với|là|with|is|=|:)\s*["“”']([^"“”']*)["“”']/i.exec(clause)) !== null
   ) {
     label = m[1]!.trim(); value = m[2]!;
+  } else if (
+    (m = /(?:nhập|điền|nhap|dien)\s+["“”']([^"“”']+)["“”']\s+(?:là|la|=|:)\s*["“”']?([^"“”']+)["“”']?/i.exec(clause)) !== null
+  ) {
+    // Natural VI: nhập "Email" là "a@x.io" (label first, value second).
+    label = m[1]!.trim(); value = m[2]!.trim();
   } else if (q.length >= 2) {
     if (/(điền|nhập|gõ)\b/i.test(clause)) { value = q[0]!; label = q[1]!; }
     else { label = q[0]!; value = q[1]!; }
