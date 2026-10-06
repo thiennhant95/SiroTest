@@ -39,6 +39,16 @@ export async function variableRoutes(app: FastifyInstance): Promise<void> {
         throw new ApiError('VALIDATION_ERROR', 'environmentId does not belong to this project', 400);
       }
     }
+    // SQLite treats NULLs as distinct, so the @@unique([projectId,
+    // environmentId, key]) constraint does NOT stop duplicate shared-scope
+    // keys — check explicitly (also deterministic on Postgres).
+    const clash = await db().variable.findFirst({
+      where: { projectId, environmentId: body.environmentId ?? null, key: body.key },
+      select: { id: true },
+    });
+    if (clash) {
+      throw new ApiError('VALIDATION_ERROR', `Variable "${body.key}" already exists in this scope`, 409);
+    }
     try {
       const created = await db().variable.create({
         data: {
@@ -64,6 +74,16 @@ export async function variableRoutes(app: FastifyInstance): Promise<void> {
     // isSecret flips without a new value we keep the stored cell untouched.
     const existing = await db().variable.findUnique({ where: { id } });
     if (!existing) throw new ApiError('NOT_FOUND', `Variable ${id} not found`, 404);
+    // Same NULL-uniqueness reason as create: renaming onto a taken key must fail.
+    if (body.key !== undefined && body.key !== existing.key) {
+      const clash = await db().variable.findFirst({
+        where: { projectId: existing.projectId, environmentId: existing.environmentId, key: body.key },
+        select: { id: true },
+      });
+      if (clash) {
+        throw new ApiError('VALIDATION_ERROR', `Variable "${body.key}" already exists in this scope`, 409);
+      }
+    }
     const willBeSecret = body.isSecret ?? existing.isSecret;
     try {
       const updated = await db().variable.update({
