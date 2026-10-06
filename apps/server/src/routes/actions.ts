@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import type { ReusableAction } from '@vietvang/playwright-compiler';
 import { db } from '../db.js';
 import { requireAuth, requireProjectAccess } from '../auth.js';
+import { requireWriteAccessToProject } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, actionCreate, actionUpdate } from '../schemas.js';
 import { validateDefinitionForStore } from '../security.js';
@@ -83,7 +84,7 @@ export async function actionRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/projects/:projectId/actions', { preHandler: requireAuth }, async (req, reply) => {
     const { projectId } = req.params as { projectId: string };
-    await requireProjectAccess(req);
+    await requireWriteAccessToProject(req, projectId);
     const body = parseOrThrow(actionCreate, req.body);
     const parameters = body.parameters ?? [];
     assertStorableActionBody(parameters, body.steps);
@@ -138,7 +139,7 @@ export async function actionRoutes(app: FastifyInstance): Promise<void> {
     const body = parseOrThrow(actionUpdate, req.body);
     const row = await db().action.findUnique({ where: { id: aid } });
     if (!row) throw new ApiError('NOT_FOUND', `Action ${aid} not found`, 404);
-    await requireActionProjectAccess(req, row.projectId);
+    await requireWriteAccessToProject(req, row.projectId);
     const current = toApi(row);
     const next: ReusableAction = {
       ...current,
@@ -183,7 +184,7 @@ export async function actionRoutes(app: FastifyInstance): Promise<void> {
     const { aid } = req.params as { aid: string };
     const row = await db().action.findUnique({ where: { id: aid } });
     if (!row) throw new ApiError('NOT_FOUND', `Action ${aid} not found`, 404);
-    await requireActionProjectAccess(req, row.projectId);
+    await requireWriteAccessToProject(req, row.projectId);
     const referencing = await findReferencingTests(row.projectId, aid);
     if (referencing.length > 0) {
       throw new ApiError(

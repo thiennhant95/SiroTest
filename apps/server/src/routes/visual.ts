@@ -14,6 +14,7 @@ import {
 } from '@playwright-studio/runner';
 import { db } from '../db.js';
 import { requireAuth, requirePrivileged, requireProjectAccess } from '../auth.js';
+import { requireProjectWrite } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { ARTIFACT_MAX_BYTES, checkAllowedHttpUrl, stripServerPaths } from '../security.js';
 import { resolveRunInputs } from '../run-inputs.js';
@@ -129,7 +130,7 @@ export async function visualRoutes(app: FastifyInstance): Promise<void> {
   // Promote a run artifact to a baseline (copy inside storage, PNG-validated).
   app.post('/tests/:id/baselines', { preHandler: requireAuth }, async (req, reply) => {
     const { id } = parseOrThrow(testParam, req.params);
-    await requireProjectAccess(req);
+    await requireProjectWrite(req);
     const body = parseOrThrow(promoteBody, req.body);
     const test = await db().test.findUnique({ where: { id } });
     if (!test) throw new ApiError('NOT_FOUND', `Test ${id} not found`, 404);
@@ -203,7 +204,7 @@ export async function visualRoutes(app: FastifyInstance): Promise<void> {
   // Delete a baseline (row + bytes, best effort on bytes).
   app.delete('/tests/:id/baselines/:name', { preHandler: requireAuth }, async (req, reply) => {
     const { id, name } = parseOrThrow(nameParam, req.params);
-    await requireProjectAccess(req);
+    await requireProjectWrite(req);
     const row = await db().baseline.findUnique({ where: { testId_name: { testId: id, name } } });
     if (!row) throw new ApiError('NOT_FOUND', `Baseline "${name}" not found for test ${id}`, 404);
     await db().baseline.delete({ where: { id: row.id } });
@@ -270,7 +271,7 @@ export async function visualRoutes(app: FastifyInstance): Promise<void> {
   // Trigger a visual run: baseline map injected, optional capture/plugins.
   app.post('/tests/:id/visual-runs', { preHandler: requireAuth }, async (req, reply) => {
     const { id } = parseOrThrow(testParam, req.params);
-    await requireProjectAccess(req);
+    await requireProjectWrite(req);
     const body = parseOrThrow(visualRunBody, req.body);
     const test = await db().test.findUnique({ where: { id } });
     if (!test) throw new ApiError('NOT_FOUND', `Test ${id} not found`, 404);

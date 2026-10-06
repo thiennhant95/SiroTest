@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { db } from '../db.js';
 import { requireAuth, requireProjectAccess } from '../auth.js';
+import { requireProjectWrite } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, specImport } from '../schemas.js';
 import { validateDefinitionForStore } from '../security.js';
@@ -23,7 +24,7 @@ import { parsePlaywrightSpec, SpecParseError } from '../spec-importer.js';
 export async function specImportRoutes(app: FastifyInstance): Promise<void> {
   app.post('/projects/:projectId/import-spec', { preHandler: requireAuth }, async (req, reply) => {
     const { projectId } = req.params as { projectId: string };
-    await requireProjectAccess(req);
+    await requireProjectWrite(req);
     const project = await db().project.findUnique({ where: { id: projectId } });
     if (!project) throw new ApiError('NOT_FOUND', `Project ${projectId} not found`, 404);
     const body = parseOrThrow(specImport, req.body);

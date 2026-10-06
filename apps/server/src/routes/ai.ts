@@ -28,6 +28,7 @@ import {
   validateGeneratedSteps,
 } from '@vv/ai';
 import { requireAuth } from '../auth.js';
+import { requireReadAccessToProject } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow } from '../schemas.js';
 import { db } from '../db.js';
@@ -121,6 +122,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     if (body.runId !== undefined) {
       const run = await db().run.findUnique({ where: { id: body.runId }, include: { steps: true } });
       if (!run) throw new ApiError('NOT_FOUND', `Run ${body.runId} not found`, 404);
+      await requireReadAccessToProject(req, run.projectId);
       const failed = run.steps.find((s) => body.stepId !== undefined ? s.stepId === body.stepId : s.status === 'failed')
         ?? run.steps.find((s) => s.errorMessage);
       errorSummary = body.errorSummary
@@ -133,14 +135,17 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       // Step type/name are not stored on RunStep; leave caller overrides intact.
       const projectSecrets = await loadProjectSecrets(run.projectId, run.environmentId ?? undefined);
       const extraSecrets = body.projectId
-        ? await loadProjectSecrets(body.projectId, body.environmentId)
+        ? await (async () => { await requireReadAccessToProject(req, body.projectId!); return loadProjectSecrets(body.projectId!, body.environmentId); })()
         : [];
       secrets = [...projectSecrets, ...extraSecrets];
     } else {
       if (!errorSummary) {
         throw new ApiError('VALIDATION_ERROR', 'Either runId or errorSummary is required', 400);
       }
-      if (body.projectId) secrets = await loadProjectSecrets(body.projectId, body.environmentId);
+      if (body.projectId) {
+        await requireReadAccessToProject(req, body.projectId);
+        secrets = await loadProjectSecrets(body.projectId, body.environmentId);
+      }
     }
 
     const redacted = redactForLLM(errorSummary!, secrets).slice(0, 20000);
@@ -163,6 +168,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     if (body.testId !== undefined) {
       const test = await db().test.findUnique({ where: { id: body.testId } });
       if (!test) throw new ApiError('NOT_FOUND', `Test ${body.testId} not found`, 404);
+      await requireReadAccessToProject(req, test.projectId);
       let def: unknown;
       try {
         def = JSON.parse(test.definitionJson) as unknown;

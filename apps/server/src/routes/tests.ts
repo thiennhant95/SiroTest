@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { nanoid } from 'nanoid';
 import { db } from '../db.js';
 import { requireAuth, requireProjectAccess } from '../auth.js';
+import { assertNoActiveRuns, requireProjectWrite } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, testCreate, testUpdate } from '../schemas.js';
 import { validateDefinitionForStore } from '../security.js';
@@ -52,6 +53,7 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
   // list under project; ?tag=X filters by TestDefinition.tags (P1, additive).
   app.get('/projects/:projectId/tests', { preHandler: requireAuth }, async (req) => {
     const { projectId } = req.params as { projectId: string };
+    await requireProjectAccess(req);
     const { tag } = req.query as { tag?: string };
     const rows = await db().test.findMany({ where: { projectId }, orderBy: { updatedAt: 'desc' } });
     if (!tag) return rows;
@@ -67,7 +69,7 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/projects/:projectId/tests', { preHandler: requireAuth }, async (req, reply) => {
     const { projectId } = req.params as { projectId: string };
-    await requireProjectAccess(req);
+    await requireProjectWrite(req);
     const body = parseOrThrow(testCreate, req.body);
     assertStorableDefinition(body.definitionJson);
     const withIds = withDefinitionIds(body.definitionJson ?? blankDefinition(projectId, body.name, body.browser), projectId);
@@ -101,6 +103,7 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
   // meaningful save -> new immutable version (versioning.md)
   app.patch('/tests/:id', { preHandler: requireAuth }, async (req) => {
     const { id } = req.params as { id: string };
+    await requireProjectWrite(req);
     const body = parseOrThrow(testUpdate, req.body);
     assertStorableDefinition(body.definitionJson);
     const existing = await db().test.findUnique({ where: { id }, include: { versions: { orderBy: { versionNumber: 'desc' }, take: 1 } } });
@@ -128,6 +131,9 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete('/tests/:id', { preHandler: requireAuth }, async (req, reply) => {
     const { id } = req.params as { id: string };
+    await requireProjectWrite(req);
+    // Never pull rows out from under a live worker (cascade would crash it).
+    await assertNoActiveRuns({ testId: id }, `Test ${id}`);
     try {
       await db().test.delete({ where: { id } });
     } catch {
@@ -138,6 +144,7 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/tests/:id/duplicate', { preHandler: requireAuth }, async (req, reply) => {
     const { id } = req.params as { id: string };
+    await requireProjectWrite(req);
     const src = await db().test.findUnique({ where: { id } });
     if (!src) throw new ApiError('NOT_FOUND', `Test ${id} not found`, 404);
     const copy = await db().test.create({
@@ -158,12 +165,14 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/tests/:id/versions', { preHandler: requireAuth }, async (req) => {
     const { id } = req.params as { id: string };
+    await requireProjectAccess(req);
     return db().testVersion.findMany({ where: { testId: id }, orderBy: { versionNumber: 'desc' } });
   });
 
   // restore creates a NEW version; history is never deleted
   app.post('/tests/:id/versions/:versionId/restore', { preHandler: requireAuth }, async (req) => {
     const { id, versionId } = req.params as { id: string; versionId: string };
+    await requireProjectWrite(req);
     const v = await db().testVersion.findUnique({ where: { id: versionId } });
     if (!v || v.testId !== id) throw new ApiError('NOT_FOUND', `Version ${versionId} not found`, 404);
     const latest = await db().testVersion.findMany({

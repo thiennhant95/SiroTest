@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { db } from '../db.js';
-import { requireAuth } from '../auth.js';
+import { requireAuth, requireProjectAccess } from '../auth.js';
+import { requireProjectWrite, requireWriteAccessToProject } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, variableCreate, variableUpdate } from '../schemas.js';
 import { encryptSecret, maskVariableRow } from '../security.js';
@@ -19,6 +20,7 @@ export async function variableRoutes(app: FastifyInstance): Promise<void> {
   // Pass ?environmentId=xxx for env-scoped, ?environmentId=null for shared (global).
   app.get('/projects/:projectId/variables', { preHandler: requireAuth }, async (req) => {
     const { projectId } = req.params as { projectId: string };
+    await requireProjectAccess(req);
     const { environmentId } = (req.query ?? {}) as { environmentId?: string };
     const where =
       environmentId === undefined
@@ -32,6 +34,7 @@ export async function variableRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/projects/:projectId/variables', { preHandler: requireAuth }, async (req, reply) => {
     const { projectId } = req.params as { projectId: string };
+    await requireProjectWrite(req);
     const body = parseOrThrow(variableCreate, req.body);
     if (body.environmentId) {
       const env = await db().environment.findUnique({ where: { id: body.environmentId } });
@@ -74,6 +77,7 @@ export async function variableRoutes(app: FastifyInstance): Promise<void> {
     // isSecret flips without a new value we keep the stored cell untouched.
     const existing = await db().variable.findUnique({ where: { id } });
     if (!existing) throw new ApiError('NOT_FOUND', `Variable ${id} not found`, 404);
+    await requireWriteAccessToProject(req, existing.projectId);
     // Same NULL-uniqueness reason as create: renaming onto a taken key must fail.
     if (body.key !== undefined && body.key !== existing.key) {
       const clash = await db().variable.findFirst({
@@ -102,6 +106,9 @@ export async function variableRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete('/variables/:id', { preHandler: requireAuth }, async (req, reply) => {
     const { id } = req.params as { id: string };
+    const existing = await db().variable.findUnique({ where: { id }, select: { projectId: true } });
+    if (!existing) throw new ApiError('NOT_FOUND', `Variable ${id} not found`, 404);
+    await requireWriteAccessToProject(req, existing.projectId);
     try {
       await db().variable.delete({ where: { id } });
     } catch {

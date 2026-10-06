@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { assertSafePath, storageRoot } from '@playwright-studio/runner';
 import { db } from '../db.js';
 import { requireAuth, requireProjectAccess } from '../auth.js';
+import { requireWriteAccessToProject } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, fileUpload } from '../schemas.js';
 
@@ -185,7 +186,7 @@ export async function fileRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: requireAuth, bodyLimit: FILE_UPLOAD_BODY_LIMIT },
     async (req, reply) => {
       const { projectId } = req.params as { projectId: string };
-      await requireProjectAccess(req);
+      await requireWriteAccessToProject(req, projectId);
       const project = await db().project.findUnique({ where: { id: projectId } });
       if (!project) throw new ApiError('NOT_FOUND', `Project ${projectId} not found`, 404);
       const body = parseOrThrow(fileUpload, req.body);
@@ -247,7 +248,7 @@ export async function fileRoutes(app: FastifyInstance): Promise<void> {
     const { fid } = req.params as { fid: string };
     const row = (await db().fileAsset.findUnique({ where: { id: fid } })) as FileMeta | null;
     if (!row) throw new ApiError('NOT_FOUND', `File ${fid} not found`, 404);
-    await requireAccessToProject(req, row.projectId);
+    await requireWriteAccessToProject(req, row.projectId);
     const referencing = await findReferencingFileTests(row.projectId, fid);
     if (referencing.length > 0) {
       throw new ApiError(

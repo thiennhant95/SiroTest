@@ -19,6 +19,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { runTest } from '@playwright-studio/runner';
 import { cancelRun } from '@playwright-studio/runner';
 import { requireAuth, requireProjectAccess } from '../auth.js';
+import { assertNoActiveRuns, requireWriteAccessToProject } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { db } from '../db.js';
 import { buildJunitXml, junitFilename, type JunitCase } from '../junit.js';
@@ -175,6 +176,7 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
   // ---------------------------------------------------------- suites CRUD ---
   app.get('/projects/:projectId/suites', { preHandler: requireAuth }, async (req) => {
     const { projectId } = req.params as { projectId: string };
+    await requireProjectAccess(req);
     return db().testSuite.findMany({
       where: { projectId },
       orderBy: { updatedAt: 'desc' },
@@ -189,7 +191,7 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/projects/:projectId/suites', { preHandler: requireAuth }, async (req, reply) => {
     const { projectId } = req.params as { projectId: string };
-    await requireProjectAccess(req);
+    await requireWriteAccessToProject(req, projectId);
     const project = await db().project.findUnique({ where: { id: projectId } });
     if (!project) throw new ApiError('NOT_FOUND', `Project ${projectId} not found`, 404);
     const body = parseOrThrow(suiteCreate, req.body);
@@ -214,7 +216,7 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
   app.patch('/suites/:sid', { preHandler: requireAuth }, async (req) => {
     const { sid } = req.params as { sid: string };
     const suite = await loadSuiteOrThrow(sid);
-    await requireAccessToProject(req, suite.projectId);
+    await requireWriteAccessToProject(req, suite.projectId);
     const body = parseOrThrow(suiteUpdate, req.body);
     return db().testSuite.update({ where: { id: sid }, data: { ...body } });
   });
@@ -222,8 +224,12 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
   app.delete('/suites/:sid', { preHandler: requireAuth }, async (req, reply) => {
     const { sid } = req.params as { sid: string };
     const suite = await loadSuiteOrThrow(sid);
-    await requireAccessToProject(req, suite.projectId);
+    await requireWriteAccessToProject(req, suite.projectId);
     // SuiteTest rows cascade; Run.suiteId is SetNull (history preserved).
+    // Refuse while members are live (same crash class as test delete).
+    for (const m of suite.tests) {
+      await assertNoActiveRuns({ testId: m.testId }, `Suite member ${m.testId}`);
+    }
     await db().testSuite.delete({ where: { id: sid } });
     return reply.code(204).send();
   });
@@ -269,7 +275,7 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
   app.post('/suites/:sid/tests', { preHandler: requireAuth }, async (req, reply) => {
     const { sid } = req.params as { sid: string };
     const suite: SuiteRow = await loadSuiteOrThrow(sid);
-    await requireAccessToProject(req, suite.projectId);
+    await requireWriteAccessToProject(req, suite.projectId);
     const body = parseOrThrow(suiteMemberAdd, req.body);
     const test = await db().test.findUnique({ where: { id: body.testId } });
     if (!test) throw new ApiError('NOT_FOUND', `Test ${body.testId} not found`, 404);
@@ -305,7 +311,7 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
   app.put('/suites/:sid/tests', { preHandler: requireAuth }, async (req) => {
     const { sid } = req.params as { sid: string };
     const suite: SuiteRow = await loadSuiteOrThrow(sid);
-    await requireAccessToProject(req, suite.projectId);
+    await requireWriteAccessToProject(req, suite.projectId);
     const body = parseOrThrow(suiteMembersReplace, req.body);
     if (new Set(body.testIds).size !== body.testIds.length) {
       throw new ApiError('VALIDATION_ERROR', 'testIds must be unique', 400);
@@ -333,7 +339,7 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
   app.delete('/suites/:sid/tests/:testId', { preHandler: requireAuth }, async (req, reply) => {
     const { sid, testId } = req.params as { sid: string; testId: string };
     const suite = await loadSuiteOrThrow(sid);
-    await requireAccessToProject(req, suite.projectId);
+    await requireWriteAccessToProject(req, suite.projectId);
     try {
       await db().suiteTest.delete({ where: { suiteId_testId: { suiteId: sid, testId } } });
     } catch {
@@ -345,6 +351,7 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
   // ------------------------------------------------------------------ tags ---
   app.get('/projects/:projectId/tags', { preHandler: requireAuth }, async (req) => {
     const { projectId } = req.params as { projectId: string };
+    await requireProjectAccess(req);
     const tests = await db().test.findMany({ where: { projectId }, select: { definitionJson: true } });
     const counts = new Map<string, number>();
     for (const t of tests) {
@@ -361,7 +368,7 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
   app.post('/suites/:sid/runs', { preHandler: requireAuth }, async (req, reply) => {
     const { sid } = req.params as { sid: string };
     const suite: SuiteRow = await loadSuiteOrThrow(sid);
-    await requireAccessToProject(req, suite.projectId);
+    await requireWriteAccessToProject(req, suite.projectId);
     const body = parseOrThrow(suiteRunCreate, req.body);
     if (suite.tests.length === 0) {
       throw new ApiError('VALIDATION_ERROR', `Suite ${sid} has no tests`, 400);
@@ -579,12 +586,12 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
       // and consume the pending registration.
       const pending = getPendingSuiteRun(suiteRunId);
       if (!pending) throw new ApiError('NOT_FOUND', `Suite run ${suiteRunId} not found`, 404);
-      await requireAccessToProject(req, pending.projectId);
+      await requireWriteAccessToProject(req, pending.projectId);
       markSuiteRunCancelled(suiteRunId);
       consumePendingSuiteRun(suiteRunId);
       return { suiteRunId, cancelled: [], alreadyTerminal: [] };
     }
-    await requireAccessToProject(req, rows[0]!.projectId);
+    await requireWriteAccessToProject(req, rows[0]!.projectId);
     // Stop queued retries first so no new attempt rows appear afterwards.
     markSuiteRunCancelled(suiteRunId);
     const cancelled: string[] = [];

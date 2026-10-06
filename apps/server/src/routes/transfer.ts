@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid';
 import { assertSafePath, storageRoot } from '@playwright-studio/runner';
 import { db } from '../db.js';
 import { requireAuth, requireProjectAccess } from '../auth.js';
+import { requireGlobalWriter } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, projectImport, type ProjectExportPayload } from '../schemas.js';
 import { decryptSecret, encryptSecret, validateDefinitionForStore } from '../security.js';
@@ -195,6 +196,7 @@ export async function transferRoutes(app: FastifyInstance): Promise<void> {
     '/projects/import',
     { preHandler: requireAuth, bodyLimit: IMPORT_BODY_LIMIT },
     async (req, reply) => {
+      await requireGlobalWriter(req);
       const body = parseOrThrow(projectImport, req.body);
       const payload = body.payload;
 

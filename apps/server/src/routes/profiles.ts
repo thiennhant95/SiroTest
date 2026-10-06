@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { db } from '../db.js';
 import { requireAuth, requireProjectAccess } from '../auth.js';
+import { requireWriteAccessToProject } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, profileCreate, profileUpdate } from '../schemas.js';
 import { decryptSecret, encryptSecret } from '../security.js';
@@ -136,7 +137,7 @@ export async function profileRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/projects/:projectId/profiles', { preHandler: requireAuth }, async (req, reply) => {
     const { projectId } = req.params as { projectId: string };
-    await requireProjectAccess(req);
+    await requireWriteAccessToProject(req, projectId);
     const project = await db().project.findUnique({ where: { id: projectId } });
     if (!project) throw new ApiError('NOT_FOUND', `Project ${projectId} not found`, 404);
     const body = parseOrThrow(profileCreate, req.body);
@@ -171,7 +172,7 @@ export async function profileRoutes(app: FastifyInstance): Promise<void> {
   app.patch('/profiles/:pid', { preHandler: requireAuth }, async (req) => {
     const { pid } = req.params as { pid: string };
     const row = await loadProfileOrThrow(pid);
-    await requireAccessToProject(req, row.projectId);
+    await requireWriteAccessToProject(req, row.projectId);
     const body = parseOrThrow(profileUpdate, req.body);
     if (body.environmentId !== undefined) await checkEnv(row.projectId, body.environmentId);
     const state = body.storageStateJson !== undefined ? assertStorageStateShape(body.storageStateJson) : null;
@@ -196,7 +197,7 @@ export async function profileRoutes(app: FastifyInstance): Promise<void> {
   app.delete('/profiles/:pid', { preHandler: requireAuth }, async (req, reply) => {
     const { pid } = req.params as { pid: string };
     const row = await loadProfileOrThrow(pid);
-    await requireAccessToProject(req, row.projectId);
+    await requireWriteAccessToProject(req, row.projectId);
     await db().authProfile.delete({ where: { id: pid } });
     return reply.code(204).send();
   });

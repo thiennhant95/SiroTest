@@ -7,7 +7,7 @@ import {
   type TestDefinition,
   type TestStep,
 } from '@vietvang/playwright-compiler';
-import { requireAuth } from '../auth.js';
+import { requireAuth, requireProjectAccess } from '../auth.js';
 import { ApiError } from '../errors.js';
 import { db } from '../db.js';
 import { actionMap, loadProjectActions } from '../actions.js';
@@ -102,6 +102,7 @@ function normalizeDefinition(def: {
 export async function compilerRoutes(app: FastifyInstance): Promise<void> {
   app.post('/tests/:id/compile', { preHandler: requireAuth }, async (req) => {
     const { id } = req.params as { id: string };
+    await requireProjectAccess(req);
     const body = (req.body ?? {}) as { datasetId?: string };
     const test = await db().test.findUnique({ where: { id } });
     if (!test) throw new ApiError('NOT_FOUND', `Test ${id} not found`, 404);
@@ -120,6 +121,7 @@ export async function compilerRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/tests/:id/export', { preHandler: requireAuth }, async (req, reply) => {
     const { id } = req.params as { id: string };
+    await requireProjectAccess(req);
     const { format, datasetId } = req.query as { format?: string; datasetId?: string };
     if (format && format !== 'spec') {
       throw new ApiError('VALIDATION_ERROR', 'Only format=spec is supported in P0', 400);

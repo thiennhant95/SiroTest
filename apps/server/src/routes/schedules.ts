@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { db } from '../db.js';
 import { requireAuth, requireProjectAccess } from '../auth.js';
+import { requireWriteAccessToProject } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, scheduleCreate, scheduleUpdate } from '../schemas.js';
 import { cronIssue } from '../scheduler.js';
@@ -126,7 +127,7 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/projects/:projectId/schedules', { preHandler: requireAuth }, async (req, reply) => {
     const { projectId } = req.params as { projectId: string };
-    await requireProjectAccess(req);
+    await requireWriteAccessToProject(req, projectId);
     const project = await db().project.findUnique({ where: { id: projectId } });
     if (!project) throw new ApiError('NOT_FOUND', `Project ${projectId} not found`, 404);
     const body = parseOrThrow(scheduleCreate, req.body);
@@ -167,7 +168,7 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
   app.patch('/schedules/:sid', { preHandler: requireAuth }, async (req) => {
     const { sid } = req.params as { sid: string };
     const row = await loadScheduleOrThrow(sid);
-    await requireAccessToProject(req, row.projectId);
+    await requireWriteAccessToProject(req, row.projectId);
     const body = parseOrThrow(scheduleUpdate, req.body);
     // Target merge: an explicit suiteId/testId re-targets and clears the
     // other side (exactly-one rule); otherwise the existing target is kept.
@@ -211,7 +212,7 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
   app.delete('/schedules/:sid', { preHandler: requireAuth }, async (req, reply) => {
     const { sid } = req.params as { sid: string };
     const row = await loadScheduleOrThrow(sid);
-    await requireAccessToProject(req, row.projectId);
+    await requireWriteAccessToProject(req, row.projectId);
     // Run history is preserved (Run rows carry no scheduleId FK).
     await db().schedule.delete({ where: { id: sid } });
     return reply.code(204).send();
