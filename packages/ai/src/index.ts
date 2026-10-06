@@ -6,5 +6,6 @@
  */
 export * from "./provider.js";
 export * from "./nl-to-steps.js";
+export * from "./gherkin-vi.js";
 export * from "./explain-failure.js";
 export * from "./cleanup-recording.js";

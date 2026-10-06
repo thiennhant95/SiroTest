@@ -8,6 +8,9 @@
  *   POST /healing/:pid/reject
  *   POST /tests/:id/suggestions            { sessionId?, steps? }
  *   POST /tests/:id/suggestions/apply       { suggestionIds | indexes, position? }
+ *   POST /ai/gherkin                        { text, projectId? }
+ *     -> { engine: 'rules', steps, unparsed, warnings, scenarioName?, tags }
+ *     (deterministic Vietnamese-Gherkin parser, stateless — nothing persisted)
  *
  * Auth mirrors api/client.ts (Bearer vv_token, dev fallback x-user-id).
  */
@@ -79,6 +82,25 @@ export interface ApplyResult {
   applied: Array<{ suggestionId: string; stepId: string; afterStepId: string }>;
 }
 
+/** One step emitted by the deterministic Vietnamese-Gherkin parser. */
+export interface GherkinStep {
+  id: string;
+  type: string;
+  name?: string;
+  enabled?: boolean;
+  [k: string]: unknown;
+}
+
+/** Result of POST /ai/gherkin (engine is always 'rules' — no LLM). */
+export interface GherkinParseResult {
+  engine: "rules";
+  steps: GherkinStep[];
+  unparsed: string[];
+  warnings: string[];
+  scenarioName?: string;
+  tags: string[];
+}
+
 export const p2api = {
   listHealing: (testId: string, status: "pending" | "approved" | "rejected" | "all" = "pending") =>
     req<HealingProposal[]>(`/tests/${testId}/healing?status=${status}`),
@@ -101,5 +123,11 @@ export const p2api = {
     req<ApplyResult>(`/tests/${testId}/suggestions/apply`, {
       method: "POST",
       body: JSON.stringify(body),
+    }),
+
+  parseGherkin: (text: string, projectId?: string) =>
+    req<GherkinParseResult>(`/ai/gherkin`, {
+      method: "POST",
+      body: JSON.stringify(projectId ? { text, projectId } : { text }),
     }),
 };
