@@ -24,6 +24,7 @@ import { suggestionRoutes } from './routes/suggestions.js';
 import { aiRoutes } from './routes/ai.js';
 import { sessionRoutes } from './routes/session.js';
 import { visualRoutes } from './routes/visual.js';
+import { integrationRoutes } from './routes/integrations.js';
 import { pluginRoutes } from './routes/plugins.js';
 import { fixtureRoutes } from './routes/fixture.js';
 import { workerRoutes } from './routes/workers.js';
@@ -90,6 +91,7 @@ export async function buildApp() {
       await v1.register(suggestionRoutes);
       await v1.register(aiRoutes);
       await v1.register(visualRoutes);
+      await v1.register(integrationRoutes);
       await v1.register(pluginRoutes);
       await v1.register(sessionRoutes);
     },

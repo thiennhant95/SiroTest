@@ -189,6 +189,11 @@ function TargetEditor({
   const primary = spec.primary;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [manualSessionId, setManualSessionId] = useState("");
+  const frame = (step.frame as { url?: string; name?: string } | undefined) ?? {};
+  const setFrame = (patch: { url?: string; name?: string } | undefined) => {
+    onPatch({ frame: patch });
+    onTestResult?.(null);
+  };
 
   const resolvedApiBase = (apiBase ?? defaultApiBase.replace(/\/api\/v1$/, "")).replace(/\/$/, "");
   const effectiveSessionId = sessionId || manualSessionId.trim() || undefined;
@@ -302,6 +307,29 @@ function TargetEditor({
           />
         </Field>
       )}
+
+      <Field label="Iframe scope (optional)" hint="For elements inside an iframe (e.g. Stripe card fields). One is enough.">
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            value={frame.url ?? ""}
+            onChange={(e) => {
+              const url = e.target.value || undefined;
+              setFrame(url || frame.name ? { ...(url ? { url } : {}), ...(frame.name ? { name: frame.name } : {}) } : undefined);
+            }}
+            placeholder="iframe src contains…"
+            aria-label="Iframe URL substring"
+          />
+          <Input
+            value={frame.name ?? ""}
+            onChange={(e) => {
+              const name = e.target.value || undefined;
+              setFrame(frame.url || name ? { ...(frame.url ? { url: frame.url } : {}), ...(name ? { name } : {}) } : undefined);
+            }}
+            placeholder="iframe name"
+            aria-label="Iframe name"
+          />
+        </div>
+      </Field>
 
       <Advanced title="Locator advanced">
         <p className="font-mono text-[11px] text-slate-600">{locatorPreview(spec)}</p>

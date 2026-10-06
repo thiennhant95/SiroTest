@@ -59,6 +59,7 @@ model Project {
   suites      TestSuite[]
   schedules   Schedule[]
   runs        Run[]
+  integrations Integration[]
 }
 
 model ProjectMember {
@@ -345,4 +346,23 @@ model Artifact {
   sizeBytes Int?
   createdAt DateTime @default(now())
   run       Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+// Outbound integrations (bug-from-failure): Jira / Backlog / Slack / Lark.
+// configJson holds NON-secret fields (space, projectKey, webhookUrl…);
+// secretJson holds encrypted credentials (apiToken, apiKey, signing secret)
+// via security.ts encryptSecret — never returned to clients.
+model Integration {
+  id         String   @id @default(cuid())
+  projectId  String
+  provider   String   // jira | backlog | slack | lark
+  name       String
+  enabled    Boolean  @default(true)
+  configJson String   @default("{}")
+  secretJson String   @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, provider, name])
 }

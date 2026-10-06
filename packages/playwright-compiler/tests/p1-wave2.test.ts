@@ -401,8 +401,7 @@ describe('step timeoutMs forwards into expect() polling', () => {
   });
 });
 
-describe('axeCheck', () => {
-  it('emits an AxeBuilder scan failing on critical/serious by default', () => {
+describe('axeCheck', () => {  it('emits an AxeBuilder scan failing on critical/serious by default', () => {
     const out = compileTest(defWithSteps([step('x1', 'axeCheck', {})]));
     assert.ok(out.includes(`await import('./vv-axe.cjs')`), out);
     assert.ok(out.includes('.analyze()'), out);
@@ -429,6 +428,39 @@ describe('axeCheck', () => {
     );
     assert.throws(
       () => compileTest(defWithSteps([step('x1', 'axeCheck', { disableRules: [''] })])),
+      InvalidDefinitionError,
+    );
+  });
+});
+
+describe('frame scope', () => {
+  it('locators resolve inside the iframe when frame.url is set', () => {
+    const out = compileTest(
+      defWithSteps([
+        step('f1', 'fill', {
+          target: T({ strategy: 'css', value: 'input[name="cardnumber"]' }),
+          value: '4242',
+          frame: { url: 'js.stripe.com' },
+        }),
+      ]),
+    );
+    assert.ok(out.includes('frameLocator('), out);
+    assert.ok(out.includes('iframe[src*="js.stripe.com"]'), out);
+    assert.ok(out.includes('.fill('), out);
+  });
+
+  it('no frame keeps plain page locators (byte-identical)', () => {
+    const out = compileTest(
+      defWithSteps([
+        step('f1', 'fill', { target: T({ strategy: 'css', value: 'input' }), value: 'x' }),
+      ]),
+    );
+    assert.ok(!out.includes('frameLocator'), out);
+  });
+
+  it('empty frame object fails explicitly', () => {
+    assert.throws(
+      () => compileTest(defWithSteps([step('f1', 'click', { target: T({ strategy: 'text', value: 'x' }), frame: {} })])),
       InvalidDefinitionError,
     );
   });

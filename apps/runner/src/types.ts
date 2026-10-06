@@ -75,6 +75,14 @@ export interface BaseStep {
   threshold?: number;
   // P2 plugin step params (record of strings; secrets as {{VARIABLE}} refs)
   params?: Record<string, string>;
+  // Iframe scope for locator-bearing steps (Stripe Elements etc.)
+  frame?: { url?: string; name?: string };
+  // mockRoute / axeCheck fields (mirrors test-model)
+  status?: number;
+  contentType?: string;
+  selector?: string;
+  includedImpacts?: string[];
+  disableRules?: string[];
 }
 
 export type TestStep = BaseStep;

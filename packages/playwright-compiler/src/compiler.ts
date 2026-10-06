@@ -216,6 +216,28 @@ function expectTimeout(step: TestStep): string {
   return typeof ms === 'number' && Number.isFinite(ms) && ms > 0 ? `{ timeout: ${Math.trunc(ms)} }` : '';
 }
 
+/**
+ * Iframe scope for locator-bearing steps (mirror of the runner compiler).
+ */
+function frameScope(step: TestStep, pageVar: string): string {
+  const rec = asRecord(step) as { frame?: { url?: unknown; name?: unknown } };
+  const cssEscape = (v: string): string => v.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const url = rec.frame?.url;
+  const name = rec.frame?.name;
+  if (typeof url === 'string' && url.length > 0 && url.length <= 2000) {
+    return `${pageVar}.frameLocator(${stringLiteral(`iframe[src*="${cssEscape(url)}"]`)})`;
+  }
+  if (typeof name === 'string' && name.length > 0 && name.length <= 500) {
+    return `${pageVar}.frameLocator(${stringLiteral(`iframe[name="${cssEscape(name)}"]`)})`;
+  }
+  if (rec.frame !== undefined) {
+    throw new InvalidDefinitionError(
+      `Step "${step.id}" (${step.type}): frame needs url or name`,
+    );
+  }
+  return pageVar;
+}
+
 function requiredString(step: TestStep, field: string): string {
   const v = asRecord(step)[field];
   if (typeof v !== 'string' || v.length === 0) {
@@ -399,6 +421,8 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
   if (typeof step.type === 'string' && PLUGIN_TYPE_PATTERN.test(step.type)) {
     return compilePluginStepBody(step, pageVar);
   }
+  // Iframe scope for locator-bearing steps (page-level calls keep pageVar).
+  const scope = frameScope(step, pageVar);
   switch (step.type) {
     case 'goto': {
       const url = requiredString(step, 'url');
@@ -411,9 +435,9 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
     case 'goForward':
       return [`await ${pageVar}.goForward();`];
     case 'click':
-      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.click();`];
+      return [`await ${locatorToExpression(requiredTarget(step), scope)}.click();`];
     case 'doubleClick':
-      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.dblclick();`];
+      return [`await ${locatorToExpression(requiredTarget(step), scope)}.dblclick();`];
     case 'fill': {
       const value = requiredString(step, 'value');
       // Security (11-security/security.md): a sensitive literal must be a
@@ -424,27 +448,27 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
         );
       }
       return [
-        `await ${locatorToExpression(requiredTarget(step), pageVar)}.fill(${compileValueExpression(value)});`,
+        `await ${locatorToExpression(requiredTarget(step), scope)}.fill(${compileValueExpression(value)});`,
       ];
     }
     case 'clear':
       // `.clear()` is the canonical Playwright clear semantic; the single
       // spelling is shared with apps/runner compile.ts and web preview.
-      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.clear();`];
+      return [`await ${locatorToExpression(requiredTarget(step), scope)}.clear();`];
     case 'press': {
       const key = requiredString(step, 'key');
       const target = asRecord(step)['target'] as LocatorSpec | undefined;
       if (target) {
         return [
-          `await ${locatorToExpression(target, pageVar)}.press(${compileValueExpression(key)});`,
+          `await ${locatorToExpression(target, scope)}.press(${compileValueExpression(key)});`,
         ];
       }
       return [`await ${pageVar}.keyboard.press(${compileValueExpression(key)});`];
     }
     case 'check':
-      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.check();`];
+      return [`await ${locatorToExpression(requiredTarget(step), scope)}.check();`];
     case 'uncheck':
-      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.uncheck();`];
+      return [`await ${locatorToExpression(requiredTarget(step), scope)}.uncheck();`];
     case 'select': {
       const raw = asRecord(step)['value'];
       if (raw === undefined || raw === null) {
@@ -456,10 +480,10 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
         typeof raw === 'string'
           ? compileValueExpression(raw)
           : compileSelectOption(step, raw);
-      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.selectOption(${option});`];
+      return [`await ${locatorToExpression(requiredTarget(step), scope)}.selectOption(${option});`];
     }
     case 'hover':
-      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.hover();`];
+      return [`await ${locatorToExpression(requiredTarget(step), scope)}.hover();`];
     case 'waitForElement': {
       const state = asRecord(step)['state'];
       const allowed = ['visible', 'hidden', 'attached', 'detached'];
@@ -469,7 +493,7 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
         );
       }
       const opts = typeof state === 'string' ? `{ state: ${stringLiteral(state)} }` : '';
-      return [`await ${locatorToExpression(requiredTarget(step), pageVar)}.waitFor(${opts});`];
+      return [`await ${locatorToExpression(requiredTarget(step), scope)}.waitFor(${opts});`];
     }
     case 'waitForTimeout': {
       const ms = requiredNumber(step, 'milliseconds', 'ms');
@@ -489,11 +513,11 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
     }
     case 'assertVisible': {
       const t = expectTimeout(step);
-      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeVisible(${t});`];
+      return [`await expect(${locatorToExpression(requiredTarget(step), scope)}).toBeVisible(${t});`];
     }
     case 'assertHidden': {
       const t = expectTimeout(step);
-      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeHidden(${t});`];
+      return [`await expect(${locatorToExpression(requiredTarget(step), scope)}).toBeHidden(${t});`];
     }
     case 'assertText': {
       const expected = optionalString(step, 'expected', 'value', 'text');
@@ -504,7 +528,7 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
       }
       const t = expectTimeout(step);
       return [
-        `await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toHaveText(${compileValueExpression(expected)}${t ? `, ${t}` : ''});`,
+        `await expect(${locatorToExpression(requiredTarget(step), scope)}).toHaveText(${compileValueExpression(expected)}${t ? `, ${t}` : ''});`,
       ];
     }
     case 'assertContainsText': {
@@ -516,7 +540,7 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
       }
       const t = expectTimeout(step);
       return [
-        `await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toContainText(${compileValueExpression(expected)}${t ? `, ${t}` : ''});`,
+        `await expect(${locatorToExpression(requiredTarget(step), scope)}).toContainText(${compileValueExpression(expected)}${t ? `, ${t}` : ''});`,
       ];
     }
     case 'assertValue': {
@@ -528,7 +552,7 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
       }
       const t = expectTimeout(step);
       return [
-        `await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toHaveValue(${compileValueExpression(expected)}${t ? `, ${t}` : ''});`,
+        `await expect(${locatorToExpression(requiredTarget(step), scope)}).toHaveValue(${compileValueExpression(expected)}${t ? `, ${t}` : ''});`,
       ];
     }
     case 'assertURL': {
@@ -553,15 +577,15 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
     }
     case 'assertEnabled': {
       const t = expectTimeout(step);
-      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeEnabled(${t});`];
+      return [`await expect(${locatorToExpression(requiredTarget(step), scope)}).toBeEnabled(${t});`];
     }
     case 'assertDisabled': {
       const t = expectTimeout(step);
-      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeDisabled(${t});`];
+      return [`await expect(${locatorToExpression(requiredTarget(step), scope)}).toBeDisabled(${t});`];
     }
     case 'assertChecked': {
       const t = expectTimeout(step);
-      return [`await expect(${locatorToExpression(requiredTarget(step), pageVar)}).toBeChecked(${t});`];
+      return [`await expect(${locatorToExpression(requiredTarget(step), scope)}).toBeChecked(${t});`];
     }
     case 'screenshot': {
       const r = asRecord(step);
@@ -576,7 +600,7 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
     }
     case 'upload': {
       const fileId = requiredString(step, 'fileId');
-      const loc = locatorToExpression(requiredTarget(step), pageVar);
+      const loc = locatorToExpression(requiredTarget(step), scope);
       return [
         `const vvFile = (JSON.parse(process.env.${FILE_PATHS_ENV} ?? process.env.${FILE_PATHS_ENV_ALIAS} ?? '{}') as Record<string, string>)[${stringLiteral(fileId)}];`,
         `if (!vvFile) throw new Error(${stringLiteral(`upload "${step.id}": no file path for fileId "${fileId}" (runner injects ${FILE_PATHS_ENV} map)`)});`,
@@ -599,7 +623,7 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
             `Step "${step.id}" (download): field "target.primary" is required`,
           );
         }
-        const loc = locatorToExpression(target, pageVar);
+        const loc = locatorToExpression(target, scope);
         const saveExpr = saveAs ? stringLiteral(saveAs) : 'download.suggestedFilename()';
         return [
           `const downloadPromise = ${pageVar}.waitForEvent('download');`,
@@ -714,7 +738,7 @@ function compileVisualCheckBody(step: TestStep, pageVar: string): string[] {
   const fileName = sanitizeVisualFileName(name);
   const r = asRecord(step);
   const target = r['target'] as LocatorSpec | undefined;
-  const shotTarget = target ? locatorToExpression(requiredTarget(step), pageVar) : pageVar;
+  const shotTarget = target ? locatorToExpression(requiredTarget(step), frameScope(step, pageVar)) : pageVar;
   return [
     `const vvVisualPath = (await import('node:path')).join(process.env.RUN_ARTIFACT_DIR ?? '.', 'screenshots', ${stringLiteral(fileName)});`,
     `await ${shotTarget}.screenshot({ path: vvVisualPath });`,

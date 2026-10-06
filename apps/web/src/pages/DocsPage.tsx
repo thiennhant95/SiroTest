@@ -217,8 +217,7 @@ Diffs against a stored baseline within a threshold. Workflow: run once in captur
   {
     id: "responsive",
     group: "Testing",
-    title: "Responsive testing",
-    body: `## Workflow
+    title: "Responsive testing",    body: `## Workflow
 1. Open the Run dialog → **Viewport** → pick Mobile 375×667 (or 390×844, Tablet 768×1024…).
 2. Keep \`screenshot\` steps (or \`visualCheck\` baselines per size) in the test.
 3. Compare: same flow, three widths. Broken layout, missing buttons and overflow show up as diffs or failed \`assertVisible\` steps.
@@ -228,6 +227,25 @@ Diffs against a stored baseline within a threshold. Workflow: run once in captur
 - CANNOT: judge aesthetics or tap-target comfort — a human reviews the screenshots.
 
 Combine with \`axeCheck\` (contrast, labels) for an objective responsive pass.`,
+  },
+  {
+    id: "bug-reports",
+    group: "Running",
+    title: "Bug reports (Jira / Backlog / Slack / Lark)",
+    body: `## One click from a red run
+Open any finished run → **🐞 Report bug**. You get a Markdown report (summary, error, failed steps, artifacts) to preview, download as \`.md\`, or file directly.
+
+## Connect a destination
+**Settings → Integrations** (per project): pick Jira Cloud, Backlog, Slack or Lark, fill the workspace fields, paste tokens. Secrets are encrypted at rest and never returned by the API.
+
+| Provider | Needs |
+|---|---|
+| Jira Cloud | site, project key, issue type + email, API token |
+| Backlog | space, project + issue-type ids + API key |
+| Slack | incoming webhook URL |
+| Lark | custom bot webhook URL |
+
+Filing is always explicit — nothing auto-files. Every delivery is audit-logged.`,
   },
   {
     id: "troubleshooting",

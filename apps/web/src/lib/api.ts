@@ -435,6 +435,27 @@ export const api = {
       // body (400) — bodiless POSTs must send '{}' explicitly.
       { method: "POST", body: "{}" },
     ),
+  /* Bug-from-failure: outbound integrations (jira/backlog/slack/lark) + markdown. */
+  listIntegrations: (projectId: string) =>
+    day6req<Integration[]>(`/projects/${projectId}/integrations`),
+  createIntegration: (projectId: string, payload: { provider: string; name: string; enabled?: boolean; config?: Record<string, string>; secrets?: Record<string, string> }) =>
+    day6req<Integration>(`/projects/${projectId}/integrations`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateIntegration: (id: string, payload: { name?: string; enabled?: boolean; config?: Record<string, string>; secrets?: Record<string, string> }) =>
+    day6req<Integration>(`/integrations/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deleteIntegration: (id: string) => day6req<void>(`/integrations/${id}`, { method: "DELETE" }),
+  bugPreview: (runId: string) =>
+    day6req<{ title: string; markdown: string }>(`/runs/${runId}/bug-preview`),
+  bugReport: (runId: string, payload: { integrationId?: string; summary?: string; attachScreenshots?: boolean }) =>
+    day6req<{ title: string; markdown: string; delivery: { ok: boolean; provider: string; externalId?: string; externalUrl?: string } | null }>(
+      `/runs/${runId}/bug-report`,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
   /* P1 wave 2 — Auth profiles (storageState; secret/state never returned). */
   listProfiles: (projectId: string) =>
     day6req<AuthProfile[]>(`/projects/${projectId}/profiles`),
@@ -725,6 +746,20 @@ export interface Run {
   status: string;
   errorSummary?: string | null;
   steps?: RunStep[];
+}
+
+export interface Integration {
+  id: string;
+  projectId: string;
+  provider: "jira" | "backlog" | "slack" | "lark";
+  name: string;
+  enabled: boolean;
+  config: Record<string, string>;
+  secretFields: string[];
+  secretKeys: string[];
+  hasSecrets: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const apiBase = API_BASE;
