@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid';
 import { db } from '../db.js';
 import { requireAuth, requireProjectAccess } from '../auth.js';
 import { assertNoActiveRuns, requireProjectWrite } from '../rbac.js';
+import { writeAudit } from './audit.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, testCreate, testUpdate } from '../schemas.js';
 import { validateDefinitionForStore } from '../security.js';
@@ -134,11 +135,17 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
     await requireProjectWrite(req);
     // Never pull rows out from under a live worker (cascade would crash it).
     await assertNoActiveRuns({ testId: id }, `Test ${id}`);
+    const doomed = await db().test.findUnique({ where: { id }, select: { projectId: true, name: true } });
     try {
       await db().test.delete({ where: { id } });
     } catch {
       throw new ApiError('NOT_FOUND', `Test ${id} not found`, 404);
     }
+    void writeAudit({
+      projectId: doomed?.projectId ?? null, userId: req.user!.id,
+      action: 'test.delete', entityType: 'test', entityId: id,
+      details: { name: doomed?.name ?? null },
+    });
     return reply.code(204).send();
   });
 
