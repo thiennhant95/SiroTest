@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { db } from '../db.js';
 import { requireAuth, requireProjectAccess } from '../auth.js';
+import { requireProjectWrite } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { validateDefinitionForStore } from '../security.js';
 import { recorderManager } from './recorder.js';
@@ -292,7 +293,7 @@ export async function suggestionRoutes(app: FastifyInstance): Promise<void> {
   // Apply selected suggestions: insert assertion steps + mint a new version.
   app.post('/tests/:id/suggestions/apply', { preHandler: requireAuth }, async (req) => {
     const { id } = parseOrThrowLocal(testIdParam, req.params);
-    await requireProjectAccess(req);
+    await requireProjectWrite(req);
     const body = parseOrThrowLocal(applyBody, req.body ?? {});
     const test = await db().test.findUnique({
       where: { id },

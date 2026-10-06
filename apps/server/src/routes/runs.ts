@@ -8,6 +8,7 @@ import {
   type TestDefinition,
 } from '@playwright-studio/runner';
 import { requireAuth, requireProjectAccess } from '../auth.js';
+import { requireProjectWrite } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, runCreate } from '../schemas.js';
 import { checkAllowedHttpUrl, stripServerPaths } from '../security.js';
@@ -74,7 +75,7 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
   // POST /tests/:id/runs  { environmentId, browser, headed }
   app.post('/tests/:id/runs', { preHandler: requireAuth }, async (req, reply) => {
     const { id } = req.params as { id: string };
-    await requireProjectAccess(req);
+    await requireProjectWrite(req);
     const body = parseOrThrow(runCreate, req.body);
     const test = await db().test.findUnique({ where: { id } });
     if (!test) throw new ApiError('NOT_FOUND', `Test ${id} not found`, 404);
@@ -205,6 +206,7 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/runs/:id/cancel', { preHandler: requireAuth }, async (req) => {
     const { id } = req.params as { id: string };
+    await requireProjectWrite(req);
     const run = await db().run.findUnique({ where: { id }, include: { steps: true } });
     if (!run) throw new ApiError('NOT_FOUND', `Run ${id} not found`, 404);
     if (run.status !== 'queued' && run.status !== 'running') {

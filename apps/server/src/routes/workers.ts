@@ -170,7 +170,9 @@ export async function workerRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // GET /workers (+ live claimed counts; claimed run ids for the board).
-  app.get('/api/v1/workers', { preHandler: requireAuth }, async () => {
+  // Ops surface: global writers only (shows cross-project run ids).
+  app.get('/api/v1/workers', { preHandler: requireAuth }, async (req) => {
+    await requireGlobalWriter(req);
     const workers = await db().worker.findMany({ orderBy: { updatedAt: 'desc' } });
     const claims = await db().run.findMany({
       where: { workerId: { not: null }, status: { in: ['queued', 'running'] } },

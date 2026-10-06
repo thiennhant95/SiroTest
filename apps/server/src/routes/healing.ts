@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { db } from '../db.js';
 import { requireAuth, requireProjectAccess } from '../auth.js';
+import { requireWriteAccessToProject } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { validateDefinitionForStore } from '../security.js';
 
@@ -259,7 +260,7 @@ export async function healingRoutes(app: FastifyInstance): Promise<void> {
     if (!test || test.projectId !== proposal.projectId) {
       throw new ApiError('NOT_FOUND', `Test ${proposal.testId} not found`, 404);
     }
-    await requireTestProjectAccess(req, test.projectId);
+    await requireWriteAccessToProject(req, test.projectId);
 
     const fromLocator = JSON.parse(proposal.fromLocator) as unknown;
     const toLocator = JSON.parse(proposal.toLocator) as unknown;
@@ -333,7 +334,7 @@ export async function healingRoutes(app: FastifyInstance): Promise<void> {
     if (!test || test.projectId !== proposal.projectId) {
       throw new ApiError('NOT_FOUND', `Test ${proposal.testId} not found`, 404);
     }
-    await requireTestProjectAccess(req, test.projectId);
+    await requireWriteAccessToProject(req, test.projectId);
     return db().healingProposal.update({
       where: { id: pid },
       data: { status: 'rejected', decidedAt: new Date() },

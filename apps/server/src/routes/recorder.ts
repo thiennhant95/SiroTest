@@ -9,6 +9,7 @@ import {
   type ResolvedLocator,
 } from '@vv/recorder';
 import { requireAuth, requireProjectAccess } from '../auth.js';
+import { requireProjectWrite } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, recorderStart, locatorTest, assertionAdd } from '../schemas.js';
 import { checkAllowedHttpUrl } from '../security.js';
@@ -82,7 +83,7 @@ function safeInterrupt(sessionId: string, reason: string): void {
 export async function recorderRoutes(app: FastifyInstance): Promise<void> {
   app.post('/tests/:id/recorder/start', { preHandler: requireAuth }, async (req, reply) => {
     const { id } = req.params as { id: string };
-    await requireProjectAccess(req);
+    await requireProjectWrite(req);
     const body = parseOrThrow(recorderStart, req.body);
     const test = await db().test.findUnique({ where: { id } });
     if (!test) throw new ApiError('NOT_FOUND', `Test ${id} not found`, 404);

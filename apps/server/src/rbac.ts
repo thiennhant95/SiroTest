@@ -4,8 +4,10 @@
  * SCOPE (honest):
  * - RBAC here is ENFORCED for the P2 routes created in this wave
  *   (workers / analytics / audit) via `requireRole(projectId, minRole)`.
- *   Pre-existing P0/P1 routes are NOT touched (P0 gate protection) — they
- *   keep using `requireProjectAccess` only.
+ * - `requireProjectWrite` / `requireWriteAccessToProject` extend the same
+ *   viewer-block to all P0/P1 mutating routes (a project viewer or
+ *   non-member gets an explicit 403 on writes; reads are unchanged).
+ *   Verified by tests/integration/rbac.test.ts.
  * - OIDC SSO is CONFIG + discovery/exchange helpers + docs
  *   (`docs/oidc-sso.md`). It is DISABLED by default, the Bearer /
  *   `x-user-id` credential stays the primary auth, and NO live IdP
@@ -15,6 +17,7 @@
 import type { FastifyRequest } from 'fastify';
 import { ApiError } from './errors.js';
 import { db } from './db.js';
+import { ensureUserRow } from './auth.js';
 
 export type ProjectRole = 'viewer' | 'editor' | 'owner';
 
@@ -70,6 +73,101 @@ export async function requireRole(
     throw new ApiError('FORBIDDEN', `Requires project role '${minRole}' or higher (have '${role}')`, 403);
   }
   return role;
+}
+
+/**
+ * Membership-only read gate for an explicitly resolved project id
+ * (per-id routes that already loaded their row: files, profiles,
+ * schedules, healing proposals, ...). Same contract as auth.ts
+ * requireProjectAccess minus the param resolution.
+ */
+export async function requireReadAccessToProject(req: FastifyRequest, projectId: string): Promise<void> {
+  if (!req.user) throw new ApiError('UNAUTHORIZED', 'Missing credentials', 401);
+  await ensureUserRow(req.user.id);
+  const userRow = await db().user.findUnique({ where: { id: req.user.id } });
+  if (userRow?.role === 'admin') return;
+  const member = await db().projectMember.findUnique({
+    where: { projectId_userId: { projectId, userId: req.user.id } },
+  });
+  if (!member) throw new ApiError('FORBIDDEN', `No access to project ${projectId}`, 403);
+}
+
+/**
+ * Write gate for an explicitly resolved project id: membership PLUS
+ * project role `editor`+. Global `admin` bypasses; global `viewer` is
+ * read-only everywhere (even with a member row). Viewers get an explicit
+ * 403 — never a silent no-op, never a write.
+ */
+export async function requireWriteAccessToProject(req: FastifyRequest, projectId: string): Promise<ProjectRole> {
+  if (!req.user) throw new ApiError('UNAUTHORIZED', 'Missing credentials', 401);
+  await ensureUserRow(req.user.id);
+  const global = await getGlobalRole(req.user.id);
+  if (global === 'admin') return 'owner';
+  if (global === 'viewer') {
+    throw new ApiError('FORBIDDEN', 'Global role viewer is read-only', 403);
+  }
+  const member = await db().projectMember.findUnique({
+    where: { projectId_userId: { projectId, userId: req.user.id } },
+  });
+  if (!member) throw new ApiError('FORBIDDEN', `No access to project ${projectId}`, 403);
+  const role = asProjectRole(member.role) ?? 'viewer';
+  if (PROJECT_ROLE_RANK[role] < PROJECT_ROLE_RANK.editor) {
+    throw new ApiError('FORBIDDEN', `Requires project role 'editor' or higher (have '${role}')`, 403);
+  }
+  return role;
+}
+
+/**
+ * Write gate with the same param resolution as auth.ts requireProjectAccess
+ * (`params.projectId`, or the owning project of a test/run id in
+ * `params.id`). Use on every mutating P0/P1 route so project viewers (and
+ * non-members) cannot write through the pre-P2 endpoints.
+ */
+export async function requireProjectWrite(req: FastifyRequest): Promise<ProjectRole> {
+  if (!req.user) throw new ApiError('UNAUTHORIZED', 'Missing credentials', 401);
+  const params = (req.params ?? {}) as Record<string, unknown>;
+  let projectId: string | undefined;
+  if (typeof params['projectId'] === 'string' && params['projectId'].length > 0) {
+    projectId = params['projectId'] as string;
+  } else if (typeof params['id'] === 'string' && (params['id'] as string).length > 0) {
+    const id = params['id'] as string;
+    const test = await db().test.findUnique({ where: { id }, select: { projectId: true } });
+    if (test) {
+      projectId = test.projectId;
+    } else {
+      const run = await db().run.findUnique({ where: { id }, select: { projectId: true } });
+      if (run) {
+        projectId = run.projectId;
+      } else {
+        const project = await db().project.findUnique({ where: { id }, select: { id: true } });
+        if (project) projectId = project.id;
+      }
+    }
+  }
+  // Unresolvable id (unknown test/run/project): let the route's own lookup
+  // answer 404 (mirrors requireProjectAccess) instead of leaking 403 here.
+  if (!projectId) return 'editor';
+  return requireWriteAccessToProject(req, projectId);
+}
+
+/**
+ * Refuse destructive deletes while runs are live: deleting a test/suite/
+ * environment out from under a queued/running worker wipes its rows
+ * (cascade) and crashes the worker with an unhandled store error. Cancel
+ * the runs first — explicit, never silent.
+ */
+export async function assertNoActiveRuns(filter: { testId?: string; suiteId?: string; environmentId?: string }, what: string): Promise<void> {
+  const active = await db().run.findFirst({
+    where: { ...filter, status: { in: ['queued', 'running'] } },
+    select: { id: true },
+  });
+  if (active) {
+    throw new ApiError(
+      'CONFLICT_ACTIVE_RUNS',
+      `${what} has active (queued/running) runs — cancel them first`,
+      409,
+    );
+  }
 }
 
 /**

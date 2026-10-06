@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { nanoid } from 'nanoid';
 import { db } from '../db.js';
 import { requireAuth } from '../auth.js';
+import { requireProjectWrite } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { datasetImport, parseOrThrow } from '../schemas.js';
 import { DEFINITION_JSON_MAX_BYTES } from '../security.js';
@@ -74,6 +75,7 @@ export async function datasetRoutes(app: FastifyInstance): Promise<void> {
   // An existing dataset with the same name gains the new rows (cap-checked).
   app.post('/tests/:id/datasets/import', { preHandler: requireAuth }, async (req, reply) => {
     const { id } = req.params as { id: string };
+    await requireProjectWrite(req);
     const body = parseOrThrow(datasetImport, req.body);
     let rows: Record<string, string>[];
     try {
@@ -132,6 +134,7 @@ export async function datasetRoutes(app: FastifyInstance): Promise<void> {
   // DELETE /tests/:id/datasets/:dsid — remove one embedded dataset.
   app.delete('/tests/:id/datasets/:dsid', { preHandler: requireAuth }, async (req, reply) => {
     const { id, dsid } = req.params as { id: string; dsid: string };
+    await requireProjectWrite(req);
     const test = await db().test.findUnique({ where: { id } });
     if (!test) throw new ApiError('NOT_FOUND', `Test ${id} not found`, 404);
     const { raw, datasets } = readDefinition(test);

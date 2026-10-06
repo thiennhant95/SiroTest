@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { db } from '../db.js';
 import { requireAuth, requireProjectAccess } from '../auth.js';
+import { requireProjectWrite, requireWriteAccessToProject } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, integrationCreate, integrationUpdate, bugReportCreate } from '../schemas.js';
 import {
@@ -65,7 +66,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/projects/:projectId/integrations', { preHandler: requireAuth }, async (req, reply) => {
     const { projectId } = req.params as { projectId: string };
-    await requireProjectAccess(req);
+    await requireWriteAccessToProject(req, projectId);
     const body = parseOrThrow(integrationCreate, req.body);
     const provider = parseProvider(body.provider);
     const project = await db().project.findUnique({ where: { id: projectId } });
@@ -91,7 +92,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
     const { id } = req.params as { id: string };
     const row = await db().integration.findUnique({ where: { id } });
     if (!row) throw new ApiError('NOT_FOUND', `Integration ${id} not found`, 404);
-    await requireIntegrationAccess(req, row.projectId);
+    await requireWriteAccessToProject(req, row.projectId);
     const body = parseOrThrow(integrationUpdate, req.body);
     const updated = await db().integration.update({
       where: { id },
@@ -109,7 +110,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
     const { id } = req.params as { id: string };
     const row = await db().integration.findUnique({ where: { id } });
     if (!row) throw new ApiError('NOT_FOUND', `Integration ${id} not found`, 404);
-    await requireIntegrationAccess(req, row.projectId);
+    await requireWriteAccessToProject(req, row.projectId);
     await db().integration.delete({ where: { id } });
     return reply.code(204).send();
   });
@@ -122,7 +123,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/runs/:id/bug-report', { preHandler: requireAuth }, async (req, reply) => {
     const { id } = req.params as { id: string };
-    await requireProjectAccess(req);
+    await requireProjectWrite(req);
     const body = parseOrThrow(bugReportCreate, req.body);
     const ctx = await bugContextOf(id);
     const title = body.summary ?? ctx.title;
