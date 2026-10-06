@@ -136,6 +136,8 @@ function row(over: Partial<ScheduleRow> = {}): ScheduleRow {
     datasetId: null,
     rowIndex: null,
     healWithAlternatives: false,
+    notifyOnFailure: false,
+    lastStatus: null,
     lastRunAt: null,
     nextRunAt: null,
     createdBy: 'u1',

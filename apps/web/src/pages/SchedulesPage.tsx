@@ -54,6 +54,7 @@ export function SchedulesPage() {
   const [fCron, setFCron] = useState("0 9 * * 1-5");
   const [fEnabled, setFEnabled] = useState(true);
   const [fRetries, setFRetries] = useState(0);
+  const [fNotify, setFNotify] = useState(false);
 
   const [runsOpenId, setRunsOpenId] = useState<string | null>(null);
   const [runs, setRuns] = useState<Record<string, ScheduleRun[] | null>>({});
@@ -103,6 +104,7 @@ export function SchedulesPage() {
     setFCron("0 9 * * 1-5");
     setFEnabled(true);
     setFRetries(0);
+    setFNotify(false);
     setFormError("");
     setDialogOpen(true);
   }
@@ -117,6 +119,7 @@ export function SchedulesPage() {
     setFCron(s.cron);
     setFEnabled(s.enabled);
     setFRetries(s.retries ?? 0);
+    setFNotify(s.notifyOnFailure ?? false);
     setFormError("");
     setDialogOpen(true);
   }
@@ -150,6 +153,7 @@ export function SchedulesPage() {
         cron: fCron.trim(),
         enabled: fEnabled,
         retries: Math.max(0, Math.min(5, fRetries)),
+        notifyOnFailure: fNotify,
       };
       if (editing) {
         const saved = await api.updateSchedule(editing.id, {
@@ -160,6 +164,7 @@ export function SchedulesPage() {
           cron: fCron.trim(),
           enabled: fEnabled,
           retries: Math.max(0, Math.min(5, fRetries)),
+          notifyOnFailure: fNotify,
         });
         setSchedules((prev) => prev?.map((x) => (x.id === saved.id ? saved : x)) ?? [saved]);
         toast.push("success", "Saved schedule.");
@@ -285,6 +290,8 @@ export function SchedulesPage() {
                       <strong className="text-sm">{s.name || target}</strong>
                       {s.enabled ? <Badge tone="green">enabled</Badge> : <Badge>disabled</Badge>}
                       <Badge>{s.cron}</Badge>
+                      {s.notifyOnFailure ? <Badge tone="slate">notify on failure</Badge> : null}
+                      {s.lastStatus === "failed" ? <Badge tone="red">last run failed</Badge> : null}
                       <span className="text-xs text-slate-500">
                         {target} · {s.environmentName ?? s.environmentId}
                         {s.retries ? ` · retries ${s.retries}` : ""}
@@ -403,6 +410,10 @@ export function SchedulesPage() {
             <label className="flex items-center gap-2 text-sm text-slate-700">
               <Checkbox checked={fEnabled} onChange={(e) => setFEnabled(e.target.checked)} />
               Enabled
+            </label>
+            <label className="flex items-center gap-2 text-sm text-slate-700" title="Post to the project's enabled Slack/Lark integration when a scheduled run fails">
+              <Checkbox checked={fNotify} onChange={(e) => setFNotify(e.target.checked)} />
+              Notify on failure
             </label>
             <Field label="Retries (0–5)">
               <Input type="number" min={0} max={5} value={fRetries} onChange={(e) => setFRetries(Number(e.target.value))} />
