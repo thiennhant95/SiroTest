@@ -40,6 +40,7 @@ import { resolveRunInputs } from './run-inputs.js';
 import { db } from './db.js';
 import { checkAllowedHttpUrl, stripServerPaths } from './security.js';
 import { decryptSecrets, parseProvider, sendToProvider } from './integrations.js';
+import { writeAudit } from './routes/audit.js';
 import { enqueueSuiteMember, newSuiteRunId } from './suite-runs.js';
 import {
   broadcastRunEvent,
@@ -448,6 +449,11 @@ async function notifyScheduleFailure(
         const config = JSON.parse(row.configJson || '{}') as Record<string, string>;
         await sendToProvider(parseProvider(row.provider), config, decryptSecrets(row.secretJson), { title, markdown });
         log.info(`schedule ${s.id} failure notified via ${row.provider} "${row.name}"`);
+        void writeAudit({
+          projectId: s.projectId, userId: null,
+          action: 'schedule.notify-failure', entityType: 'schedule', entityId: s.id,
+          details: { provider: row.provider, target },
+        });
       } catch (err) {
         log.error(`schedule ${s.id} notify via ${row.provider} failed`, err instanceof Error ? err.message : String(err));
       }
@@ -579,32 +585,54 @@ async function defaultHasActiveRun(s: ScheduleRow): Promise<boolean> {
 }
 
 /** Default DB-backed deps (production wiring; tests inject fakes). */
+export function toScheduleRow(r: {
+  id: string; projectId: string; suiteId: string | null; testId: string | null;
+  environmentId: string; cron: string; enabled: boolean; retries: number;
+  browser: string; headed: boolean; profileId: string | null; datasetId: string | null;
+  rowIndex: number | null; healWithAlternatives: boolean; notifyOnFailure: boolean | null;
+  lastStatus: string | null; lastRunAt: Date | null; nextRunAt: Date | null; createdBy: string;
+}): ScheduleRow {
+  return {
+    id: r.id,
+    projectId: r.projectId,
+    suiteId: r.suiteId,
+    testId: r.testId,
+    environmentId: r.environmentId,
+    cron: r.cron,
+    enabled: r.enabled,
+    retries: r.retries,
+    browser: r.browser,
+    headed: r.headed,
+    profileId: r.profileId,
+    datasetId: r.datasetId,
+    rowIndex: r.rowIndex,
+    healWithAlternatives: r.healWithAlternatives,
+    notifyOnFailure: r.notifyOnFailure ?? false,
+    lastStatus: r.lastStatus ?? null,
+    lastRunAt: r.lastRunAt,
+    nextRunAt: r.nextRunAt,
+    createdBy: r.createdBy,
+  };
+}
+
+/**
+ * Manual "Run now" for one schedule (UI Schedules page). Fires immediately
+ * through the same path as the ticker but does NOT touch lastRunAt/nextRunAt
+ * (cron cadence unaffected). Settlement reporting (lastStatus + notify) works
+ * identically — it rides the same submit callbacks.
+ */
+export async function fireScheduleNow(scheduleId: string): Promise<{ kind: 'suite' | 'test'; id: string }> {
+  const r = await db().schedule.findUnique({ where: { id: scheduleId } });
+  if (!r) throw new Error(`Schedule ${scheduleId} not found`);
+  return defaultFireSchedule(toScheduleRow(r), new Date());
+}
+
 export function defaultSchedulerDeps(log: SchedulerLogger = consoleLogger()): SchedulerDeps {
   return {
     log,
     listSchedules: async () => {
       const rows = await db().schedule.findMany({ where: { enabled: true } });
-      return rows.map((r) => ({
-        id: r.id,
-        projectId: r.projectId,
-        suiteId: r.suiteId,
-        testId: r.testId,
-        environmentId: r.environmentId,
-        cron: r.cron,
-        enabled: r.enabled,
-        retries: r.retries,
-        browser: r.browser,
-        headed: r.headed,
-        profileId: r.profileId,
-        datasetId: r.datasetId,
-        rowIndex: r.rowIndex,
-        healWithAlternatives: r.healWithAlternatives,
-        notifyOnFailure: r.notifyOnFailure ?? false,
-        lastStatus: r.lastStatus ?? null,
-        lastRunAt: r.lastRunAt,
-        nextRunAt: r.nextRunAt,
-        createdBy: r.createdBy,
-      }));
+      return rows.map((r) => toScheduleRow(r));
     },
     hasActiveRun: defaultHasActiveRun,
     fireSchedule: defaultFireSchedule,

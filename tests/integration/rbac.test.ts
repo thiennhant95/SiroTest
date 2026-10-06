@@ -109,6 +109,8 @@ describe('viewer is read-only', () => {
     });
     assert.equal((await call('POST', `/api/v1/healing/${prop.id}/approve`, VIEWER, {})).statusCode, 403);
     assert.equal((await call('POST', `/api/v1/healing/${prop.id}/reject`, EDITOR, {})).statusCode, 200);
+    const audit = (await call('GET', `/api/v1/projects/${projectId}/audit?action=healing.reject`, EDITOR)).json() as Array<{ entityId: string }>;
+    assert.ok(audit.some((a) => a.entityId === prop.id), 'reject is audited');
   });
 });
 

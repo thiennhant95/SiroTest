@@ -20,6 +20,7 @@ import { runTest } from '@playwright-studio/runner';
 import { cancelRun } from '@playwright-studio/runner';
 import { requireAuth, requireProjectAccess } from '../auth.js';
 import { assertNoActiveRuns, requireWriteAccessToProject } from '../rbac.js';
+import { writeAudit } from './audit.js';
 import { ApiError } from '../errors.js';
 import { db } from '../db.js';
 import { buildJunitXml, junitFilename, type JunitCase } from '../junit.js';
@@ -231,6 +232,10 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
       await assertNoActiveRuns({ testId: m.testId }, `Suite member ${m.testId}`);
     }
     await db().testSuite.delete({ where: { id: sid } });
+    void writeAudit({
+      projectId: suite.projectId, userId: req.user!.id,
+      action: 'suite.delete', entityType: 'suite', entityId: sid,
+    });
     return reply.code(204).send();
   });
 

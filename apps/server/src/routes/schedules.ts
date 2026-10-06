@@ -2,6 +2,8 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { db } from '../db.js';
 import { requireAuth, requireProjectAccess } from '../auth.js';
 import { requireWriteAccessToProject } from '../rbac.js';
+import { fireScheduleNow } from '../scheduler.js';
+import { writeAudit } from './audit.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, scheduleCreate, scheduleUpdate } from '../schemas.js';
 import { cronIssue } from '../scheduler.js';
@@ -235,5 +237,24 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
       // cuid order (≈ time-ordered, same convention as suite-runs.ts).
       orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
     });
+  });
+
+  // Manual "Run now" (UI Schedules page): fire once immediately through the
+  // ticker path without touching the cron cadence (lastRunAt/nextRunAt
+  // unchanged). Settlement reporting (lastStatus + notify) applies.
+  app.post('/schedules/:sid/runs', { preHandler: requireAuth }, async (req, reply) => {
+    const { sid } = req.params as { sid: string };
+    const row = await loadScheduleOrThrow(sid);
+    await requireWriteAccessToProject(req, row.projectId);
+    try {
+      const fired = await fireScheduleNow(sid);
+      void writeAudit({
+        projectId: row.projectId, userId: req.user!.id,
+        action: 'schedule.run-now', entityType: 'schedule', entityId: sid,
+      });
+      return reply.code(202).send(fired.kind === 'suite' ? { suiteRunId: fired.id } : { runId: fired.id });
+    } catch (err) {
+      throw new ApiError('VALIDATION_ERROR', `Run now failed: ${err instanceof Error ? err.message : String(err)}`, 400);
+    }
   });
 }

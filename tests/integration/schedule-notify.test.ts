@@ -102,4 +102,20 @@ describe('schedule failure alerting', () => {
     const got = (await call('GET', `/api/v1/schedules/${schedId}`)).json() as { lastStatus: string };
     assert.equal(got.lastStatus, 'failed');
   });
+  it('run-now: unknown 404, viewer 403, dangling target 400', async () => {
+    assert.equal((await call('POST', '/api/v1/schedules/sched_nope/runs', {})).statusCode, 404);
+    const tmp = ((await call('POST', `/api/v1/projects/${projectId}/tests`, {
+      name: `${tag}-tmp`,
+      definitionJson: { schemaVersion: '1.0', name: 't', browser: 'chromium', steps: [{ id: 's1', type: 'goto', enabled: true, name: 'Go', url: 'https://example.com' }] },
+    })).json() as { id: string }).id;
+    const sched = ((await call('POST', `/api/v1/projects/${projectId}/schedules`, {
+      testId: tmp, environmentId: envId, cron: '0 0 1 1 *', enabled: false,
+    })).json() as { id: string });
+    const headers: Record<string, string> = { 'x-user-id': `${tag}-viewer`, 'content-type': 'application/json' };
+    // viewer user without membership → 403 (proves write gate on run-now)
+    assert.equal((await app.inject({ method: 'POST', url: `/api/v1/schedules/${sched.id}/runs`, headers, payload: '{}' })).statusCode, 403);
+    assert.equal((await call('DELETE', `/api/v1/tests/${tmp}`)).statusCode, 204);
+    assert.equal((await call('POST', `/api/v1/schedules/${sched.id}/runs`, {})).statusCode, 400);
+    assert.equal((await call('DELETE', `/api/v1/schedules/${sched.id}`)).statusCode, 204);
+  });
 });
