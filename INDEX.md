@@ -46,6 +46,15 @@
 - `15-tasks/p1-p2-backlog.md`
 - `16-decisions/architecture-decisions.md`
 
+## Operations & notes
+- `CHANGELOG.md` — recent changes by commit
+- `docs/notify-webhooks.md` — schedule alerts + run-event webhooks (operator setup)
+- `docs/gherkin-vi-plan.md` — Vietnamese Gherkin implementation plan
+- `docs/pilot-lessons.md` — lessons from real-project pilots
+- `docs/ci-trigger.md` — CI trigger notes
+- `docs/oidc-sso.md` — SSO configuration (config-only, IdP unverified)
+- `SELFHOST-WINDOWS.md` — Windows self-host guide
+
 ## Examples
 - `examples/login-test.json`
 - `examples/generated-login.spec.ts`

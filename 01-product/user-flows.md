@@ -26,3 +26,20 @@
 
 ## D. Developer escape hatch
 Developer opens Code tab, copies/exports generated `.spec.ts`, or creates a developer-only custom action when visual primitives are insufficient.
+
+## E. Write a test in Vietnamese Gherkin
+1. Tester opens the **Gherkin** bottom tab in Builder.
+2. Pastes `Tính năng / Bối cảnh / Kịch bản / Cho rằng / Khi / Thì` text.
+3. Clicks **Parse**; Studio previews steps, unparsed lines in red.
+4. Clicks **Insert**; steps append to the test (new version minted).
+
+## F. Schedule + get alerted
+1. Tester creates a schedule (suite/test + environment + cron).
+2. Optionally ticks **Notify on failure** (needs an enabled Slack/Lark integration or webhook).
+3. On failure: chat message arrives; schedule row shows `last run failed`; history under Runs.
+4. Tester clicks through to the failed run, inspects evidence, files a bug.
+
+## G. Review a healing proposal
+1. A run with the heal flag fails on a locator but an alternative matches.
+2. Tester opens the Healing page, sees from → to + evidence.
+3. Approves (primary swapped, old primary kept as alternative, version minted) or rejects.
