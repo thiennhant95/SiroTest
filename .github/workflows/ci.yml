@@ -4,32 +4,118 @@ on:
   push:
   pull_request:
 
+# Least privilege: jobs only read the repo (no write token by default).
+permissions:
+  contents: read
+
+# Superseded runs never pile up; main branch runs always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 env:
   PLAYWRIGHT_BROWSERS_PATH: ~/.cache/ms-playwright
 
 jobs:
-  ci:
+  static:
+    name: Typecheck + build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 9.0.0
 
       - name: Setup Node 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
           cache: pnpm
 
-      # Cache Playwright browsers per docs (do not download repeatedly).
-      # Keyed by OS + Playwright version from pnpm-lock.yaml.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm db:generate
+        env:
+          DATABASE_URL: file:./prisma/ci.db
+
+      - name: Typecheck (turbo)
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+  unit:
+    name: Unit + security (no browser)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 9.0.0
+
+      - name: Setup Node 20
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm db:generate
+        env:
+          DATABASE_URL: file:./prisma/ci.db
+
+      - name: Build (dist imports in tests)
+        run: pnpm build
+
+      - name: Unit tests (test-model + compiler golden + locator-engine)
+        run: pnpm test:unit
+
+      - name: Security tests
+        run: pnpm test:security
+
+      - name: Runner + recorder unit tests
+        run: pnpm --filter @playwright-studio/runner test && pnpm --filter @vv/recorder test
+
+      - name: Server unit + P2 package tests
+        run: pnpm test:server-unit && pnpm --filter @vv/ai test && pnpm --filter @playwright-studio/action-sdk test && pnpm --filter @playwright-studio/cli test
+
+  integration-p0:
+    name: Integration P0 (a/b/c)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: file:./prisma/integration-test.db
+      ALLOW_PRIVATE_TARGETS: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 9.0.0
+
+      - name: Setup Node 20
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: pnpm
+
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
@@ -44,11 +130,206 @@ jobs:
         env:
           DATABASE_URL: file:./prisma/ci.db
 
-      - name: Lint / typecheck (turbo)
-        run: pnpm typecheck
+      - name: Build
+        run: pnpm build
+
+      - name: Install Playwright chromium (with OS deps)
+        run: npx playwright install --with-deps chromium
+
+      - name: Integration P0a (recorder + compiler)
+        run: pnpm test:integration:p0a
+
+      - name: Integration P0b (compiler + lifecycle)
+        run: pnpm test:integration:p0b
+
+      - name: Integration P0c (API CRUD, real worker)
+        run: pnpm test:integration:p0c
+
+  integration-p1:
+    name: Integration P1 (+ rbac/notify/webhook/gherkin)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: file:./prisma/integration-test.db
+      ALLOW_PRIVATE_TARGETS: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 9.0.0
+
+      - name: Setup Node 20
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm db:generate
+        env:
+          DATABASE_URL: file:./prisma/ci.db
 
       - name: Build
         run: pnpm build
+
+      - name: Install Playwright chromium (with OS deps)
+        run: npx playwright install --with-deps chromium
+
+      - name: Integration P1 (isolated SQLite, real worker)
+        run: pnpm test:integration:p1
+
+  integration-p2:
+    name: Integration P2
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: file:./prisma/integration-test.db
+      ALLOW_PRIVATE_TARGETS: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 9.0.0
+
+      - name: Setup Node 20
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm db:generate
+        env:
+          DATABASE_URL: file:./prisma/ci.db
+
+      - name: Build
+        run: pnpm build
+
+      - name: Install Playwright chromium (with OS deps)
+        run: npx playwright install --with-deps chromium
+
+      - name: Integration P2 (isolated SQLite, real worker)
+        run: pnpm test:integration:p2
+
+  e2e:
+    name: Studio E2E (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: file:./prisma/integration-test.db
+      ALLOW_PRIVATE_TARGETS: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 9.0.0
+
+      - name: Setup Node 20
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm db:generate
+        env:
+          DATABASE_URL: file:./prisma/ci.db
+
+      - name: Build
+        run: pnpm build
+
+      - name: Install Playwright chromium (with OS deps)
+        run: npx playwright install --with-deps chromium
+
+      - name: Studio E2E (fixture app, Chromium only)
+        run: pnpm test:e2e
+
+      - name: Upload failure evidence (trace/screenshot/report)
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: e2e-failure-evidence
+          path: |
+            e2e/test-results/
+            e2e/playwright-report/
+            e2e/**/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  windows:
+    name: Windows smoke (typecheck + unit, no browser)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 9.0.0
+
+      - name: Setup Node 20
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm db:generate
+        env:
+          DATABASE_URL: file:./prisma/ci.db
+
+      - name: Typecheck (turbo)
+        run: pnpm typecheck
 
       - name: Unit tests (test-model + compiler golden + locator-engine)
         run: pnpm test:unit
@@ -56,47 +337,5 @@ jobs:
       - name: Security tests
         run: pnpm test:security
 
-      - name: Runner + recorder unit tests (no browser)
-        run: pnpm --filter @playwright-studio/runner test && pnpm --filter @vv/recorder test
-
-      - name: Server unit tests + P2 package tests (no browser)
-        run: pnpm test:server-unit && pnpm --filter @vv/ai test && pnpm --filter @playwright-studio/action-sdk test && pnpm --filter @playwright-studio/cli test
-
-      - name: Install Playwright chromium (with OS deps)
-        run: npx playwright install --with-deps chromium
-
-      - name: Integration P0a (recorder + compiler)
-        run: pnpm test:integration:p0a
-        env:
-          DATABASE_URL: file:./prisma/integration-test.db
-          ALLOW_PRIVATE_TARGETS: 1
-
-      - name: Integration P0b (compiler + lifecycle)
-        run: pnpm test:integration:p0b
-        env:
-          DATABASE_URL: file:./prisma/integration-test.db
-          ALLOW_PRIVATE_TARGETS: 1
-
-      - name: Integration P0c (API CRUD, real worker)
-        run: pnpm test:integration:p0c
-        env:
-          DATABASE_URL: file:./prisma/integration-test.db
-          ALLOW_PRIVATE_TARGETS: 1
-
-      - name: Integration P1 (isolated SQLite, real worker)
-        run: pnpm test:integration:p1
-        env:
-          DATABASE_URL: file:./prisma/integration-test.db
-          ALLOW_PRIVATE_TARGETS: 1
-
-      - name: Integration P2 (isolated SQLite, real worker)
-        run: pnpm test:integration:p2
-        env:
-          DATABASE_URL: file:./prisma/integration-test.db
-          ALLOW_PRIVATE_TARGETS: 1
-
-      - name: Studio E2E (fixture app, Chromium only)
-        run: pnpm test:e2e
-        env:
-          DATABASE_URL: file:./prisma/integration-test.db
-          ALLOW_PRIVATE_TARGETS: 1
+      - name: Server unit + P2 package tests (no browser)
+        run: pnpm test:server-unit
