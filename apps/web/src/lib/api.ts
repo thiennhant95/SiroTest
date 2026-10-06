@@ -174,8 +174,14 @@ export class ApiError extends Error {
 }
 
 async function day6req<T>(path: string, init?: RequestInit): Promise<T> {
+  // Fastify rejects `content-type: application/json` with an empty body
+  // (400) — bodiless POST/DELETE must send '{}' explicitly. Centralized here
+  // so no caller can forget it again.
+  const method = (init?.method ?? "GET").toUpperCase();
+  const reqBody = init?.body ?? ((method === "POST" || method === "DELETE" || method === "PUT" || method === "PATCH") ? "{}" : undefined);
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
+    body: reqBody,
     headers: {
       // NOTE: no literal "content-type" here — day6Headers() (via
       // authHeaders()) already sets "Content-Type". A duplicate key with

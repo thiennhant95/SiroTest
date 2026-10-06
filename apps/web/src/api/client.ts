@@ -31,8 +31,12 @@ function authHeaders(): Record<string, string> {
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const { headers: initHeaders, ...rest } = init ?? {};
+  const method = (rest.method ?? "GET").toUpperCase();
+  // Same Fastify empty-body rule as lib/api day6req: bodiless writes send '{}'.
+  const body = (rest as { body?: unknown }).body ?? ((method === "POST" || method === "DELETE" || method === "PUT" || method === "PATCH") ? "{}" : undefined);
   const res = await fetch(`${BASE}${path}`, {
     ...rest,
+    body: body as BodyInit | undefined,
     headers: { ...authHeaders(), ...((initHeaders ?? {}) as Record<string, string>) },
   });
   if (!res.ok) {

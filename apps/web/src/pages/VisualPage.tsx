@@ -245,7 +245,8 @@ export function VisualPage() {
     try {
       const res = await fetch(
         `${apiBase()}/tests/${testId}/baselines/${encodeURIComponent(name)}`,
-        { method: "DELETE", headers: authHeaders() },
+        // Fastify rejects content-type json with an empty body — send '{}'.
+        { method: "DELETE", headers: authHeaders(), body: "{}" },
       );
       if (!res.ok) throw new Error(`Delete HTTP ${res.status}`);
       const msg = `Deleted baseline “${name}”.`;
