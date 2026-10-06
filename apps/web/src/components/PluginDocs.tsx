@@ -27,7 +27,7 @@ interface PluginMeta {
 
 interface PluginsResponse {
   enabled: boolean;
-  dir: string;
+  dirName: string;
   plugins: PluginMeta[];
 }
 
@@ -128,11 +128,11 @@ export function PluginDocs() {
       {!data.enabled && (
         <EmptyState
           title="Plugins are OFF"
-          hint={`ALLOW_PLUGINS is not enabled. Set ALLOW_PLUGINS=1, review the code in ${data.dir}, then POST /plugins/reload (Developer/Admin).`}
+          hint={`ALLOW_PLUGINS is not enabled. Set ALLOW_PLUGINS=1, review the code in ${data.dirName}, then POST /plugins/reload (Developer/Admin).`}
         />
       )}
       {data.enabled && data.plugins.length === 0 && (
-        <EmptyState title="No plugins yet" hint={`Directory ${data.dir} has no valid .js/.cjs/.mjs entries.`} />
+        <EmptyState title="No plugins yet" hint={`Directory ${data.dirName} has no valid .js/.cjs/.mjs entries.`} />
       )}
       {data.plugins.map((p) => (
         <article key={`${p.name}@${p.version}`} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">

@@ -266,9 +266,14 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
   activeRuns.set(runId, { token });
 
   const browser = req.browser ?? req.test.browser;
-  // Validate BEFORE createRun: an id-less/invalid definition must fail with an
-  // explicit ValidationError, never crash the store upsert (testId undefined).
-  validateTestDefinition(req.test);
+  // Targeted pre-check: the store upsert needs a test id; an id-less
+  // definition is caller misuse (API boundary backfills/rejects these) and
+  // must throw here, never crash inside the store. Full definition
+  // validation stays below inside the graceful-failure try (p0b contract:
+  // runTest returns { failed }, never throws, for invalid definitions).
+  if (typeof req.test?.id !== 'string' || req.test.id.length === 0) {
+    throw new ValidationError([{ code: 'TEST_ID_MISSING', message: 'definition.id is required' }]);
+  }
   await store.createRun({
     id: runId,
     projectId: req.projectId,
@@ -289,6 +294,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
   // once with `{}` when the dataset is empty — never silently skipped).
   let datasetRows: Record<string, string>[] = [];
   try {
+    validateTestDefinition(req.test);
     datasetRows = resolveDatasetRows(req.test, req.datasetId, req.rowIndex);
     // P1 wave-2 run inputs fail fast (before any workspace/spawn).
     if (req.filePaths !== undefined) {

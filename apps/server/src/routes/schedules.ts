@@ -152,6 +152,7 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
         datasetId: body.datasetId ?? null,
         rowIndex: body.rowIndex ?? null,
         healWithAlternatives: body.healWithAlternatives ?? false,
+        notifyOnFailure: body.notifyOnFailure ?? false,
         createdBy: req.user!.id,
       },
     });
@@ -205,6 +206,7 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
         ...(body.datasetId !== undefined ? { datasetId: body.datasetId } : {}),
         ...(body.rowIndex !== undefined ? { rowIndex: body.rowIndex } : {}),
         ...(body.healWithAlternatives !== undefined ? { healWithAlternatives: body.healWithAlternatives } : {}),
+        ...(body.notifyOnFailure !== undefined ? { notifyOnFailure: body.notifyOnFailure } : {}),
       },
     });
   });

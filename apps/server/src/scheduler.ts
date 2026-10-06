@@ -39,6 +39,7 @@ import { runTest } from '@playwright-studio/runner';
 import { resolveRunInputs } from './run-inputs.js';
 import { db } from './db.js';
 import { checkAllowedHttpUrl, stripServerPaths } from './security.js';
+import { decryptSecrets, parseProvider, sendToProvider } from './integrations.js';
 import { enqueueSuiteMember, newSuiteRunId } from './suite-runs.js';
 import {
   broadcastRunEvent,
@@ -269,6 +270,8 @@ export interface ScheduleRow extends ScheduleLike {
   datasetId: string | null;
   rowIndex: number | null;
   healWithAlternatives: boolean;
+  notifyOnFailure: boolean;
+  lastStatus: string | null;
   nextRunAt: Date | null;
   createdBy: string;
 }
@@ -373,10 +376,85 @@ async function fireSuiteSchedule(s: ScheduleRow): Promise<string> {
       }),
     ),
   );
-  void Promise.all(starters.map((x) => x.done)).catch(() => {
-    /* crash guards already settle rows; member promises never reject */
-  });
+  void Promise.allSettled(starters.map((x) => x.done))
+    .then(async (results) => {
+      // Suite aggregate: any failure fails the schedule (cancelled counts
+      // as failed for alerting — a cancelled nightly is still worth a look).
+      const statuses = results.map((r) => (r.status === 'fulfilled' ? r.value : 'failed'));
+      const status: ScheduleTerminalStatus = statuses.every((x) => x === 'passed') ? 'passed' : 'failed';
+      await onScheduleRunSettled(s.id, { status, suiteRunId });
+    })
+    .catch(() => {
+      /* settle reporting is best-effort; member rows already settled */
+    });
   return suiteRunId;
+}
+
+/**
+ * Failure alerting (opt-in per schedule via `notifyOnFailure`).
+ *
+ * The ticker is fire-and-forget, so settlement is reported back here by the
+ * submit callbacks: every fired run updates `Schedule.lastStatus` (visible
+ * in list/detail without polling runs), and a `failed` outcome with
+ * `notifyOnFailure` posts to the project's ENABLED slack/lark integrations.
+ * Best-effort throughout: notification failures are logged, never crash the
+ * ticker, never retry (the next firing alerts again if still failing).
+ */
+export type ScheduleTerminalStatus = 'passed' | 'failed' | 'cancelled';
+
+export async function onScheduleRunSettled(
+  scheduleId: string,
+  outcome: { status: ScheduleTerminalStatus; runId?: string; suiteRunId?: string; errorSummary?: string | null },
+  log: SchedulerLogger = consoleLogger(),
+): Promise<void> {
+  const s = await db().schedule.findUnique({ where: { id: scheduleId } });
+  if (!s) return;
+  await db().schedule.update({ where: { id: scheduleId }, data: { lastStatus: outcome.status } }).catch(() => undefined);
+  if (outcome.status !== 'failed' || !s.notifyOnFailure) return;
+  await notifyScheduleFailure(
+    { id: s.id, projectId: s.projectId, suiteId: s.suiteId, testId: s.testId, cron: s.cron },
+    outcome,
+    log,
+  );
+}
+
+async function notifyScheduleFailure(
+  s: { id: string; projectId: string; suiteId: string | null; testId: string | null; cron: string },
+  outcome: { status: ScheduleTerminalStatus; runId?: string; suiteRunId?: string; errorSummary?: string | null },
+  log: SchedulerLogger,
+): Promise<void> {
+  try {
+    const integrations = await db().integration.findMany({
+      where: { projectId: s.projectId, enabled: true, provider: { in: ['slack', 'lark'] } },
+    });
+    if (integrations.length === 0) {
+      log.info(`schedule ${s.id} failed but no enabled slack/lark integration to notify`);
+      return;
+    }
+    let target = s.cron;
+    if (s.suiteId) {
+      const suite = await db().testSuite.findUnique({ where: { id: s.suiteId }, select: { name: true } });
+      target = `suite "${suite?.name ?? s.suiteId}"`;
+    } else if (s.testId) {
+      const test = await db().test.findUnique({ where: { id: s.testId }, select: { name: true } });
+      target = `test "${test?.name ?? s.testId}"`;
+    }
+    const ref = outcome.suiteRunId ? `suite run ${outcome.suiteRunId}` : outcome.runId ? `run ${outcome.runId}` : 'run (unknown)';
+    const title = `[Studio] schedule FAILED: ${target} (${s.cron})`;
+    // errorSummary is runner-redacted (secrets stripped before persist).
+    const markdown = `${ref}\n${outcome.errorSummary ?? 'no error summary'}`.slice(0, 2000);
+    for (const row of integrations) {
+      try {
+        const config = JSON.parse(row.configJson || '{}') as Record<string, string>;
+        await sendToProvider(parseProvider(row.provider), config, decryptSecrets(row.secretJson), { title, markdown });
+        log.info(`schedule ${s.id} failure notified via ${row.provider} "${row.name}"`);
+      } catch (err) {
+        log.error(`schedule ${s.id} notify via ${row.provider} failed`, err instanceof Error ? err.message : String(err));
+      }
+    }
+  } catch (err) {
+    log.error(`schedule ${s.id} notify failed`, err instanceof Error ? err.message : String(err));
+  }
 }
 
 /**
@@ -464,6 +542,17 @@ async function fireTestSchedule(s: ScheduleRow): Promise<string> {
       if (current?.status === 'cancelled') return { status: 'cancelled' as const, runId: run.id };
       return runTest(request, { store: prismaRunStore, publish: workerPublish });
     })
+    .then(async (result) => {
+      // Settlement reporting: lastStatus + opt-in failure alert (best-effort).
+      const status = result.status === 'passed' ? 'passed' : result.status === 'cancelled' ? 'cancelled' : 'failed';
+      const settled = await prismaRunStore.getRun(run.id).catch(() => null);
+      await onScheduleRunSettled(s.id, {
+        status,
+        runId: run.id,
+        errorSummary: settled?.errorSummary ?? null,
+      });
+      return result;
+    })
     .catch(async (err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
       await prismaRunStore.updateRun(run.id, {
@@ -471,6 +560,7 @@ async function fireTestSchedule(s: ScheduleRow): Promise<string> {
         finishedAt: Date.now(),
         errorSummary: stripServerPaths(`Worker crashed before settling: ${message}`),
       });
+      await onScheduleRunSettled(s.id, { status: 'failed', runId: run.id, errorSummary: message });
     });
   return run.id;
 }
@@ -509,6 +599,8 @@ export function defaultSchedulerDeps(log: SchedulerLogger = consoleLogger()): Sc
         datasetId: r.datasetId,
         rowIndex: r.rowIndex,
         healWithAlternatives: r.healWithAlternatives,
+        notifyOnFailure: r.notifyOnFailure ?? false,
+        lastStatus: r.lastStatus ?? null,
         lastRunAt: r.lastRunAt,
         nextRunAt: r.nextRunAt,
         createdBy: r.createdBy,

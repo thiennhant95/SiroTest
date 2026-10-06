@@ -186,6 +186,7 @@ export async function transferRoutes(app: FastifyInstance): Promise<void> {
         cron: s.cron,
         enabled: s.enabled,
         retries: s.retries,
+        ...(s.notifyOnFailure ? { notifyOnFailure: true as const } : {}),
       })),
       files: filePayloads,
     };
@@ -416,6 +417,7 @@ export async function transferRoutes(app: FastifyInstance): Promise<void> {
               cron: s.cron,
               enabled: s.enabled ?? true,
               retries: s.retries ?? 0,
+              notifyOnFailure: s.notifyOnFailure ?? false,
               createdBy: req.user!.id,
             },
           });

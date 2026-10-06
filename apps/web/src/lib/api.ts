@@ -699,6 +699,7 @@ export interface ScheduleRecord {
   cron: string;
   enabled: boolean;
   retries?: number | null;
+  notifyOnFailure?: boolean | null;
   lastStatus?: string | null;
   nextRunAt?: string | null;
 }
@@ -710,6 +711,7 @@ export interface ScheduleCreate {
   cron: string;
   enabled?: boolean;
   retries?: number;
+  notifyOnFailure?: boolean;
 }
 export interface ScheduleUpdate {
   name?: string | null;
@@ -719,6 +721,7 @@ export interface ScheduleUpdate {
   cron?: string;
   enabled?: boolean;
   retries?: number | null;
+  notifyOnFailure?: boolean;
 }
 export interface ScheduleRun {
   id: string;

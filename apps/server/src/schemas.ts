@@ -203,6 +203,8 @@ export const scheduleCreate = z.object({
   datasetId: z.string().min(1).optional(),
   rowIndex: z.number().int().nonnegative().optional(),
   healWithAlternatives: z.boolean().optional(),
+  /** Failure alerting: post to enabled slack/lark on terminal failure. */
+  notifyOnFailure: z.boolean().optional(),
 });
 export const scheduleUpdate = z.object({
   suiteId: z.string().min(1).nullable().optional(),
@@ -217,6 +219,7 @@ export const scheduleUpdate = z.object({
   datasetId: z.string().min(1).nullable().optional(),
   rowIndex: z.number().int().nonnegative().nullable().optional(),
   healWithAlternatives: z.boolean().optional(),
+  notifyOnFailure: z.boolean().optional(),
 });
 
 // P1 wave-2 — Playwright spec importer (feasible TS subset, see spec-importer.ts).
@@ -268,6 +271,7 @@ const exportSchedule = z.object({
   cron: z.string().min(1),
   enabled: z.boolean().optional(),
   retries: z.number().int().min(0).max(5).optional(),
+  notifyOnFailure: z.boolean().optional(),
 });
 const exportFile = z.object({
   id: z.string().min(1),

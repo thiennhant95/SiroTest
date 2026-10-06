@@ -209,6 +209,9 @@ model Schedule {
   datasetId     String?
   rowIndex      Int?
   healWithAlternatives Boolean @default(false)
+  // Failure alerting: opt-in chat notification + last terminal status.
+  notifyOnFailure Boolean @default(false)
+  lastStatus      String?
   lastRunAt     DateTime?
   nextRunAt     DateTime?
   createdBy     String

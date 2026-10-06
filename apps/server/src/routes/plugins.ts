@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { basename } from 'node:path';
 import { describePlugin, isPluginsEnabled, loadPluginsFromDir, pluginsDir } from '@playwright-studio/runner';
 import { requireAuth, requirePrivileged } from '../auth.js';
 import { ApiError } from '../errors.js';
@@ -14,14 +15,15 @@ import { ApiError } from '../errors.js';
  *   enabling — there is no JS sandbox by design.
  */
 export async function pluginRoutes(app: FastifyInstance): Promise<void> {
-  // List loaded plugin manifests (metadata only, safe for browser clients).
+  // List loaded plugin manifests (metadata only, safe for browser clients:
+  // directory is a basename — absolute server paths never leave the server).
   app.get('/plugins', { preHandler: requireAuth }, async () => {
     if (!isPluginsEnabled()) {
-      return { enabled: false, dir: pluginsDir(), plugins: [] };
+      return { enabled: false, dirName: basename(pluginsDir()), plugins: [] };
     }
     try {
       const loaded = await loadPluginsFromDir();
-      return { enabled: true, dir: loaded.dir, plugins: loaded.plugins.map(describePlugin) };
+      return { enabled: true, dirName: basename(loaded.dir), plugins: loaded.plugins.map(describePlugin) };
     } catch (err) {
       throw new ApiError('VALIDATION_ERROR', `Cannot list plugins: ${(err as Error).message}`, 400);
     }
@@ -39,7 +41,7 @@ export async function pluginRoutes(app: FastifyInstance): Promise<void> {
     }
     try {
       const loaded = await loadPluginsFromDir();
-      return { enabled: true, dir: loaded.dir, plugins: loaded.plugins.map(describePlugin) };
+      return { enabled: true, dirName: basename(loaded.dir), plugins: loaded.plugins.map(describePlugin) };
     } catch (err) {
       throw new ApiError('VALIDATION_ERROR', `Plugin reload failed: ${(err as Error).message}`, 400);
     }
