@@ -1,0 +1,31 @@
+# Weekly dependency updates (grouped, one PR per ecosystem).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+      timezone: Asia/Ho_Chi_Minh
+    groups:
+      dev-deps:
+        patterns:
+          - "@playwright*"
+          - "@types*"
+          - typescript
+          - vitest
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+      timezone: Asia/Ho_Chi_Minh
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ci
