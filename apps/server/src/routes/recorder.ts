@@ -284,7 +284,14 @@ function testBaseUrl(test: { definitionJson: string }): string | undefined {
 
 function toDefinitionStep(s: { id: string; type: string; locator?: unknown; value?: string; key?: string; url: string }): Record<string, unknown> {
   // Minimal TestDefinition step; locator filled by locator-engine (primary+alternatives).
-  return { id: s.id, type: s.type, enabled: true, target: s.locator ?? null, value: s.value, key: s.key, url: s.url };
+  // Omit absent fields (never `target: null`): explicit nulls fail strict
+  // step validation and confuse the Builder inspector.
+  const step: Record<string, unknown> = { id: s.id, type: s.type, enabled: true };
+  if (s.locator !== undefined && s.locator !== null) step.target = s.locator;
+  if (s.value !== undefined) step.value = s.value;
+  if (s.key !== undefined) step.key = s.key;
+  if (s.url !== undefined) step.url = s.url;
+  return step;
 }
 
 /** A user may only drive their own recorder session (cross-user hijack guard). */
