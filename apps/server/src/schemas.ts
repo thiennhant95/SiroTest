@@ -12,7 +12,7 @@ export const projectCreate = z.object({
   description: z.string().max(2000).optional(),
   baseUrl: z.string().url().optional(),
 });
-export const projectUpdate = projectCreate.partial();
+export const projectUpdate = projectCreate.partial().strict();
 
 export const testCreate = z.object({
   name: z.string().min(1).max(200),
@@ -22,14 +22,14 @@ export const testCreate = z.object({
 });
 export const testUpdate = testCreate.partial().extend({
   changeMessage: z.string().max(500).optional(),
-});
+}).strict();
 
 export const envCreate = z.object({
   name: z.string().min(1).max(120),
   baseUrl: z.string().url().optional(),
   isDefault: z.boolean().optional(),
 });
-export const envUpdate = envCreate.partial();
+export const envUpdate = envCreate.partial().strict();
 
 export const recorderStart = z.object({
   baseUrl: z.string().url().optional(),

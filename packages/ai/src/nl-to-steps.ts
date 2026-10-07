@@ -133,7 +133,7 @@ function pushIfValid(acc: LooseStep[], unparsed: string[], clause: string, step:
 
 function matchGoto(clause: string): LooseStep | null {
   if (/(tab mới|new tab)/i.test(clause)) return null; // handled by newTab
-  const m = /(?:mở|open|go to|navigate to|visit|truy cập|đi tới|vào)\s+(?:trang(?: web)?\s+)?(https?:\/\/[^\s"“”']+|[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-z]{2,}(?:\/[^\s"“”']*)?)/i.exec(clause);
+  const m = /(?:mở|open|go to|navigate to|visit|truy cập|đi tới|vào)\s+(?:trang(?: web)?\s+)?["“”']?(https?:\/\/[^\s"“”']+|[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-z]{2,}(?:\/[^\s"“”']*)?)/i.exec(clause);
   if (!m) return null;
   const url = normalizeUrl(m[1]!);
   return { id: nextId(), type: "goto", name: `Mở ${url}`, enabled: true, url };

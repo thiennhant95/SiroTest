@@ -132,9 +132,23 @@ const LOCATOR_MARKERS: RegExp[] = [
  * True only for genuine locator failures (actionability timeouts,
  * waiting-for-selector, strict-mode violations). Assertion failures and any
  * other error class return false — healing must not fire on them.
+ *
+ * Exception: an `expect()` error whose call log proves the locator resolved
+ * to NOTHING (`element(s) not found`, `resolved to 0`) IS a locator failure:
+ * the element is gone, not the expectation wrong. This is the common
+ * "assertVisible fails because the element vanished" case — without it,
+ * healing would never fire for assertion steps, which compile to
+ * `expect(locator).toBeVisible()` etc.
  */
+const NOT_FOUND_MARKERS: RegExp[] = [
+  /locator .* resolved to 0/i,
+  /element\(s\) not found/i,
+  /no element found for/i,
+];
+
 export function isLocatorFailure(errorMessage: string): boolean {
   if (!errorMessage) return false;
+  if (NOT_FOUND_MARKERS.some((re) => re.test(errorMessage))) return true;
   if (ASSERTION_MARKERS.some((re) => re.test(errorMessage))) return false;
   return LOCATOR_MARKERS.some((re) => re.test(errorMessage));
 }
