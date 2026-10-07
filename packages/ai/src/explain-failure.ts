@@ -76,30 +76,15 @@ export function explainFailureRule(input: FailureInput): FailureExplanation {
   const assertMarkers =
     /expect\(|expect |assertionerror|assert|to(bevisible|behidden|havetext|containtext|havevalue|haveurl|havetitle|bechecked|beenabled|bedisabled)|expected.+received|actual.+expected|to equal|mismatch/i;
   const strictMarkers =
-    /strict mode violation|resolved to 0|resolved to \d+ elements|locator.*did not resolve|waiting for.*locator|no element|element not found|selector.*not found|target closed/i;
+    /strict mode violation|resolved to 0|resolved to \d+ elements|locator.*did not resolve|waiting for.*locator|no element|element not found|element\(s\) not found|selector.*not found|target closed/i;
   const timeoutMarkers =
     /timeout.*exceeded|exceeded timeout|timeoutexpired|timed out after|waiting for.*timeout|test timeout/i;
   const navigationMarkers =
     /net::err|err_|navigation failed|navigation timeout|goto.*failed|certificate|ns_error|ssrf|blocked.*target|dns|econnrefused|enotfound/i;
 
-  if (assertMarkers.test(err) || (isAssertStep && /fail/i.test(err))) {
-    return {
-      category: "assert-mismatch",
-      summary: `Assertion thất bại ở step "${input.stepName ?? input.stepType ?? "?"}" — trang render được nhưng giá trị/thấy-không-thấy không khớp kỳ vọng.`,
-      likelyCauses: [
-        "Dữ liệu kỳ vọng (expected) đã cũ so với UI hiện tại.",
-        "Trang chưa load xong khi assertion chạy (thiếu chờ điều kiện).",
-        "Locator trỏ đúng element nhưng sai thuộc tính so sánh (text vs value).",
-      ],
-      suggestedFixes: [
-        traceHint(),
-        "So sánh expected với text/value thực tế trong trace rồi cập nhật step kỳ vọng.",
-        "Chèn waitForElement (visible) ngay trước assertion thay vì chờ cứng.",
-        ...locatorHint(input),
-      ],
-      confidence: assertMarkers.test(err) ? "high" : "medium",
-    };
-  }
+  // Locator-gone check FIRST: an `expect()` error whose call log proves the
+  // locator resolved to nothing is a missing element, not a wrong
+  // expectation (same discriminator as runner isLocatorFailure).
   if (strictMarkers.test(e)) {
     const multi = /resolved to [2-9]|strict mode violation/i.test(err);
     return {
@@ -129,6 +114,24 @@ export function explainFailureRule(input: FailureInput): FailureExplanation {
             traceHint(),
           ],
       confidence: "high",
+    };
+  }
+  if (assertMarkers.test(err) || (isAssertStep && /fail/i.test(err))) {
+    return {
+      category: "assert-mismatch",
+      summary: `Assertion thất bại ở step "${input.stepName ?? input.stepType ?? "?"}" — trang render được nhưng giá trị/thấy-không-thấy không khớp kỳ vọng.`,
+      likelyCauses: [
+        "Dữ liệu kỳ vọng (expected) đã cũ so với UI hiện tại.",
+        "Trang chưa load xong khi assertion chạy (thiếu chờ điều kiện).",
+        "Locator trỏ đúng element nhưng sai thuộc tính so sánh (text vs value).",
+      ],
+      suggestedFixes: [
+        traceHint(),
+        "So sánh expected với text/value thực tế trong trace rồi cập nhật step kỳ vọng.",
+        "Chèn waitForElement (visible) ngay trước assertion thay vì chờ cứng.",
+        ...locatorHint(input),
+      ],
+      confidence: assertMarkers.test(err) ? "high" : "medium",
     };
   }
   if (timeoutMarkers.test(e)) {

@@ -41,6 +41,16 @@ describe("explainFailureRule categories", () => {
     expect(e.confidence).toBe("high");
   });
 
+  it("classifies vanished-element expect() errors as locator-not-found", () => {
+    const e = explainFailureRule({
+      errorSummary:
+        "Error: expect(locator).toBeVisible() failed\nLocator: locator('#nope')\nTimeout: 5000ms\nError: element(s) not found",
+      stepType: "assertVisible",
+    });
+    expect(e.category).toBe("locator-not-found");
+    expect(e.confidence).toBe("high");
+  });
+
   it("classifies navigation errors", () => {
     const e = explainFailureRule({
       errorSummary: "page.goto: net::ERR_CONNECTION_REFUSED at https://shop.example.com/",
