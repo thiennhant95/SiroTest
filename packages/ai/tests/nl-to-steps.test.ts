@@ -111,6 +111,16 @@ Thấy "Welcome"`);
     expect(r.steps.map((s) => s.type)).toEqual(["newTab", "reload", "assertVisible"]);
     assertAllValid(r.steps);
   });
+
+  it('parses quoted goto (mở "https://…")', () => {
+    const r = nlToSteps(`Mở "https://shop.example.com"
+Đi tới 'https://shop.example.com/cart'`);
+    expect(r.unparsed).toEqual([]);
+    expect(r.steps.map((s) => s.type)).toEqual(["goto", "goto"]);
+    expect((r.steps[0] as { url: string }).url).toBe("https://shop.example.com");
+    expect((r.steps[1] as { url: string }).url).toBe("https://shop.example.com/cart");
+    assertAllValid(r.steps);
+  });
 });
 
 describe("nl-to-steps unparsed honesty", () => {

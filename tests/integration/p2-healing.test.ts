@@ -119,6 +119,14 @@ describe('P2 healing classification (pure, no browser)', () => {
     assert.equal(isLocatorFailure('Timeout 5000ms exceeded.\nExpected: visible\nReceived: hidden'), false);
     assert.equal(isLocatorFailure('expect(locator).toBeVisible() failed'), false);
     assert.equal(isLocatorFailure('AssertionError: expected 200 to be 404'), false);
+    // ...UNLESS the call log proves the locator resolved to nothing (the
+    // element is gone, not the expectation wrong) — then it IS healable.
+    assert.equal(
+      isLocatorFailure(
+        'Error: expect(locator).toBeVisible() failed\nLocator: locator(\'#nope\')\nTimeout: 5000ms\nError: element(s) not found',
+      ),
+      true,
+    );
   });
 
   it('attemptHealing walks alternatives in order, first unique match wins', () => {

@@ -127,7 +127,13 @@ export async function requireProjectWrite(req: FastifyRequest): Promise<ProjectR
   if (!req.user) throw new ApiError('UNAUTHORIZED', 'Missing credentials', 401);
   const params = (req.params ?? {}) as Record<string, unknown>;
   let projectId: string | undefined;
-  if (typeof params['projectId'] === 'string' && params['projectId'].length > 0) {
+  if (typeof params['projectId'] === 'string') {
+    // Empty `:projectId` (e.g. `POST /projects//environments`) must fail
+    // explicitly — without this the route would try a create with
+    // `projectId: ''` and die on the FK with a 500.
+    if (params['projectId'].length === 0) {
+      throw new ApiError('VALIDATION_ERROR', 'projectId must not be empty', 400);
+    }
     projectId = params['projectId'] as string;
   } else if (typeof params['id'] === 'string' && (params['id'] as string).length > 0) {
     const id = params['id'] as string;
