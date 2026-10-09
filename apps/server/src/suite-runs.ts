@@ -153,6 +153,7 @@ export async function enqueueSuiteMember(
       headed: opts.headed,
       ...(inputs.actions.length > 0 ? { actions: inputs.actions } : {}),
       ...(inputs.filePaths !== undefined ? { filePaths: inputs.filePaths } : {}),
+      ...(inputs.fileNames !== undefined ? { fileNames: inputs.fileNames } : {}),
       ...(inputs.storageStateJson !== undefined ? { storageStateJson: inputs.storageStateJson } : {}),
       // P2 healing is opt-in and proposal-only (never silently applied).
       ...(opts.healWithAlternatives === true ? { healWithAlternatives: true as const } : {}),

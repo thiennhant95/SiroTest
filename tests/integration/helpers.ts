@@ -4,10 +4,19 @@
  * - Auth: P0 `x-user-id` header; the user row is seeded for FK `createdBy`.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { FastifyInstance } from 'fastify';
+
+// Integration storage NEVER lands in the repo tree: storageRoot() falls back
+// to `<cwd>/storage`, and these tests run with cwd=repo-root (that stray
+// `storage/` dir with 371 orphan run dirs was test residue). Point at a
+// per-process temp dir instead — unless the caller pinned one explicitly.
+if (!process.env.STORAGE_ROOT && !process.env.STORAGE_PATH) {
+  process.env.STORAGE_ROOT = mkdtempSync(resolve(tmpdir(), 'vv-int-storage-'));
+}
 
 export const TEST_USER_ID = 'u_integration';
 export const TEST_USER_EMAIL = 'integration@test.local';

@@ -29,6 +29,13 @@ const retentionDays = Math.max(
 );
 const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 
+// Fail fast with guidance instead of a raw Prisma connect error: without
+// DATABASE_URL this tool may open (or create!) the wrong database file.
+if (!process.env.DATABASE_URL) {
+  console.error('[cleanup-db] refusing: DATABASE_URL is not set. Point it at the live server database (see SELFHOST-WINDOWS.md).');
+  process.exit(2);
+}
+
 const { PrismaClient } = await import('@prisma/client');
 const db = new PrismaClient();
 try {

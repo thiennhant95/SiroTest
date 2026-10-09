@@ -334,6 +334,7 @@ export async function visualRoutes(app: FastifyInstance): Promise<void> {
       ...(body.usePlugins ? { pluginsDir: pluginsDir() } : {}),
       ...(inputs.actions.length > 0 ? { actions: inputs.actions } : {}),
       ...(inputs.filePaths !== undefined ? { filePaths: inputs.filePaths } : {}),
+      ...(inputs.fileNames !== undefined ? { fileNames: inputs.fileNames } : {}),
       ...(inputs.storageStateJson !== undefined ? { storageStateJson: inputs.storageStateJson } : {}),
       projectVariables,
       environmentVariables,

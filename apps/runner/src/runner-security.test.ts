@@ -154,6 +154,52 @@ describe('secret redaction (logs / code / WS / result JSON)', () => {
   });
 });
 
+describe('upload staging (real filenames per run)', () => {
+  it('stages original names, dedupes collisions, blocks traversal', async () => {
+    const { stageUploadFiles } = await import('./stage-uploads.js');
+    const dir = await mkdtemp(join(tmpdir(), 'stage-up-'));
+    try {
+      const a = join(dir, 'src-a.csv');
+      const b = join(dir, 'src-b.csv');
+      await writeFile(a, 'a,b\n1,2\n');
+      await writeFile(b, 'x\n9\n');
+      const work = join(dir, 'work');
+      await mkdir(work, { recursive: true });
+      const staged = await stageUploadFiles(
+        work,
+        { f1: a, f2: b, f3: b },
+        { f1: 'report.csv', f2: 'report.csv', f3: '../../evil.csv' },
+      );
+      assert.ok(staged['f1']!.endsWith(join('files', 'report.csv')));
+      assert.ok(staged['f2']!.endsWith(join('files', 'report-2.csv')));
+      assert.ok(!staged['f3']!.includes('..') && staged['f3']!.endsWith(join('files', 'evil.csv')));
+      assert.equal(await readFile(staged['f1']!, 'utf8'), 'a,b\n1,2\n');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('falls back to stored basenames without fileNames (old workers)', async () => {
+    const { stageUploadFiles } = await import('./stage-uploads.js');
+    const dir = await mkdtemp(join(tmpdir(), 'stage-up-'));
+    try {
+      const a = join(dir, 'cmv1-data.csv');
+      await writeFile(a, 'q\n');
+      const work = join(dir, 'work');
+      await mkdir(work, { recursive: true });
+      const staged = await stageUploadFiles(work, { f1: a });
+      assert.ok(staged['f1']!.endsWith(join('files', 'cmv1-data.csv')));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('empty map stages nothing', async () => {
+    const { stageUploadFiles } = await import('./stage-uploads.js');
+    assert.deepEqual(await stageUploadFiles(join(tmpdir(), 'nope'), {}), {});
+  });
+});
+
 describe('URL scheme guard in runner validation', () => {
   it('rejects javascript:/data:/file: step URLs', () => {
     const bad = {

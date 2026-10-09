@@ -20,6 +20,7 @@ import { visualHelperSource } from './visual-compare.js';
 import { buildDatasetEnvValue, resolveDatasetRows, VV_DATASET_ROWS_ENV } from './datasets.js';
 import { redactSecrets, resolveEnv } from './env.js';
 import { scrubTraceSecrets } from './trace-scrub.js';
+import { stageUploadFiles } from './stage-uploads.js';
 import { buildEvent, type EventPublisher, type RunEventName } from './events.js';
 import { attemptHealing, HEALING_PROBE_BUDGET_MS, isLocatorFailure, previewHealingCandidate, STEP_HEALED_EVENT, type HealAttempt, type HealProbe } from './healing.js';
 import { now, terminalRunStatusOf, type RunStore } from './persist.js';
@@ -382,6 +383,19 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
   const healing: HealAttempt[] = [];
 
   try {
+    // ---- Step 3.5: stage uploads under REAL filenames ----
+    // Library bytes are `<id>-<name>` in shared storage; the page must see
+    // `report.csv`, not the internal id. Staged copies live in the isolated
+    // workDir (removed in step 8). Failure here fails the run explicitly —
+    // an upload must never silently fall back to the wrong file.
+    let uploadPaths: Record<string, string> | undefined;
+    if (req.filePaths !== undefined) {
+      try {
+        uploadPaths = await stageUploadFiles(ws.workDir, req.filePaths, req.fileNames);
+      } catch (err) {
+        throw new Error(`upload staging failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
     // ---- Step 4: compile ----
     const healingOptIn = req.healWithAlternatives === true;
     const testTimeoutMs = resolveTestTimeout(test, req.projectDefaultTimeoutMs)
@@ -498,9 +512,10 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
         : {}),
       // P1 wave-2 files: fileId -> absolute path map for `upload` steps.
       // Injected under both the namespaced and legacy keys (the spec
-      // prefers VV_FILE_PATHS, falls back to FILE_PATHS).
-      ...(req.filePaths !== undefined
-        ? { VV_FILE_PATHS: JSON.stringify(req.filePaths), FILE_PATHS: JSON.stringify(req.filePaths) }
+      // prefers VV_FILE_PATHS, falls back to FILE_PATHS). Paths point at
+      // per-run staged copies carrying the ORIGINAL filenames.
+      ...((uploadPaths ?? req.filePaths) !== undefined
+        ? { VV_FILE_PATHS: JSON.stringify(uploadPaths ?? req.filePaths), FILE_PATHS: JSON.stringify(uploadPaths ?? req.filePaths) }
         : {}),
       // P2 visual regression: baseline name -> absolute path map for
       // `visualCheck` steps (server resolves from the Baseline table) plus

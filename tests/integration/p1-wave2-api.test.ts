@@ -189,8 +189,9 @@ describe('file library (upload/download/in-use)', () => {
     assert.match(dl.disposition, /logo\.png/);
     assert.equal(Buffer.compare(dl.bytes, PNG_BYTES), 0);
 
-    const paths = await resolveFilePaths(projectId, [fid]);
-    assert.ok(paths[fid]!.endsWith(`${fid}-logo.png`));
+    const resolved = await resolveFilePaths(projectId, [fid]);
+    assert.ok(resolved.paths[fid]!.endsWith(`${fid}-logo.png`));
+    assert.equal(resolved.names[fid], 'logo.png');
     await assert.rejects(() => resolveFilePaths(projectId, ['file_nope']), /not found/);
 
     assert.equal((await injectJson(app, 'DELETE', `/api/v1/files/${fid}`)).statusCode, 204);

@@ -179,6 +179,13 @@ export interface RunRequest {
    */
   filePaths?: Record<string, string>;
   /**
+   * P1 wave-2 files: original library filenames per fileId. The runner
+   * stages per-run copies under these REAL names (storage keeps
+   * `<id>-<name>` for uniqueness) so apps that validate filenames see the
+   * original. Absent → fall back to the stored basenames.
+   */
+  fileNames?: Record<string, string>;
+  /**
    * P1 auth context: decrypted storageState JSON content. The runner
    * materializes it as `storageState.json` in the isolated workDir and
    * points the Playwright config at it; the file is removed with the
