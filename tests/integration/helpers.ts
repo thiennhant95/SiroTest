@@ -152,7 +152,7 @@ export function loginFixtureDefinition(projectId: string, fixtureBaseUrl: string
   };
 }
 
-/** Minimal valid step per P0 type (03-test-model/step-catalog.md). */
+/** Minimal valid step per P0 type (03-test-model/step-catalog.md), plus P1/P2. */
 export function minimalStepFor(type: string): Record<string, unknown> {
   const target = labelTarget('Email');
   switch (type) {
@@ -174,6 +174,22 @@ export function minimalStepFor(type: string): Record<string, unknown> {
     case 'screenshot': return { id: 's1', type, enabled: true, name: 'final' };
     case 'reload': case 'goBack': case 'goForward':
       return { id: 's1', type, enabled: true };
-    default: throw new Error(`minimalStepFor: unknown P0 step type "${type}"`);
+    // P1 (09-database/actions + 06-compiler wave 2). callAction needs an
+    // actions registry at compile time — see parity test's ACTIONS map.
+    case 'callAction':
+      return { id: 's1', type, enabled: true, actionId: 'act_parity', arguments: { EMAIL: 'a@x.io' } };
+    case 'upload': return { id: 's1', type, enabled: true, target, fileId: 'file_parity' };
+    case 'download': return { id: 's1', type, enabled: true, url: 'http://127.0.0.1:3123/fixture/f.csv', saveAs: 'f.csv' };
+    case 'newTab': return { id: 's1', type, enabled: true, url: 'http://127.0.0.1:3123/fixture/login' };
+    case 'closeTab': return { id: 's1', type, enabled: true };
+    case 'handleDialog': return { id: 's1', type, enabled: true, action: 'accept' };
+    case 'apiRequest': return { id: 's1', type, enabled: true, method: 'GET', url: 'http://127.0.0.1:3123/fixture/ping', expectedStatus: 200 };
+    case 'mockRoute': return { id: 's1', type, enabled: true, url: 'http://127.0.0.1:3123/fixture/api/*', status: 500, body: '{}' };
+    case 'axeCheck': return { id: 's1', type, enabled: true };
+    // P2.
+    case 'visualCheck': return { id: 's1', type, enabled: true, name: 'parity-home' };
+    default:
+      if (type.startsWith('plugin:')) return { id: 's1', type, enabled: true };
+      throw new Error(`minimalStepFor: unknown step type "${type}"`);
   }
 }
