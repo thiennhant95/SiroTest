@@ -7,7 +7,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { assertSafePath, assertValidRunId } from './workspace.js';
@@ -112,6 +112,45 @@ describe('secret redaction (logs / code / WS / result JSON)', () => {
     };
     const clean = redactResult(payload, [SECRET]);
     assert.ok(!JSON.stringify(clean).includes(SECRET));
+  });
+
+  it('trace.zip text entries are scrubbed, binary entries byte-identical', async () => {
+    const { strToU8, zipSync, unzipSync } = await import('fflate');
+    const { scrubTraceSecrets } = await import('./trace-scrub.js');
+    const dir = await mkdtemp(join(tmpdir(), 'trace-scrub-'));
+    try {
+      const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 1, 2, 3]);
+      const zip = zipSync({
+        '1-trace.trace': strToU8(`{"params":{"expectedText":"${SECRET}"}}\n`),
+        'resources/p.png': png,
+      });
+      const path = join(dir, 'trace.zip');
+      await writeFile(path, Buffer.from(zip));
+      const res = await scrubTraceSecrets(path, [SECRET]);
+      assert.equal(res.scrubbed, true);
+      assert.equal(res.entriesScrubbed, 1);
+      const back = unzipSync(new Uint8Array(await readFile(path)));
+      const text = Buffer.from(back['1-trace.trace']!).toString('utf8');
+      assert.ok(!text.includes(SECRET) && text.includes('***'));
+      assert.deepEqual(Buffer.from(back['resources/p.png']!), Buffer.from(png));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('trace scrub is a no-op without secrets or without a zip', async () => {
+    const { scrubTraceSecrets } = await import('./trace-scrub.js');
+    assert.deepEqual(await scrubTraceSecrets(join(tmpdir(), 'nope-missing.zip'), [SECRET]), { scrubbed: false, entriesScrubbed: 0 });
+    const dir = await mkdtemp(join(tmpdir(), 'trace-scrub-'));
+    try {
+      const { strToU8, zipSync } = await import('fflate');
+      const path = join(dir, 'trace.zip');
+      await writeFile(path, Buffer.from(zipSync({ 'a.trace': strToU8('nothing sensitive') })));
+      assert.deepEqual(await scrubTraceSecrets(path, []), { scrubbed: false, entriesScrubbed: 0 });
+      assert.deepEqual(await scrubTraceSecrets(path, [SECRET]), { scrubbed: false, entriesScrubbed: 0 });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
 

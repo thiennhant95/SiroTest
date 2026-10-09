@@ -62,7 +62,7 @@ const promoteBody = z.object({
   runId: z.string().min(1),
   /** Storage-relative artifact path of that run; defaults to the visual actual. */
   artifactPath: z.string().min(1).max(500).optional(),
-});
+}).strict();
 
 const visualRunBody = z.object({
   environmentId: z.string().min(1),
@@ -72,7 +72,7 @@ const visualRunBody = z.object({
   updateBaselines: z.boolean().default(false),
   /** Load trusted plugins for `plugin:*` steps (Developer/Admin + ALLOW_PLUGINS=1). */
   usePlugins: z.boolean().default(false),
-});
+}).strict();
 
 function parseOrThrow<T>(schema: z.ZodSchema<T>, data: unknown): T {
   const r = schema.safeParse(data);

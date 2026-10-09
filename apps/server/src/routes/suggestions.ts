@@ -49,6 +49,9 @@ const suggestionsBody = z.object({
   sessionId: z.string().min(1).optional(),
   /** Explicit draft steps (recorded but not yet saved); wins over sessionId. */
   steps: z.array(z.record(z.unknown())).max(500).optional(),
+  // Intentionally NON-strict: the apply route re-parses its own body with
+  // this schema to read an optional source override ({suggestionIds,
+  // indexes, position} live alongside), so unknown keys must pass through.
 });
 
 const applyBody = z
@@ -59,7 +62,7 @@ const applyBody = z
     position: z
       .union([z.literal('after-source'), z.object({ afterStepId: z.string().min(1) }), z.object({ atIndex: z.number().int().nonnegative() })])
       .optional(),
-  })
+  }).strict()
   .refine((b) => (b.suggestionIds !== undefined) !== (b.indexes !== undefined), {
     message: 'Exactly one of suggestionIds / indexes is required',
   });

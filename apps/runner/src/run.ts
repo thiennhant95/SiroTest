@@ -19,6 +19,7 @@ import { collectPluginStepTypes, materializePlugins, type MaterializedPlugins } 
 import { visualHelperSource } from './visual-compare.js';
 import { buildDatasetEnvValue, resolveDatasetRows, VV_DATASET_ROWS_ENV } from './datasets.js';
 import { redactSecrets, resolveEnv } from './env.js';
+import { scrubTraceSecrets } from './trace-scrub.js';
 import { buildEvent, type EventPublisher, type RunEventName } from './events.js';
 import { attemptHealing, HEALING_PROBE_BUDGET_MS, isLocatorFailure, previewHealingCandidate, STEP_HEALED_EVENT, type HealAttempt, type HealProbe } from './healing.js';
 import { now, terminalRunStatusOf, type RunStore } from './persist.js';
@@ -700,6 +701,14 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     // exist no matter the retention mode. Best-effort: absence just means
     // Playwright produced none (e.g. mode 'off').
     await promotePlaywrightOutputs(ws);
+    // Playwright trace.zip embeds RESOLVED values (params, error text,
+    // network bodies) — scrub secret plaintext from its text entries before
+    // the artifact becomes downloadable. Best-effort, never fails the run.
+    try {
+      await scrubTraceSecrets(ws.tracePath, secrets);
+    } catch {
+      // original zip stays — result.json/DB/WS redaction still holds
+    }
     for (const artifact of await collectArtifacts(ws, runId)) {
       await store.addArtifact(artifact);
     }    await store.updateRun(runId, {

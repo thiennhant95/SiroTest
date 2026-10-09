@@ -44,13 +44,13 @@ const nlBody = z.object({
   text: z.string().min(1).max(8000),
   /** Accepted for future project scoping; unused by the stateless rule path. */
   projectId: z.string().min(1).optional(),
-});
+}).strict();
 
 const gherkinBody = z.object({
   text: z.string().min(1).max(8000),
   /** When present, the caller must have read access to the project. Nothing is persisted. */
   projectId: z.string().min(1).optional(),
-});
+}).strict();
 
 const explainBody = z.object({
   runId: z.string().min(1).optional(),
@@ -62,12 +62,12 @@ const explainBody = z.object({
   timeoutMs: z.number().int().positive().max(600000).optional(),
   projectId: z.string().min(1).optional(),
   environmentId: z.string().min(1).optional(),
-});
+}).strict();
 
 const cleanupBody = z.object({
   testId: z.string().min(1).optional(),
   steps: z.array(z.record(z.unknown())).max(500).optional(),
-});
+}).strict();
 
 // ------------------------------------------------------------------ helpers ---
 
