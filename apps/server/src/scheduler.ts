@@ -535,6 +535,7 @@ async function fireTestSchedule(s: ScheduleRow): Promise<string> {
     ...(s.rowIndex !== null && s.rowIndex !== undefined ? { rowIndex: s.rowIndex } : {}),
     ...(inputs.actions.length > 0 ? { actions: inputs.actions } : {}),
     ...(inputs.filePaths !== undefined ? { filePaths: inputs.filePaths } : {}),
+    ...(inputs.fileNames !== undefined ? { fileNames: inputs.fileNames } : {}),
     ...(inputs.storageStateJson !== undefined ? { storageStateJson: inputs.storageStateJson } : {}),
     ...(s.healWithAlternatives ? { healWithAlternatives: true as const } : {}),
     projectVariables,

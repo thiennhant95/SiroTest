@@ -24,6 +24,8 @@ import { resolveFilePaths } from './routes/files.js';
 export interface ResolvedRunInputs {
   actions: ReusableAction[];
   filePaths?: Record<string, string>;
+  /** Original library filenames per fileId (runner stages real filenames). */
+  fileNames?: Record<string, string>;
   storageStateJson?: string;
 }
 
@@ -88,9 +90,12 @@ export async function resolveRunInputs(
   const actions = await loadProjectActions(projectId);
   const fileIds = collectUploadFileIds(definition, actions);
   let filePaths: Record<string, string> | undefined;
+  let fileNames: Record<string, string> | undefined;
   if (fileIds.length > 0) {
     try {
-      filePaths = await resolveFilePaths(projectId, fileIds);
+      const resolved = await resolveFilePaths(projectId, fileIds);
+      filePaths = resolved.paths;
+      fileNames = resolved.names;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       throw new ApiError('VALIDATION_ERROR', `upload file resolution failed: ${message}`, 400);
@@ -100,6 +105,7 @@ export async function resolveRunInputs(
   return {
     actions,
     ...(filePaths !== undefined ? { filePaths } : {}),
+    ...(fileNames !== undefined ? { fileNames } : {}),
     ...(storageStateJson !== undefined ? { storageStateJson } : {}),
   };
 }

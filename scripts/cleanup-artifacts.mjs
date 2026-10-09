@@ -27,10 +27,24 @@ const retentionDays = Math.max(
   1,
   Math.floor(Number(arg('--retention-days', process.env.ARTIFACT_RETENTION_DAYS ?? '30')) || 30),
 );
-const storageRoot = resolve(arg('--storage', process.env.STORAGE_PATH ?? join(process.cwd(), 'storage')));
+const storageRoot = resolve(
+  arg('--storage', process.env.STORAGE_PATH ?? process.env.STORAGE_ROOT ?? join(process.cwd(), 'storage')),
+);
 const runsDir = join(storageRoot, 'runs');
 const cutoffMs = retentionDays * 24 * 60 * 60 * 1000;
 const now = Date.now();
+
+// Never operate on a guessed directory: without an explicit --storage /
+// STORAGE_PATH / STORAGE_ROOT the cwd-relative default may point at test
+// residue (or nothing) instead of the live server storage. Refuse loudly
+// and point at SELFHOST-WINDOWS.md instead of deleting the wrong tree.
+if (!arg('--storage', null) && !process.env.STORAGE_PATH && !process.env.STORAGE_ROOT) {
+  console.error(
+    '[cleanup] refusing: storage root is ambiguous. Set STORAGE_PATH (or STORAGE_ROOT) ' +
+      'to the live server storage, or pass --storage <path>. See SELFHOST-WINDOWS.md.',
+  );
+  process.exit(2);
+}
 
 let entries;
 try {

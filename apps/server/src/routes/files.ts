@@ -151,12 +151,16 @@ export type FileMeta = {
 /**
  * Runner-side helper: map fileIds → absolute disk paths (project-scoped).
  * Throws when an id is missing, foreign, or its bytes are gone from disk.
+ * Also returns original library names so the runner can stage per-run
+ * copies under their REAL filenames (storage uses `<id>-<name>` to stay
+ * unique — browsers must see `report.csv`, not `cmv1…-report.csv`).
  */
 export async function resolveFilePaths(
   projectId: string,
   fileIds: string[],
-): Promise<Record<string, string>> {
+): Promise<{ paths: Record<string, string>; names: Record<string, string> }> {
   const out: Record<string, string> = {};
+  const names: Record<string, string> = {};
   for (const fid of fileIds) {
     const row = await db().fileAsset.findUnique({ where: { id: fid } });
     if (!row || row.projectId !== projectId) {
@@ -169,8 +173,9 @@ export async function resolveFilePaths(
       throw new Error(`File ${fid} bytes are missing from storage (${row.path})`);
     }
     out[fid] = abs;
+    names[fid] = row.name;
   }
-  return out;
+  return { paths: out, names };
 }
 
 export async function fileRoutes(app: FastifyInstance): Promise<void> {
