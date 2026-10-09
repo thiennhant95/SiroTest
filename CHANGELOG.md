@@ -5,6 +5,7 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 ## [Unreleased] — 2026-10-03..2026-10-06
 
 ### Added
+- Control-plane MCP server: 9 Studio tools over stdio (`apps/mcp`, `docs/mcp-server.md`)
 - Compiler parity gate extended to P1/P2/plugin steps (both compilers, same order, transpile-clean) (`3a5ba98`)
 - Vietnamese Gherkin tab: deterministic `Cho rằng/Khi/Thì` parser + `POST /ai/gherkin` + Builder tab (`3bb800c`)
 - Generic HMAC webhook provider (`url` + `signingSecret`) with run-terminal fan-out (`run.passed/failed/cancelled`) (`e129a32`)

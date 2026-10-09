@@ -49,6 +49,7 @@
 ## Operations & notes
 - `CHANGELOG.md` — recent changes by commit
 - `docs/notify-webhooks.md` — schedule alerts + run-event webhooks (operator setup)
+- `docs/mcp-server.md` — control-plane MCP server setup (9 tools)
 - `docs/gherkin-vi-plan.md` — Vietnamese Gherkin implementation plan
 - `docs/pilot-lessons.md` — lessons from real-project pilots
 - `docs/ci-trigger.md` — CI trigger notes
