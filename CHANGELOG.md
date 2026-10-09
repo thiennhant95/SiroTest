@@ -5,6 +5,7 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 ## [Unreleased] — 2026-10-03..2026-10-06
 
 ### Added
+- Compiler parity gate extended to P1/P2/plugin steps (both compilers, same order, transpile-clean) (`3a5ba98`)
 - Vietnamese Gherkin tab: deterministic `Cho rằng/Khi/Thì` parser + `POST /ai/gherkin` + Builder tab (`3bb800c`)
 - Generic HMAC webhook provider (`url` + `signingSecret`) with run-terminal fan-out (`run.passed/failed/cancelled`) (`e129a32`)
 - Schedule failure alerting: per-schedule `notifyOnFailure` + `lastStatus` badge (`1915cc9`)
@@ -24,6 +25,11 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 - Rebrand UI to SiroTest; English UI + uniform buttons + IPv4/IPv6 dual-stack dev server (`faa98c1`, `d891781`)
 
 ### Fixed
+- PATCH create/update schemas reject unknown keys instead of silently dropping them (`6f15ffa`)
+- Empty `:projectId` fails 400 instead of FK 500 (`6f15ffa`)
+- Quoted Vietnamese goto (`Mở "https://…"`) parses in NL/Gherkin (`6f15ffa`)
+- Healing + AI explain treat vanished-element `expect()` errors as locator failures (text-mismatch still excluded) (`6f15ffa`, `4ac7474`)
+- Recorder stop omits null targets from stored steps (`4ac7474`)
 - All UI deletes: empty POST/DELETE requests send `'{}'` body centrally (server rejects bodiless JSON) (`b4af6b9`)
 - Step `timeoutMs` forwarded into `expect()` polling in both compilers (`6e512b7`)
 - Fail fast on id-less definitions + backfill `definition id/projectId` (`61fee11`)
