@@ -11,7 +11,7 @@ export const projectCreate = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(2000).optional(),
   baseUrl: z.string().url().optional(),
-});
+}).strict();
 export const projectUpdate = projectCreate.partial().strict();
 
 export const testCreate = z.object({
@@ -19,7 +19,7 @@ export const testCreate = z.object({
   description: z.string().max(2000).optional(),
   definitionJson: z.record(z.unknown()).optional(), // validated deeper by test-model in P0+
   browser: z.enum(['chromium', 'firefox', 'webkit']).optional(),
-});
+}).strict();
 export const testUpdate = testCreate.partial().extend({
   changeMessage: z.string().max(500).optional(),
 }).strict();
@@ -28,7 +28,7 @@ export const envCreate = z.object({
   name: z.string().min(1).max(120),
   baseUrl: z.string().url().optional(),
   isDefault: z.boolean().optional(),
-});
+}).strict();
 export const envUpdate = envCreate.partial().strict();
 
 export const recorderStart = z.object({
@@ -36,15 +36,15 @@ export const recorderStart = z.object({
   includeHover: z.boolean().optional(),
   /** Headed browser for human interaction (default true; headless for CI). */
   headed: z.boolean().optional(),
-});
+}).strict();
 export const locatorTest = z.object({
   candidate: z.record(z.unknown()), // LocatorCandidate per test-definition.md
-});
+}).strict();
 export const assertionAdd = z.object({
   type: z.enum(['assertVisible', 'assertHidden', 'assertText', 'assertContainsText', 'assertValue', 'assertURL', 'assertTitle', 'assertEnabled', 'assertDisabled', 'assertChecked']),
   target: z.record(z.unknown()).optional(),
   expected: z.string().max(5000).optional(),
-});
+}).strict();
 
 export const runCreate = z.object({
   environmentId: z.string().min(1),
@@ -83,30 +83,30 @@ export const runCreate = z.object({
     width: z.number().int().min(320).max(7680),
     height: z.number().int().min(320).max(4320),
   }).optional(),
-});
+}).strict();
 
 /** P1 dataset import (CSV/JSON text → embedded definition.datasets). */
 export const datasetImport = z.object({
   format: z.enum(['csv', 'json']),
   name: z.string().min(1).max(200).optional(),
   content: z.string().min(1).max(512 * 1024),
-});
+}).strict();
 
 // P1 — suites/tags + suite parallelism/retries.
 export const suiteCreate = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
-});
-export const suiteUpdate = suiteCreate.partial();
+}).strict();
+export const suiteUpdate = suiteCreate.partial().strict();
 
 export const suiteMemberAdd = z.object({
   testId: z.string().min(1),
   sortOrder: z.number().int().optional(),
-});
+}).strict();
 export const suiteMembersReplace = z.object({
   // Full ordered membership; replaces existing rows (reorder = PUT ordered ids).
   testIds: z.array(z.string().min(1)).max(200),
-});
+}).strict();
 
 export const suiteRunCreate = z.object({
   environmentId: z.string().min(1),
@@ -129,7 +129,7 @@ export const suiteRunCreate = z.object({
   datasetId: z.string().min(1).optional(),
   /** Single 0-based row (requires datasetId). */
   rowIndex: z.number().int().nonnegative().optional(),
-});
+}).strict();
 
 // P1 — reusable actions (mirrors test-model reusableActionSchema; the
 // canonical validation lives in packages/test-model, this is the REST
@@ -147,13 +147,13 @@ export const actionCreate = z.object({
   description: z.string().max(2000).optional(),
   parameters: z.array(actionParameter).max(50).optional(),
   steps: z.array(z.record(z.unknown())).min(1),
-});
+}).strict();
 export const actionUpdate = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().max(2000).optional().nullable(),
   parameters: z.array(actionParameter).max(50).optional(),
   steps: z.array(z.record(z.unknown())).min(1).optional(),
-});
+}).strict();
 
 const variableKey = z.string().min(1).max(120).regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'KEY must match /^[A-Za-z_][A-Za-z0-9_]*$/');
 export const variableCreate = z.object({
@@ -161,12 +161,12 @@ export const variableCreate = z.object({
   key: variableKey,
   value: z.string().max(8000),
   isSecret: z.boolean().optional(),
-});
+}).strict();
 export const variableUpdate = z.object({
   key: variableKey.optional(),
   value: z.string().max(8000).optional(),
   isSecret: z.boolean().optional(),
-});
+}).strict();
 
 // P1 wave-2 — auth profiles (storageState encrypted at rest, masked on read).
 export const profileCreate = z.object({
@@ -175,19 +175,19 @@ export const profileCreate = z.object({
   // Accepts a parsed object OR a JSON string; shape-checked in routes/profiles.ts
   // (must carry cookies[]/origins[] like a Playwright storageState).
   storageStateJson: z.unknown(),
-});
+}).strict();
 export const profileUpdate = z.object({
   name: z.string().min(1).max(200).optional(),
   environmentId: z.string().min(1).nullable().optional(),
   storageStateJson: z.unknown().optional(),
-});
+}).strict();
 
 // P1 wave-2 — file library (JSON {name, contentBase64, mimeType}; no multipart).
 export const fileUpload = z.object({
   name: z.string().min(1).max(255),
   contentBase64: z.string().min(1).max(15 * 1024 * 1024),
   mimeType: z.string().min(1).max(127).optional(),
-});
+}).strict();
 
 // P1 wave-2 — schedules (exactly one of suiteId/testId; cron validated in route).
 export const scheduleCreate = z.object({
@@ -205,7 +205,7 @@ export const scheduleCreate = z.object({
   healWithAlternatives: z.boolean().optional(),
   /** Failure alerting: post to enabled slack/lark on terminal failure. */
   notifyOnFailure: z.boolean().optional(),
-});
+}).strict();
 export const scheduleUpdate = z.object({
   suiteId: z.string().min(1).nullable().optional(),
   testId: z.string().min(1).nullable().optional(),
@@ -220,13 +220,13 @@ export const scheduleUpdate = z.object({
   rowIndex: z.number().int().nonnegative().nullable().optional(),
   healWithAlternatives: z.boolean().optional(),
   notifyOnFailure: z.boolean().optional(),
-});
+}).strict();
 
 // P1 wave-2 — Playwright spec importer (feasible TS subset, see spec-importer.ts).
 export const specImport = z.object({
   code: z.string().min(1).max(512 * 1024),
   name: z.string().min(1).max(200).optional(),
-});
+}).strict();
 
 // P1 wave-2 — project export/import payload (portable, ids remapped on import).
 const exportEnvironment = z.object({
@@ -299,7 +299,7 @@ export type ProjectExportPayload = z.infer<typeof projectExportPayload>;
 export const projectImport = z.object({
   name: z.string().min(1).max(120).optional(),
   payload: projectExportPayload,
-});
+}).strict();
 
 /** Outbound integrations (bug-from-failure): provider config + secrets. */
 export const integrationCreate = z.object({
@@ -308,19 +308,19 @@ export const integrationCreate = z.object({
   enabled: z.boolean().optional(),
   config: z.record(z.string()).optional(),
   secrets: z.record(z.string()).optional(),
-});
+}).strict();
 export const integrationUpdate = z.object({
   name: z.string().min(1).max(120).optional(),
   enabled: z.boolean().optional(),
   config: z.record(z.string()).optional(),
   secrets: z.record(z.string()).optional(),
-});
+}).strict();
 export const bugReportCreate = z.object({
   integrationId: z.string().min(1).optional(),
   summary: z.string().min(1).max(300).optional(),
   /** Attach run screenshots (Backlog; max 5, failures/trace excluded). */
   attachScreenshots: z.boolean().optional(),
-});
+}).strict();
 
 export function parseOrThrow<T>(schema: z.ZodSchema<T>, data: unknown): T {  const r = schema.safeParse(data);
   if (!r.success) {

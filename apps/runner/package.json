@@ -22,7 +22,8 @@
   "dependencies": {
     "@axe-core/playwright": "^4.13.0",
     "@playwright-studio/action-sdk": "workspace:*",
-    "@playwright-studio/reporter": "workspace:*"
+    "@playwright-studio/reporter": "workspace:*",
+    "fflate": "^0.8.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",

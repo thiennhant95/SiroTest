@@ -47,14 +47,14 @@ import { writeAudit } from './audit.js';
 const registerBody = z.object({
   name: z.string().min(1).max(120),
   capacity: z.number().int().min(1).max(32).optional(),
-});
+}).strict();
 
 const completeBody = z.object({
   runId: z.string().min(1),
   status: z.enum(['passed', 'failed', 'cancelled']),
   errorSummary: z.string().max(8000).optional(),
   durationMs: z.number().int().nonnegative().optional(),
-});
+}).strict();
 
 /** Heartbeat staleness threshold (runner-spec style constant, P2). */
 export const STALE_WORKER_MS = 90_000;

@@ -29,12 +29,12 @@ const registerBody = z.object({
   email: emailRule,
   name: z.string().min(1).max(120).optional(),
   password: passwordRule,
-});
+}).strict();
 
 const loginBody = z.object({
   email: emailRule,
   password: z.string().min(1).max(200),
-});
+}).strict();
 
 function publicUser(u: { id: string; email: string; name: string | null; role: string }) {
   return { id: u.id, email: u.email, name: u.name, role: u.role };
