@@ -2,9 +2,10 @@
 
 Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 
-## [Unreleased] — 2026-10-03..2026-10-06
+## [Unreleased] — 2026-10-03..2026-10-10
 
 ### Added
+- Upload staging: per-run copies under ORIGINAL library filenames (`fileNames` through runs/suites/schedules/visual) (`7553f70`)
 - Control-plane MCP server: 9 Studio tools over stdio (`apps/mcp`, `docs/mcp-server.md`)
 - Compiler parity gate extended to P1/P2/plugin steps (both compilers, same order, transpile-clean) (`3a5ba98`)
 - Vietnamese Gherkin tab: deterministic `Cho rằng/Khi/Thì` parser + `POST /ai/gherkin` + Builder tab (`3bb800c`)
@@ -26,6 +27,8 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 - Rebrand UI to SiroTest; English UI + uniform buttons + IPv4/IPv6 dual-stack dev server (`faa98c1`, `d891781`)
 
 ### Fixed
+- Strict request schemas on ALL endpoints (unknown keys 400, never silently dropped) (`7ce6105`)
+- Retention scripts refuse without explicit STORAGE_PATH/DATABASE_URL; integration storage isolated to temp (`7553f70`)
 - PATCH create/update schemas reject unknown keys instead of silently dropping them (`6f15ffa`)
 - Empty `:projectId` fails 400 instead of FK 500 (`6f15ffa`)
 - Quoted Vietnamese goto (`Mở "https://…"`) parses in NL/Gherkin (`6f15ffa`)
@@ -40,6 +43,7 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 - Pilot-driven fixes: observe/debug run modes, evidence pipeline, shell restyle (`f7d0804`)
 
 ### Security
+- Trace.zip secret scrub: Playwright embeds resolved values, now rewritten to `***` before the artifact is downloadable (`7ce6105`)
 - RBAC: project viewer read-only + membership gates on all routes + delete guards (`54b8647`)
 - Audit coverage: run-now, healing approve/reject, deletes, schedule notify (`c07e594`)
 - Encrypted integration secrets, never returned by read APIs (`9441214`)
