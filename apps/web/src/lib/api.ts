@@ -321,6 +321,15 @@ export const api = {
   /* Builder / runs / versions / recorder (used by BuilderPage + RecordPage + RunPage). */
   getTest: (id: string) =>
     day6req<{ id: string; projectId: string; name: string; definitionJson: unknown }>(`/tests/${id}`),
+  getStability: (id: string) =>
+    day6req<{ testId: string; stable: boolean; stableAt: string | null; stableRuns: number }>(`/tests/${id}/stability`),
+  checkStability: (id: string, body: { environmentId: string; runs?: number }) =>
+    day6req<{ stable: boolean; passed: number; total: number; runs: Array<{ id: string; status: string }> }>(`/tests/${id}/stability`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  getRubric: (id: string) =>
+    day6req<{ score: number; maxScore: number; checks: Array<{ id: string; label: string; earned: number; max: number; detail: string }> }>(`/tests/${id}/rubric`),
   saveTest: (id: string, definitionJson: unknown, changeMessage?: string) =>
     day6req<unknown>(`/tests/${id}`, {
       method: "PATCH",
@@ -565,7 +574,7 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   importSpec: (projectId: string, code: string) =>
-    day6req<{ definition: unknown; warnings: string[] }>(`/projects/${projectId}/import-spec`, {
+    day6req<{ test: { id: string; name: string; definitionJson?: { steps?: unknown[] } }; warnings: Array<{ line: number; text: string }> }>(`/projects/${projectId}/import-spec`, {
       method: "POST",
       body: JSON.stringify({ code }),
     }),

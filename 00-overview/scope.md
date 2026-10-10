@@ -29,7 +29,7 @@ as P1/P2 and are marked.
 - ~~Complex RBAC/SSO/audit compliance~~ → RBAC + audit shipped P2 (OIDC config-only, IdP unverified)
 
 ## P1 ✅ shipped
-Reusable actions, test data sets, suites/tags, import/export, CI command/API, scheduling, retries, parallel suite runs, storage state/auth profiles, network/API steps. Plus: run-now, failure alerting (Slack/Lark), generic HMAC webhooks, Vietnamese Gherkin tab.
+Reusable actions, test data sets, suites/tags, import/export, CI command/API, scheduling, retries, parallel suite runs, storage state/auth profiles, network/API steps. Plus: run-now, failure alerting (Slack/Lark), generic HMAC webhooks, Vietnamese Gherkin tab, stability gate + recording rubric, extended Playwright spec import.
 
 ## P2 (partial)
 Shipped: AI authoring/failure explanation (rules; LLM only with key), locator healing (verified proposals), plugin SDK, distributed workers, RBAC/audit, visual regression, analytics/flaky, control-plane MCP server (`docs/mcp-server.md`).

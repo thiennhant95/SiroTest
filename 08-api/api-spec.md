@@ -52,6 +52,14 @@ Example run request:
 `POST /tests/:id/compile`
 `GET /tests/:id/export?format=spec`
 
+## Stability gate + rubric
+`POST /tests/:id/stability` → `200 {runs, passed, total, stable}` (runs the standard run path N=2–5× sequentially, sync; stamps `Test.stable` only on N/N)
+`GET /tests/:id/stability` → `{stable, stableAt, stableRuns}` (any definition PATCH clears the stamp)
+`GET /tests/:id/rubric` → `{score/100, checks[]}` (stable-primaries 30, alternatives 15, no-hard-waits 15, assertions 20, named 10, enabled 10; pure, nothing runs)
+
+## Spec import
+`POST /projects/:projectId/import-spec` → `201 {test (draft), warnings[]}` (subset: goto/reload/nav/waits, getBy*/page.locator + actions, expect() assertions; multi-`test()` merge warns)
+
 ## Schedules
 `GET /projects/:projectId/schedules`
 `POST /projects/:projectId/schedules` → `201` created Schedule

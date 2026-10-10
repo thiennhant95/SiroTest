@@ -119,4 +119,26 @@ export const TOOL_DEFS: ToolDef[] = [
     shape: { runId: z.string().min(1).describe('Failed run id') },
     run: (c, a) => guard(() => c.explainRun(str(a['runId']))),
   },
+  {
+    name: 'studio_check_stability',
+    description: 'Run the stability gate: same test N times sequentially, stamp stable only on N/N passes (sync, may take minutes).',
+    shape: {
+      ...testIdShape,
+      environmentId: z.string().min(1).describe('Environment id to run against'),
+      runs: z.number().int().min(2).max(5).optional().describe('Consecutive passes required (default 3)'),
+    },
+    run: (c, a) =>
+      guard(() =>
+        c.checkStability(str(a['testId']), {
+          environmentId: str(a['environmentId']),
+          ...(typeof a['runs'] === 'number' ? { runs: a['runs'] } : {}),
+        }),
+      ),
+  },
+  {
+    name: 'studio_score_rubric',
+    description: 'Score recording quality 0-100 (stable locators, backups, no hard sleeps, assertions, names). No browser needed.',
+    shape: { ...testIdShape },
+    run: (c, a) => guard(() => c.getRubric(str(a['testId']))),
+  },
 ];

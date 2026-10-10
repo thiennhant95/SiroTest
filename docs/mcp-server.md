@@ -28,11 +28,12 @@ a viewer token can list/explain but cannot queue runs.
   "enabled": true } } }
 ```
 
-## Tools (9)
+## Tools (11)
 
 - `studio_list_projects` / `studio_list_tests` / `studio_get_test`
 - `studio_export_spec` — readable `.spec.ts` for the model to quote
 - `studio_create_run` (async, returns runId) / `studio_get_run` (poll it)
+- `studio_check_stability` — N× gate (sync, minutes) / `studio_score_rubric` — 0-100 without a browser
 - `studio_list_healing` — pending proposals (read-only; approve stays human-only in the UI)
 - `studio_parse_gherkin` — VI Gherkin → steps + explicit unparsed lines
 - `studio_explain_run` — failure category + causes + fixes (Vietnamese)

@@ -191,6 +191,14 @@ export class StudioClient {
   async explainRun(runId: string): Promise<{ engine: string; explanation: unknown }> {
     return this.requestJson('/api/v1/ai/explain', 'POST', { runId });
   }
+
+  async checkStability(testId: string, body: { environmentId: string; runs?: number }): Promise<unknown> {
+    return this.requestJson(`/api/v1/tests/${encodeURIComponent(testId)}/stability`, 'POST', body);
+  }
+
+  async getRubric(testId: string): Promise<unknown> {
+    return this.requestJson(`/api/v1/tests/${encodeURIComponent(testId)}/rubric`, 'GET');
+  }
 }
 
 function safeJson(text: string): Record<string, boolean> {

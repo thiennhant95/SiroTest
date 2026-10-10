@@ -98,65 +98,68 @@ export function ImportProjectButton({ onImported }: { onImported?: (projectId: s
 }
 
 /**
- * Import-spec: paste .spec.ts → POST /projects/:id/import-spec → preview
- * {definition, warnings[]} → create test draft (createTest + saveTest).
+ * Import-spec: .spec.ts file or pasted code → POST /projects/:id/import-spec
+ * → the backend stores a DRAFT test and returns {test, warnings[]}.
  */
 export function ImportSpecDialog({ projectId, open, onClose }: { projectId: string; open: boolean; onClose: () => void }) {
   const toast = useToast();
   const nav = useNavigate();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
-  const [preview, setPreview] = useState<{ definition: { name?: string; steps?: unknown[] } & Record<string, unknown>; warnings: string[] } | null>(null);
+  const [result, setResult] = useState<{ testId: string; name: string; stepCount: number; warnings: Array<{ line: number; text: string }> } | null>(null);
 
-  async function doPreview() {
+  function loadFile(file: File | undefined) {
+    if (!file) return;
+    if (file.size > 512 * 1024) {
+      setError("File too large (max 512 KB).");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setCode(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => setError("Could not read file.");
+    reader.readAsText(file);
+  }
+
+  async function doImport() {
     if (!code.trim()) {
-      setError("Paste .spec.ts content first.");
+      setError("Pick a .spec.ts file or paste content first.");
       return;
     }
     setBusy(true);
     setError("");
-    setPreview(null);
+    setResult(null);
     try {
       const res = await api.importSpec(projectId, code);
-      const def = res.definition as { name?: string; steps?: unknown[] } & Record<string, unknown>;
-      setPreview({ definition: def, warnings: res.warnings ?? [] });
+      const test = res.test as { id: string; name: string; definitionJson?: { steps?: unknown[] } };
+      const warnings = (Array.isArray(res.warnings) ? res.warnings : []) as Array<{ line: number; text: string }>;
+      const stepCount = Array.isArray(test.definitionJson?.steps) ? test.definitionJson.steps.length : 0;
+      setResult({ testId: test.id, name: test.name, stepCount, warnings });
+      toast.push("success", `Imported draft “${test.name}” (${stepCount} steps, ${warnings.length} warnings).`);
     } catch (e) {
       if (isNotImplemented(e)) {
         setError("Backend does not support import-spec yet (API 404). UI is ready — waiting on the P1 wave 2 backend.");
       } else {
-        setError(e instanceof ApiError ? e.message : "Preview failed");
+        setError(e instanceof ApiError ? e.message : "Import failed");
       }
     } finally {
       setBusy(false);
     }
   }
 
-  async function doCreate() {
-    if (!preview) return;
-    setCreating(true);
-    try {
-      const baseName =
-        typeof preview.definition.name === "string" && preview.definition.name.trim()
-          ? preview.definition.name.trim()
-          : "Imported spec";
-      const created = await api.createTest(projectId, baseName);
-      await api.saveTest(created.id, preview.definition);
-      toast.push("success", `Created test draft “${baseName}”. Review the steps, then save.`);
-      onClose();
-      nav(`/tests/${created.id}`);
-    } catch (e) {
-      toast.push("error", e instanceof ApiError ? e.message : "Failed to create test");
-    } finally {
-      setCreating(false);
-    }
-  }
-
   return (
     <Dialog open={open} onClose={onClose} title="Import from .spec.ts" wide>
       <div className="space-y-3">
-        <Field label="Paste .spec.ts content" hint="Parsed on the server — preview the definition + warnings before creating.">
+        <Field label=".spec.ts file" hint="Read locally in your browser — only the text is sent to the server.">
+          <input
+            aria-label=".spec.ts file"
+            type="file"
+            accept=".ts,.tsx,.txt,text/plain"
+            onChange={(e) => loadFile(e.target.files?.[0])}
+            className="text-xs"
+          />
+        </Field>
+        <Field label="…or paste .spec.ts content" hint="Supported subset: goto/reload/nav, getBy*/page.locator + actions, expect() assertions. The rest becomes explicit warnings.">
           <textarea
             aria-label=".spec.ts content"
             value={code}
@@ -171,29 +174,29 @@ export function ImportSpecDialog({ projectId, open, onClose }: { projectId: stri
           <p role="alert" className="text-xs text-red-700">{error}</p>
         ) : null}
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => void doPreview()}>
-            {busy ? "Previewing…" : "Preview"}
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => void doImport()}>
+            {busy ? "Importing…" : "Import as draft"}
           </Button>
-          {preview ? (
-            <Button size="sm" disabled={creating} onClick={() => void doCreate()}>
-              {creating ? "Creating…" : "Create test draft"}
+          {result ? (
+            <Button size="sm" onClick={() => { onClose(); nav(`/tests/${result.testId}`); }}>
+              Open draft
             </Button>
           ) : null}
         </div>
-        {preview ? (
+        {result ? (
           <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs text-slate-700">
-              Preview: <strong>{String(preview.definition.name ?? "(untitled)")}</strong> ·{" "}
-              <Badge>{Array.isArray(preview.definition.steps) ? preview.definition.steps.length : 0} steps</Badge>
+              Imported: <strong>{result.name}</strong> ·{" "}
+              <Badge>{result.stepCount} steps</Badge>
             </p>
-            {preview.warnings.length > 0 ? (
+            {result.warnings.length > 0 ? (
               <ul className="list-disc space-y-1 pl-5 text-xs text-amber-800">
-                {preview.warnings.map((w, i) => (
-                  <li key={i}>{w}</li>
+                {result.warnings.map((w, i) => (
+                  <li key={i}>line {w.line}: {w.text}</li>
                 ))}
               </ul>
             ) : (
-              <p className="text-xs text-green-700">No warnings — ready to create the draft.</p>
+              <p className="text-xs text-green-700">No warnings — review the draft, then save.</p>
             )}
           </div>
         ) : null}
