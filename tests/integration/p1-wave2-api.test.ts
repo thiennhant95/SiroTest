@@ -521,10 +521,11 @@ describe('spec importer (feasible subset + warnings)', () => {
     assert.equal(test.status, 'draft');
     assert.deepEqual(
       test.definitionJson.steps.map((s) => s.type),
-      ['goto', 'fill', 'click', 'assertVisible', 'assertURL'],
+      ['goto', 'fill', 'click', 'assertVisible', 'assertURL', 'click'],
     );
-    assert.equal(warnings.length, 2);
-    assert.deepEqual(warnings.map((w) => w.line), [10, 11]);
+    // page.locator('.unsupported') now maps to a css click; only `const x` warns.
+    assert.equal(warnings.length, 1);
+    assert.deepEqual(warnings.map((w) => w.line), [11]);
 
     // The draft is a real definition: the canonical compiler accepts it.
     const compiled = await injectJson(app, 'POST', `/api/v1/tests/${test.id}/compile`, {});
@@ -571,5 +572,50 @@ describe('spec importer (feasible subset + warnings)', () => {
     assert.equal((res.json() as { code: string }).code, 'SPEC_NO_STEPS');
     const empty = await injectJson(app, 'POST', `/api/v1/projects/${projectId}/import-spec`, { code: '' });
     assert.equal(empty.statusCode, 400);
+  });
+
+  it('maps the extended subset (locator/nav/waits/new asserts) + warns multi-test merge', async () => {
+    const projectId = await makeProject('wave2-importer-4');
+    const code = [
+      "import { test, expect } from '@playwright/test';",
+      "test.beforeEach(async ({ page }) => {",
+      "  await page.goto('https://example.com');",
+      '});',
+      "test('cart', async ({ page }) => {",
+      "  await page.locator('#add').click();",
+      "  await page.locator('text=Added').click();",
+      "  await page.locator('#q').fill('x');",
+      "  await page.locator('#ok').uncheck();",
+      '  await page.waitForTimeout(500);',
+      '  await page.reload();',
+      '  await page.goBack();',
+      "  await expect(page.locator('#cart')).toBeHidden();",
+      "  await expect(page.locator('#agree')).toBeChecked();",
+      "  await expect(page.locator('#buy')).toBeEnabled();",
+      "  await expect(page.locator('#old')).toBeDisabled();",
+      '});',
+      "test('second flow', async ({ page }) => {",
+      "  await page.goto('https://example.com/2');",
+      '});',
+    ].join('\n');
+    const res = await injectJson(app, 'POST', `/api/v1/projects/${projectId}/import-spec`, { code });
+    assert.equal(res.statusCode, 201);
+    const { test, warnings } = res.json() as {
+      test: { name: string; definitionJson: { steps: Array<Record<string, unknown>> } };
+      warnings: Array<{ line: number; text: string }>;
+    };
+    assert.equal(test.name, 'cart');
+    assert.deepEqual(
+      (test.definitionJson.steps as Array<{ type: string }>).map((s) => s.type),
+      ['goto', 'click', 'click', 'fill', 'uncheck', 'waitForTimeout', 'reload', 'goBack',
+        'assertHidden', 'assertChecked', 'assertEnabled', 'assertDisabled', 'goto'],
+    );
+    // css + text= targets land in the right strategies…
+    const steps = test.definitionJson.steps as Array<{ target?: { primary?: { strategy: string; value: string } } }>;
+    assert.deepEqual(steps[1].target?.primary, { strategy: 'css', value: '#add' });
+    assert.deepEqual(steps[2].target?.primary, { strategy: 'text', value: 'Added' });
+    // …and the two-test() merge is an explicit warning, never silent.
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0].text, /2 test\(\) blocks merged/);
   });
 });

@@ -416,6 +416,7 @@ export function BuilderPage() {
         />
         <span className="ml-auto flex items-center gap-2">
           <AutosaveBadge state={offline ? "saved" : saveState} dirty={dirty} error={saveError} offline={offline} />
+          {id ? <StabilityBadge testId={id} envId={envId} offline={offline} version={persistedJson} /> : null}
           <Tooltip tip="Open Inspector in the slide-over panel (mobile)">
             <Button size="sm" variant="outline" className="md:hidden" onClick={() => setShowInspector(true)}>
               Inspector
@@ -852,6 +853,48 @@ function AutosaveBadge({
   if (state === "saving" || dirty) return <Badge tone="indigo">Saving…</Badge>;
   if (state === "error") return <Badge tone="red" title={error}>Save error — keep editing to retry</Badge>;
   return <Badge tone="green">Saved</Badge>;
+}
+
+/** Stability stamp + rubric at a glance. Check runs the gate (minutes) — needs an environment. */
+function StabilityBadge({ testId, envId, offline, version }: { testId: string; envId: string; offline: boolean; version: string }) {
+  const toast = useToast();
+  const [stamp, setStamp] = useState<{ stable: boolean; stableRuns: number } | null>(null);
+  const [score, setScore] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (offline) return;
+    let live = true;
+    void api.getStability(testId).then((s) => { if (live) setStamp({ stable: s.stable, stableRuns: s.stableRuns }); }).catch(() => undefined);
+    void api.getRubric(testId).then((r) => { if (live) setScore(r.score); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [testId, offline, version]);
+  if (offline) return null;
+  return (
+    <span className="inline-flex items-center gap-1">
+      {stamp ? (
+        stamp.stable
+          ? <Badge tone="green" title={`Passed ${stamp.stableRuns}/${stamp.stableRuns} consecutive runs. Any edit clears the stamp.`}>Stable {stamp.stableRuns}/{stamp.stableRuns}</Badge>
+          : <Badge tone="slate" title="Not stamped — run the stability gate (3 consecutive passes) to certify this definition.">Not stable</Badge>
+      ) : null}
+      {score !== null ? <Badge tone="slate" title="Recording-quality rubric (stable locators, backups, no hard sleeps, assertions, names)">Rubric {score}/100</Badge> : null}
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={busy || !envId}
+        title={envId ? "Run 3 consecutive passes (takes minutes) — stamps the definition stable on 3/3" : "Select an environment first"}
+        onClick={() => {
+          if (!envId) { toast.push("error", "Select an environment first."); return; }
+          setBusy(true);
+          void api.checkStability(testId, { environmentId: envId, runs: 3 }).then((v) => {
+            setStamp({ stable: v.stable, stableRuns: v.stable ? v.total : 0 });
+            toast.push(v.stable ? "success" : "error", v.stable ? `Stable ${v.passed}/${v.total} — stamp set.` : `Unstable: ${v.passed}/${v.total} passed. Inspect the runs.`);
+          }).catch((e) => toast.push("error", e instanceof ApiError ? e.message : "Stability check failed")).finally(() => setBusy(false));
+        }}
+      >
+        {busy ? "Checking…" : "Check 3×"}
+      </Button>
+    </span>
+  );
 }
 
 // --------------------------------------------------------------- variables ---

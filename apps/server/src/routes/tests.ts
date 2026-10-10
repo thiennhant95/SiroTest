@@ -115,6 +115,9 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
         ...(body.name ? { name: body.name } : {}),
         ...(body.description !== undefined ? { description: body.description } : {}),
         ...(body.definitionJson ? { definitionJson: JSON.stringify(withDefinitionIds(body.definitionJson, existing.projectId)) } : {}),
+        // A new definition voids the stability stamp: "stable" describes the
+        // exact definition that passed N consecutive runs, nothing else.
+        ...(body.definitionJson ? { stable: false, stableAt: null, stableRuns: 0 } : {}),
       },
     });
     if (body.definitionJson) {

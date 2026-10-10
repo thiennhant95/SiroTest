@@ -10,6 +10,7 @@ import { variableRoutes } from './routes/variables.js';
 import { recorderRoutes, recorderManager } from './routes/recorder.js';
 import { resolveEventLocator } from '@vv/recorder';
 import { runRoutes } from './routes/runs.js';
+import { stabilityRoutes } from './routes/stability.js';
 import { datasetRoutes } from './routes/datasets.js';
 import { suiteRoutes } from './routes/suites.js';
 import { actionRoutes } from './routes/actions.js';
@@ -78,6 +79,7 @@ export async function buildApp() {
       await v1.register(variableRoutes);
       await v1.register(recorderRoutes);
       await v1.register(runRoutes);
+      await v1.register(stabilityRoutes);
       await v1.register(datasetRoutes);
       await v1.register(suiteRoutes);
       await v1.register(actionRoutes);

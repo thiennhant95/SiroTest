@@ -22,6 +22,7 @@ describe('mcp tools', () => {
   it('registers the control-plane tool set (no destructive review tools)', () => {
     const names = TOOL_DEFS.map((t) => t.name).sort();
     assert.deepEqual(names, [
+      'studio_check_stability',
       'studio_create_run',
       'studio_explain_run',
       'studio_export_spec',
@@ -31,6 +32,7 @@ describe('mcp tools', () => {
       'studio_list_projects',
       'studio_list_tests',
       'studio_parse_gherkin',
+      'studio_score_rubric',
     ]);
   });
 

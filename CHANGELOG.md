@@ -5,6 +5,9 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 ## [Unreleased] — 2026-10-03..2026-10-10
 
 ### Added
+- Stability gate: `POST /tests/:id/stability` runs N× sequentially, stamps `Test.stable` on N/N (+ Builder badge + `Check 3×`)
+- Recording rubric: `GET /tests/:id/rubric` scores 0-100 (locators/backups/waits/assertions/names)
+- Spec import: `page.locator()`, nav/waits, new asserts, `uncheck`, hook skipping, multi-`test()` merge warning + UI file picker
 - Upload staging: per-run copies under ORIGINAL library filenames (`fileNames` through runs/suites/schedules/visual) (`7553f70`)
 - Control-plane MCP server: 9 Studio tools over stdio (`apps/mcp`, `docs/mcp-server.md`)
 - Compiler parity gate extended to P1/P2/plugin steps (both compilers, same order, transpile-clean) (`3a5ba98`)

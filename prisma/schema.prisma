@@ -105,8 +105,14 @@ model Test {
   projectId      String
   name           String
   description    String?
-  definitionJson String   // canonical TestDefinition JSON (steps stay embedded — P0 simplification)
-  status         String   @default("draft") // draft | healthy | broken
+    definitionJson String   // canonical TestDefinition JSON (steps stay embedded — P0 simplification)
+    status         String   @default("draft") // draft | healthy | broken
+    // Stability gate: set ONLY by POST /tests/:id/stability on N/N passes;
+    // cleared on any definition edit (PATCH). A stamp means "this exact
+    // definition passed N consecutive runs", not "passes forever".
+    stable         Boolean  @default(false)
+    stableAt       DateTime?
+    stableRuns     Int      @default(0)
   createdBy      String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

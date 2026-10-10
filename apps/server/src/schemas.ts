@@ -85,7 +85,8 @@ export const runCreate = z.object({
   }).optional(),
 }).strict();
 
-/** P1 dataset import (CSV/JSON text → embedded definition.datasets). */
+/** Stability gate: consecutive passes required for the stable stamp (2-5, default 3). */
+export const stabilityRuns = z.number().int().min(2).max(5).default(3);
 export const datasetImport = z.object({
   format: z.enum(['csv', 'json']),
   name: z.string().min(1).max(200).optional(),

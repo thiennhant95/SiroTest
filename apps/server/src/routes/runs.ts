@@ -41,7 +41,7 @@ interface EmbeddedDataSet {
  * rowIndex / rowIndex-without-datasetId all fail with 400 (never silently
  * ignored, never silently widened to the full table).
  */
-function validateRunDataset(
+export function validateRunDataset(
   definition: TestDefinition,
   datasetId?: string,
   rowIndex?: number,

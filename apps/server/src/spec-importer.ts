@@ -6,14 +6,16 @@ import { nanoid } from 'nanoid';
  * Hand-written line-based parser (no TS compiler dependency — too heavy for
  * a best-effort draft import). Supported subset, one statement per line:
  *
- *   page.goto('https://…')
+ *   page.goto('https://…') / page.reload() / page.goBack() / page.goForward()
+ *   page.waitForTimeout(1500) (imported verbatim — the rubric flags hard waits)
+ *   page.locator('.css') / page.locator('text=…') + click/fill/check/uncheck/press/hover/select
  *   page.getByRole('button', { name: 'Submit' }).click()
  *   page.getByLabel('Email').fill('a@b.c') / .dblclick() / .check()
  *   page.getByPlaceholder('Search').fill('…') / .press('Enter') / .hover()
  *   page.getByTestId('login-btn').click()
  *   page.getByText('Welcome').click()
  *   page.selectOption / .selectOption('v')  → select step
- *   expect(locator).toBeVisible()
+ *   expect(locator).toBeVisible() / .toBeHidden() / .toBeChecked() / .toBeEnabled() / .toBeDisabled()
  *   expect(locator).toHaveText('…') / .toContainText('…') / .toHaveValue('…')
  *   expect(page).toHaveURL('…') / .toHaveTitle('…')
  *   test.step('name', …) wrappers (header skipped; inner lines parse normally)
@@ -171,6 +173,7 @@ const ACTION_TO_TYPE: Record<string, string> = {
   dblclick: 'doubleClick', // canonical P0 step name (test-model step-catalog)
   fill: 'fill',
   check: 'check',
+  uncheck: 'uncheck',
   selectOption: 'select',
   press: 'press',
   hover: 'hover',
@@ -199,6 +202,54 @@ function mapLine(line: string, counter: { count: number }): Array<Record<string,
     const url = stringLiteral(m[1]!);
     if (url === null) return [];
     return [{ id: stepId(counter.count++), type: 'goto', enabled: true, url }];
+  }
+
+  // page.reload() / page.goBack() / page.goForward()
+  m = /^(?:await\s+)?page\.(reload|goBack|goForward)\(\s*\)\s*;?\s*$/.exec(line);
+  if (m) {
+    return [{ id: stepId(counter.count++), type: m[1]!, enabled: true }];
+  }
+
+  // page.waitForTimeout(ms) — imported verbatim; the rubric will flag it.
+  m = /^(?:await\s+)?page\.waitForTimeout\(\s*(\d+)\s*\)\s*;?\s*$/.exec(line);
+  if (m) {
+    return [{ id: stepId(counter.count++), type: 'waitForTimeout', enabled: true, milliseconds: Number(m[1]) }];
+  }
+
+  // page.locator('css') / page.locator('text=…') + action chain
+  m = /^(?:await\s+)?page\.locator\(\s*(.+?)\s*\)\s*(\.\s*[A-Za-z_][A-Za-z0-9_]*\s*\(.*\))?\s*;?\s*$/.exec(line);
+  if (m) {
+    const raw = stringLiteral(m[1]!);
+    if (raw === null) return [];
+    let target: LocatorTarget | null = null;
+    const textEq = /^text=(.+)$/is.exec(raw);
+    if (textEq) target = { primary: { strategy: 'text', value: textEq[1]!.trim() } };
+    else target = { primary: { strategy: 'css', value: raw } };
+    const chainSrc = (m[2] ?? '').trim();
+    if (!chainSrc) return [];
+    const chain = splitChain(chainSrc);
+    if (chain.length !== 1) return [];
+    const call = chain[0]!;
+    const type = ACTION_TO_TYPE[call.method];
+    if (!type) return [];
+    const id = stepId(counter.count++);
+    if (type === 'fill') {
+      const value = stringLiteral(call.args);
+      if (value === null) return [];
+      return [{ id, type, enabled: true, target, value }];
+    }
+    if (type === 'select') {
+      const value = selectValue(call.args.trim());
+      if (value === null) return [];
+      return [{ id, type, enabled: true, target, value }];
+    }
+    if (type === 'press') {
+      const key = stringLiteral(call.args);
+      if (key === null) return [];
+      return [{ id, type, enabled: true, target, key }];
+    }
+    if (call.args.trim() !== '') return [];
+    return [{ id, type, enabled: true, target }];
   }
 
   // page.<locator>.<action>(args)
@@ -275,13 +326,36 @@ function mapLine(line: string, counter: { count: number }): Array<Record<string,
     const locatorOnPage = subject.startsWith('page.')
       ? subject.slice('page.'.length)
       : subject;
-    const target = parseLocator(locatorOnPage);
+    let target = parseLocator(locatorOnPage);
+    if (!target) {
+      // page.locator('css') / page.locator('text=…') as an expect() subject.
+      const lm = /^locator\(\s*(.+?)\s*\)$/.exec(locatorOnPage);
+      const raw = lm ? stringLiteral(lm[1]!) : null;
+      if (raw !== null) {
+        const textEq = /^text=(.+)$/is.exec(raw);
+        target = textEq
+          ? { primary: { strategy: 'text', value: textEq[1]!.trim() } }
+          : { primary: { strategy: 'css', value: raw } };
+      }
+    }
     if (!target) return [];
     const id = stepId(counter.count++);
     switch (call.method) {
       case 'toBeVisible':
         if (call.args.trim() !== '') return [];
         return [{ id, type: 'assertVisible', enabled: true, target }];
+      case 'toBeHidden':
+        if (call.args.trim() !== '') return [];
+        return [{ id, type: 'assertHidden', enabled: true, target }];
+      case 'toBeChecked':
+        if (call.args.trim() !== '') return [];
+        return [{ id, type: 'assertChecked', enabled: true, target }];
+      case 'toBeEnabled':
+        if (call.args.trim() !== '') return [];
+        return [{ id, type: 'assertEnabled', enabled: true, target }];
+      case 'toBeDisabled':
+        if (call.args.trim() !== '') return [];
+        return [{ id, type: 'assertDisabled', enabled: true, target }];
       case 'toHaveText': {
         const expected = stringLiteral(call.args);
         return expected === null ? [] : [{ id, type: 'assertText', enabled: true, target, expected }];
@@ -312,6 +386,8 @@ function isSkippable(trimmed: string): boolean {
   if (trimmed.startsWith('//')) return true;
   if (/^import\s/.test(trimmed)) return true;
   if (/^(await\s+)?(test|test\.step)\s*\(/.test(trimmed)) return true; // suite/step headers
+  if (/^(await\s+)?test\.(beforeEach|afterEach|describe|skip|fixme)\s*\(/.test(trimmed)) return true; // hooks (not imported)
+  if (/^(await\s+)?describe\s*\(/.test(trimmed)) return true; // describe headers
   if (/^async\s*\(\s*\)\s*=>\s*\{?\s*$/.test(trimmed)) return true;
   if (/^[{}]+\s*,?\s*$/.test(trimmed)) return true;
   if (/^\}\s*\)\s*;?\s*$/.test(trimmed)) return true; // closers: }); / })
@@ -341,8 +417,17 @@ export function parsePlaywrightSpec(
   }
   if (steps.length === 0) {
     throw new SpecParseError(
-      `no mappable steps found in the ${lines.length}-line snippet (${warnings.length} unsupported line(s)) — supported: page.goto, getByRole/getByLabel/getByPlaceholder/getByTestId/getByText + click/dblclick/fill/check/selectOption/press/hover, expect().toBeVisible/toHaveText/toContainText/toHaveValue/toHaveURL/toHaveTitle`,
+      `no mappable steps found in the ${lines.length}-line snippet (${warnings.length} unsupported line(s)) — supported: page.goto/reload/goBack/goForward/waitForTimeout, page.locator(css|text=), getByRole/getByLabel/getByPlaceholder/getByTestId/getByText + click/dblclick/fill/check/uncheck/selectOption/press/hover, expect().toBeVisible/toBeHidden/toBeChecked/toBeEnabled/toBeDisabled/toHaveText/toContainText/toHaveValue/toHaveURL/toHaveTitle`,
     );
+  }
+  // Multiple test() blocks merge into ONE draft (one import = one test):
+  // explicit warning so the merger is a choice, never a surprise.
+  const testBlocks = code.match(/^\s*(?:await\s+)?test\s*\(/gm) ?? [];
+  if (testBlocks.length > 1) {
+    warnings.unshift({
+      line: 1,
+      text: `${testBlocks.length} test() blocks merged into one draft test — split into separate imports when they cover different flows`,
+    });
   }
   const name = opts.name?.trim() || firstTitle(code) || 'Imported spec';
   const definition = {

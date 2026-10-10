@@ -77,6 +77,7 @@ export async function ensureIntegrationDb(opts: { reset?: boolean } = {}): Promi
         'SELECT browser, headed, profileId, datasetId, rowIndex, healWithAlternatives FROM "Schedule" LIMIT 1',
       );
       await probe.$queryRawUnsafe('SELECT suiteId, suiteRunId, datasetId, rowIndex, workerId FROM "Run" LIMIT 1');
+      await probe.$queryRawUnsafe('SELECT stable, stableAt, stableRuns FROM "Test" LIMIT 1');
       await probe.$disconnect();
     } catch {
       needsPush = true;
