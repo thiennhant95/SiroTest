@@ -141,4 +141,10 @@ export const TOOL_DEFS: ToolDef[] = [
     shape: { ...testIdShape },
     run: (c, a) => guard(() => c.getRubric(str(a['testId']))),
   },
+  {
+    name: 'studio_get_trajectory',
+    description: 'Agent-consumable run timeline: ordered steps (type/status/timings/errors) + artifact refs. Feed this to an LLM to analyze a run.',
+    shape: { runId: z.string().min(1).describe('Run id') },
+    run: (c, a) => guard(() => c.getTrajectory(str(a['runId']))),
+  },
 ];

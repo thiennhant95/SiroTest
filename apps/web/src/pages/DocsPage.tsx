@@ -277,6 +277,32 @@ Kịch bản: Đăng nhập thành công
 - Tags (\`@smoke\`) show as badges for later filtering, never written into the test.`,
   },
   {
+    id: "stability",
+    group: "Testing",
+    title: "Stability gate + rubric",
+    body: `## Certify a definition (not a single pass)
+Builder header shows the stamp: **Stable 3/3** (green) or **Not stable** (slate), plus **Rubric N/100**. Click **Check 3×** (needs an environment) to run the same test 3 times sequentially — the stamp is set only on 3/3 passes. Any edit clears it: stable describes the exact definition that passed, nothing else.
+
+## Rubric (0–100, no browser needed)
+Scores the stored definition: stable primaries 30, backup locators 15, no hardcoded sleeps 15, assertions 20, named steps 10, all enabled 10. Fix the red checks before spending gate runs.
+
+## Trajectory export (for agents)
+\`GET /runs/:id/trajectory\` returns an agent-consumable timeline: ordered steps (type/status/timings/truncated errors) + artifact refs. Feed it to an LLM to analyze failures. Secrets stay redacted, server paths stripped.`,
+  },
+  {
+    id: "ai-providers",
+    group: "Reference",
+    title: "AI providers (rules vs LLM)",
+    body: `## Default: rules (deterministic, offline)
+Explain, compose, cleanup and Gherkin all run local rule engines — every response carries \`engine: 'rules'\`. No key, no network, no surprises.
+
+## Opt-in LLM (keyless available)
+Set \`AI_PROVIDER=kilo\` or \`AI_PROVIDER=uncloseai\` (no key, anonymous free tier) or a classic \`AI_API_KEY\` endpoint. Comma lists try in order: \`AI_PROVIDER=kilo,uncloseai\`. LLM failures fall back to rules; \`engine: 'llm'\` only when the model really answered.
+
+## Privacy
+Project secret values are redacted before anything reaches an LLM. Free tiers may log prompts upstream — do not send confidential data through them.`,
+  },
+  {
     id: "bug-reports",
     group: "Running",
     title: "Bug reports (Jira / Backlog / Slack / Lark)",

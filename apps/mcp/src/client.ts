@@ -199,6 +199,10 @@ export class StudioClient {
   async getRubric(testId: string): Promise<unknown> {
     return this.requestJson(`/api/v1/tests/${encodeURIComponent(testId)}/rubric`, 'GET');
   }
+
+  async getTrajectory(runId: string): Promise<unknown> {
+    return this.requestJson(`/api/v1/runs/${encodeURIComponent(runId)}/trajectory`, 'GET');
+  }
 }
 
 function safeJson(text: string): Record<string, boolean> {
