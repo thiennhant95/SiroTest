@@ -280,7 +280,7 @@ export function AnalyticsPage() {
                   {history.map((r) => (
                     <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60">
                       <td className="px-3 py-2 font-mono text-xs">
-                        <Link to={`/runs/${r.id}`} className="text-indigo-700 hover:underline">{r.id.slice(0, 8)}</Link>
+                        <Link to={`/runs/${r.id}`} className="text-indigo-700 hover:underline">Open →</Link>
                       </td>
                       <td className="px-3 py-2"><RunStatusBadge status={r.status} /></td>
                       <td className="px-3 py-2 text-sm">{r.browser}</td>

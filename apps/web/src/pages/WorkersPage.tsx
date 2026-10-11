@@ -204,8 +204,8 @@ export function WorkersPage() {
                 <ul className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs">
                   {w.claimedRuns.map((r) => (
                     <li key={r.id} className="font-mono">
-                      <Link to={`/runs/${r.id}`} className="text-indigo-700 hover:underline">{r.id.slice(0, 8)}</Link>
-                      <span className="text-slate-500"> {r.status} · test {r.testId.slice(0, 8)}</span>
+                      <Link to={`/runs/${r.id}`} className="text-indigo-700 hover:underline">Open run →</Link>
+                      <span className="text-slate-500"> {r.status}</span>
                     </li>
                   ))}
                 </ul>

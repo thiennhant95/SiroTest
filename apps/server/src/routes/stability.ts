@@ -44,6 +44,8 @@ interface GateState {
   gateId: string;
   testId: string;
   projectId: string;
+  /** Definition snapshot at gate creation — the verdict must never certify a newer edit. */
+  definitionJson: string;
   status: GateStatus;
   total: number;
   passed: number;
@@ -122,10 +124,15 @@ async function awaitRunTerminal(app: FastifyInstance, runId: string, startedAt: 
 }
 
 async function applyVerdict(
-  testId: string, projectId: string, userId: string, runs: GateRun[],
-): Promise<{ passed: number; stable: boolean; stableAt: Date | null }> {
+  testId: string, projectId: string, userId: string, runs: GateRun[], expectedDefinitionJson: string,
+): Promise<{ passed: number; stable: boolean; stableAt: Date | null; stale: boolean }> {
+  // Mid-gate edit race: the definition may have changed while runs executed.
+  // A stamp for the OLD runs must never certify the NEW definition.
+  const current = await db().test.findUnique({ where: { id: testId }, select: { definitionJson: true } });
+  if (!current) throw new ApiError('NOT_FOUND', `Test ${testId} was deleted during the stability gate`, 404);
+  const stale = current.definitionJson !== expectedDefinitionJson;
   const passed = runs.filter((r) => r.status === 'passed').length;
-  const stable = passed === runs.length;
+  const stable = passed === runs.length && !stale;
   const updated = await db().test.update({
     where: { id: testId },
     data: stable
@@ -135,9 +142,9 @@ async function applyVerdict(
   void writeAudit({
     projectId, userId,
     action: 'stability.verdict', entityType: 'test', entityId: testId,
-    details: { runs: runs.map((r) => r.id), passed, total: runs.length, stable },
+    details: { runs: runs.map((r) => r.id), passed, total: runs.length, stable, stale },
   });
-  return { passed, stable, stableAt: updated.stableAt };
+  return { passed, stable, stableAt: updated.stableAt, stale };
 }
 
 /** Background driver for async gates: same sequential loop as the sync path. */
@@ -172,10 +179,17 @@ async function driveGate(
         return;
       }
     }
-    const verdict = await applyVerdict(gate.testId, gate.projectId, userId, gate.runs);
+    if (gate.cancelRequested) {
+      gate.status = 'cancelled';
+      return;
+    }
+    const verdict = await applyVerdict(gate.testId, gate.projectId, userId, gate.runs, gate.definitionJson);
     gate.passed = verdict.passed;
     gate.stable = verdict.stable;
     gate.stableAt = verdict.stableAt ? verdict.stableAt.toISOString() : null;
+    if (verdict.stale) {
+      gate.error = 'definition changed during the gate — verdict discarded, re-run the gate to certify the new definition';
+    }
     gate.status = verdict.stable ? 'passed' : 'failed';
   } catch (e) {
     gate.status = gate.cancelRequested ? 'cancelled' : 'failed';
@@ -213,6 +227,7 @@ export async function stabilityRoutes(app: FastifyInstance): Promise<void> {
         gateId: `gate_${nanoid(12)}`,
         testId: id,
         projectId: test.projectId,
+        definitionJson: test.definitionJson,
         status: 'queued',
         total: runsTotal,
         passed: 0,
@@ -238,7 +253,7 @@ export async function stabilityRoutes(app: FastifyInstance): Promise<void> {
       runs.push({ id: runId, status });
     }
 
-    const verdict = await applyVerdict(id, test.projectId, req.user!.id, runs);
+    const verdict = await applyVerdict(id, test.projectId, req.user!.id, runs, test.definitionJson);
     const stamped = await db().test.findUnique({ where: { id }, select: { stableAt: true } });
     return reply.code(200).send({
       testId: id,
@@ -247,6 +262,7 @@ export async function stabilityRoutes(app: FastifyInstance): Promise<void> {
       total: runs.length,
       stable: verdict.stable,
       stableAt: stamped?.stableAt ?? null,
+      ...(verdict.stale ? { note: 'definition changed during the gate — verdict discarded, re-run the gate to certify the new definition' } : {}),
     });
   });
 

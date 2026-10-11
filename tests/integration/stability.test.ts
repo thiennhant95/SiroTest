@@ -222,6 +222,42 @@ describe('stability gate (N consecutive passes stamp the definition)', () => {
     assert.equal(final.status, 'passed');
   });
 
+  it('mid-gate definition edit discards the verdict (no stale stamp)', async () => {
+    const projectId = await makeProject(`stability-stale-${Date.now()}`);
+    const env = await injectJson(app, 'POST', `/api/v1/projects/${projectId}/environments`, { name: 'lab', baseUrl: labBase });
+    const envId = (env.json() as { id: string }).id;
+    const mkdef = (name: string) => ({
+      schemaVersion: '1.0', name, browser: 'chromium',
+      // 20s x2: wide window to land a PATCH mid-gate (well under timeouts).
+      steps: [{ id: 's1', type: 'waitForTimeout', enabled: true, milliseconds: 20_000 }],
+    });
+    const test = await injectJson(app, 'POST', `/api/v1/projects/${projectId}/tests`, {
+      name: 'stale race', definitionJson: mkdef('stale race'),
+    });
+    const testId = (test.json() as { id: string }).id;
+    const started = await injectJson(app, 'POST', `/api/v1/tests/${testId}/stability`, {
+      environmentId: envId, runs: 2, async: true,
+    });
+    assert.equal(started.statusCode, 202);
+    const gateId = (started.json() as { gateId: string }).gateId;
+
+    // Edit mid-gate: the old runs must never certify the new definition.
+    await new Promise((r) => setTimeout(r, 5000));
+    const patched = await injectJson(app, 'PATCH', `/api/v1/tests/${testId}`, {
+      definitionJson: mkdef('stale race v2'), changeMessage: 'mid-gate edit',
+    });
+    assert.equal(patched.statusCode, 200);
+
+    const final = await pollGate(testId, gateId, 180_000);
+    assert.equal(final.status, 'failed');
+    assert.equal(final.stable, false);
+    assert.match(final.error ?? '', /definition changed during the gate/);
+    assert.deepEqual(final.runs.map((r) => r.status), ['passed', 'passed']);
+    const stamp = (await injectJson(app, 'GET', `/api/v1/tests/${testId}/stability`)).json() as { stable: boolean; stableRuns: number };
+    assert.equal(stamp.stable, false);
+    assert.equal(stamp.stableRuns, 0);
+  });
+
   it('cancelling an async gate settles cancelled and stops the child run', async () => {
     const projectId = await makeProject(`stability-slow-${Date.now()}`);
     const env = await injectJson(app, 'POST', `/api/v1/projects/${projectId}/environments`, { name: 'lab', baseUrl: labBase });

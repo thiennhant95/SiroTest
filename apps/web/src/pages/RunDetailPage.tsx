@@ -9,7 +9,7 @@ import { locatorPreview, type BuilderStep } from "../lib/steps";
 import { sampleRun } from "../mocks/sampleRun";
 import type { RunDetail, UserRole } from "../types";
 import { formatDuration, formatTime, shortError } from "../lib/format";
-import { EmptyState, ErrorState, RoleSwitch, RunStatusBadge, Skeleton, useToast } from "../components/ui";
+import { CopyId, EmptyState, ErrorState, RoleSwitch, RunStatusBadge, Skeleton, useToast } from "../components/ui";
 
 function useRun(runId: string) {
   const [run, setRun] = useState<RunDetail | null>(null);
@@ -316,18 +316,18 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
   const traceUrl = run.artifacts.traceUrl;
 
   return (
-    <section className="page" aria-label={`Run result ${run.testName || testName || run.id}`}>
+    <section className="page" aria-label={`Run result ${run.testName || testName || ""}`.trim()}>
       {/* Header: status + env/browser/duration */}
       <header className="run-head">
         <div>
           <p className="crumb">
             <Link to={`/tests/${run.testId}`}>← Back to test</Link>
           </p>
-          <h1>{run.testName || testName || `Run ${run.id.slice(0, 8)}`}</h1>
+          <h1>{run.testName || testName || "Run result"}</h1>
           <p className="muted">
             Environment <strong>{run.environment}</strong> · Browser{" "}
             <strong>{run.browser}</strong> · Started {formatTime(run.startedAt)} · Duration{" "}
-            <strong>{formatDuration(run.durationMs)}</strong>
+            <strong>{formatDuration(run.durationMs)}</strong> · <CopyId id={run.id} label="run" />
           </p>
         </div>
         <div className="run-head-right">
