@@ -7,12 +7,51 @@
  * - {@link loadProjectSecrets} + {@link redactForLLM} guarantee secret values
  *   and absolute server paths are stripped BEFORE any text is sent to an LLM.
  */
-import { providerStatus, selectProvider, type AIProvider } from '@vv/ai';
+import { providerStatus, selectProvider, withLlmCache, type AIProvider } from '@vv/ai';
 import { db } from './db.js';
 import { decryptSecret, redactSecretsText, stripServerPaths } from './security.js';
 
+/**
+ * Module-level wrapper reuse (LLM cache by input hash). A fresh wrapper per
+ * request would cache nothing, so wrappers live here keyed by the env
+ * slice that selects them (key PRESENCE, never the secret value). Env
+ * changes (tests, operator edits) naturally miss and rebuild.
+ */
+const wrapperCache = new Map<string, AIProvider>();
+
+function wrapperCacheKey(slot: string): string {
+  const e = process.env;
+  return JSON.stringify({
+    slot,
+    provider: e.AI_PROVIDER ?? "",
+    baseUrl: e.AI_BASE_URL ?? "",
+    model: e.AI_MODEL ?? "",
+    explainModel: e.AI_EXPLAIN_MODEL ?? "",
+    hasKey: (e.AI_API_KEY ?? "") !== "",
+    timeout: e.AI_TIMEOUT_MS ?? "",
+    cache: e.AI_CACHE ?? "",
+    cacheMax: e.AI_CACHE_MAX ?? "",
+    cacheTtl: e.AI_CACHE_TTL_MS ?? "",
+  });
+}
+
+function cachedProvider(slot: string, build: () => AIProvider): AIProvider {
+  const key = wrapperCacheKey(slot);
+  const hit = wrapperCache.get(key);
+  if (hit) return hit;
+  const fresh = withLlmCache(build());
+  wrapperCache.set(key, fresh);
+  // Distinct env combos are tiny in practice; cap paranoia at 25 slots.
+  while (wrapperCache.size > 25) {
+    const oldest = wrapperCache.keys().next();
+    if (oldest.done) break;
+    wrapperCache.delete(oldest.value);
+  }
+  return fresh;
+}
+
 export function getAIProvider(): AIProvider {
-  return selectProvider();
+  return cachedProvider("default", () => selectProvider());
 }
 
 /**
@@ -28,7 +67,7 @@ export function explainModelOverride(): string | undefined {
 
 export function getExplainProvider(): AIProvider {
   const model = explainModelOverride();
-  return selectProvider(process.env, model ? { model } : undefined);
+  return cachedProvider("explain", () => selectProvider(process.env, model ? { model } : undefined));
 }
 
 /** Safe for GET /ai/status — engine/provider/model only, never the key. */

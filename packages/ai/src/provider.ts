@@ -262,6 +262,133 @@ function providerShortName(p: EnvProvider): string {
 }
 
 /**
+ * Model identity for cache keys (per-task routing means the same prompt
+ * under a different model is a different entry).
+ */
+function providerModelTag(p: AIProvider): string {
+  if (p instanceof EnvProvider) return p.model;
+  if (p instanceof FallbackProvider) return p.models.join(",");
+  return "";
+}
+
+export interface LlmCacheOpts {
+  /** Max entries (LRU eviction). Default 200. */
+  maxEntries?: number;
+  /** TTL per entry in ms. Default 15 min. */
+  ttlMs?: number;
+}
+
+const DEFAULT_CACHE_MAX = 200;
+const DEFAULT_CACHE_TTL_MS = 15 * 60_000;
+
+interface CacheEntry {
+  text: string;
+  expiresAt: number;
+}
+
+/**
+ * In-memory LLM result cache by input hash (P2 backlog: dedupe repeat
+ * explanations/completions — e.g. re-clicking "Explain with AI" on the same
+ * failed run, or suite-retried identical failures).
+ *
+ * - Key = sha256(provider name + model tag + systemPrompt + jsonMode +
+ *   maxTokens + prompt). Only successful completions are cached; errors
+ *   always pass through (a transient 429 must never poison later calls).
+ * - Wraps LLM providers only — callers leave {@link RuleProvider} unwrapped
+ *   (local, deterministic, ~free; caching it would only hide staleness).
+ * - Process memory only, never persisted; prompts reaching this layer are
+ *   already secret-redacted by the server route (`redactForLLM`).
+ * - `AI_CACHE=0` disables (every call passes through, stats still count
+ *   misses). `AI_CACHE_MAX` / `AI_CACHE_TTL_MS` tune size/TTL.
+ */
+export class CachedProvider implements AIProvider {
+  readonly engine: AIEngine = "llm";
+  readonly name: string;
+  private readonly store = new Map<string, CacheEntry>();
+  private hits = 0;
+  private misses = 0;
+
+  constructor(
+    private readonly inner: AIProvider,
+    private readonly opts: LlmCacheOpts = {},
+  ) {
+    this.name = `cached(${inner.name})`;
+  }
+
+  stats(): { hits: number; misses: number; size: number } {
+    return { hits: this.hits, misses: this.misses, size: this.store.size };
+  }
+
+  clear(): void {
+    this.store.clear();
+    this.hits = 0;
+    this.misses = 0;
+  }
+
+  async complete(prompt: string, opts?: AICompleteOptions): Promise<string> {
+    const maxEntries = this.opts.maxEntries ?? DEFAULT_CACHE_MAX;
+    const ttlMs = this.opts.ttlMs ?? DEFAULT_CACHE_TTL_MS;
+    const { createHash } = await import("node:crypto");
+    const key = createHash("sha256")
+      .update(
+        JSON.stringify({
+          p: this.inner.name,
+          m: providerModelTag(this.inner),
+          s: opts?.systemPrompt ?? "",
+          j: opts?.jsonMode ?? false,
+          t: opts?.maxTokens ?? 0,
+          q: prompt,
+        }),
+        "utf8",
+      )
+      .digest("hex");
+    const now = Date.now();
+    const hit = this.store.get(key);
+    if (hit && hit.expiresAt > now) {
+      // LRU refresh: re-insert to mark most-recently-used.
+      this.store.delete(key);
+      this.store.set(key, hit);
+      this.hits += 1;
+      return hit.text;
+    }
+    if (hit) this.store.delete(key);
+    this.misses += 1;
+    const text = await this.inner.complete(prompt, opts);
+    this.store.set(key, { text, expiresAt: now + ttlMs });
+    while (this.store.size > maxEntries) {
+      const oldest = this.store.keys().next();
+      if (oldest.done) break;
+      this.store.delete(oldest.value);
+    }
+    return text;
+  }
+}
+
+function cacheDisabled(env: NodeJS.ProcessEnv): boolean {
+  return (env.AI_CACHE ?? "").trim() === "0";
+}
+
+function readCacheOpts(env: NodeJS.ProcessEnv): LlmCacheOpts {
+  const out: LlmCacheOpts = {};
+  const maxRaw = Number(env.AI_CACHE_MAX ?? "");
+  if (Number.isFinite(maxRaw) && maxRaw > 0) out.maxEntries = Math.floor(Math.min(maxRaw, 10_000));
+  const ttlRaw = Number(env.AI_CACHE_TTL_MS ?? "");
+  if (Number.isFinite(ttlRaw) && ttlRaw > 0) out.ttlMs = Math.floor(Math.min(ttlRaw, 24 * 3_600_000));
+  return out;
+}
+
+/**
+ * Wrap an LLM provider in {@link CachedProvider}; rules (and cache-disabled
+ * envs) pass through untouched. Identity-stable per process — call sites
+ * SHOULD reuse one wrapper (e.g. module-level in the server) so repeat
+ * calls actually hit; a fresh wrapper per request caches nothing.
+ */
+export function withLlmCache(provider: AIProvider, env: NodeJS.ProcessEnv = process.env): AIProvider {
+  if (provider.engine !== "llm" || cacheDisabled(env)) return provider;
+  return new CachedProvider(provider, readCacheOpts(env));
+}
+
+/**
  * Public status payload — safe to expose via GET /ai/status.
  * NEVER includes the key, the full base URL credentials, or secrets.
  */
