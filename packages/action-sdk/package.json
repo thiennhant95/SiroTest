@@ -18,8 +18,8 @@
     "test": "npm run build && node --test dist/tests/contract.test.js dist/tests/loader.test.js"
   },
   "devDependencies": {
-    "@types/node": "^22.10.1",
-    "typescript": "^5.6.3"
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2"
   },
   "license": "UNLICENSED"
 }
