@@ -4,9 +4,9 @@
  * Honesty contract (P2 backlog): there is NO fake AI in this repo.
  * - When `AI_API_KEY` is set, {@link EnvProvider} calls an OpenAI-compatible
  *   chat-completions endpoint and `engine` is reported as `'llm'`.
- * - When `AI_PROVIDER=kilo`, {@link EnvProvider} calls the Kilo AI gateway
- *   free tier (`https://api.kilo.ai/api/gateway`, model `kilo-auto/free` by
- *   default) with NO key (anonymous, rate-limited). `engine` is `'llm'`.
+ * - When `AI_PROVIDER=kilo|uncloseai`, {@link EnvProvider} calls a keyless
+ *   free tier (Kilo gateway `kilo-auto/free` default, uncloseai Qwen default)
+ *   with NO key (anonymous, rate-limited). `engine` is `'llm'`.
  * - Otherwise {@link selectProvider} returns the always available
  *   {@link RuleProvider} and `engine` is reported as `'rules'`
  *   (deterministic, local, rule-based — never presented as an LLM).
@@ -66,26 +66,30 @@ export interface EnvProviderConfig {
 export const DEFAULT_AI_TIMEOUT_MS = 30_000;
 export const DEFAULT_AI_MODEL = "gpt-4o-mini";
 export const DEFAULT_AI_BASE_URL = "https://api.openai.com/v1";
-export const KILO_BASE_URL = "https://api.kilo.ai/api/gateway";
+export const KILO_BASE_URL = "https://api.kilo.ai/api/gateway/v1";
 export const KILO_DEFAULT_MODEL = "kilo-auto/free";
+export const UNCLOSEAI_BASE_URL = "https://hermes.ai.unturf.com/v1";
+export const UNCLOSEAI_DEFAULT_MODEL = "turboderp/Qwen3.8-27B-exl3";
 
 /**
  * Read LLM config from env. Returns null when no LLM is configured
  * (the caller must then fall back to {@link RuleProvider}).
  * - `AI_API_KEY` set → OpenAI-compatible endpoint (`AI_BASE_URL`/`AI_MODEL`
  *   have safe defaults; only the key gates).
- * - `AI_PROVIDER=kilo` → Kilo gateway free tier, NO key required
- *   (anonymous, ~200 req/hour/IP). `AI_MODEL` overrides the default
- *   `kilo-auto/free`; `AI_API_KEY`, when also set, is sent as Bearer
- *   (raises limits / unlocks paid models).
+ * - `AI_PROVIDER=kilo|uncloseai` → keyless free tier, NO key required
+ *   (anonymous, rate-limited). `AI_MODEL` overrides the provider default;
+ *   `AI_API_KEY`, when also set, is sent as Bearer (raises limits / unlocks
+ *   paid models on Kilo).
  */
 export function readEnvConfig(env: NodeJS.ProcessEnv = process.env): EnvProviderConfig | null {
   const provider = (env.AI_PROVIDER ?? "").trim().toLowerCase();
-  if (provider === "kilo") {
-    const baseUrl = (env.AI_BASE_URL ?? KILO_BASE_URL).trim().replace(/\/$/, "") || KILO_BASE_URL;
-    const model = (env.AI_MODEL ?? KILO_DEFAULT_MODEL).trim() || KILO_DEFAULT_MODEL;
-    const timeoutMs = readTimeout(env);
-    return { baseUrl, apiKey: (env.AI_API_KEY ?? "").trim(), model, timeoutMs };
+  if (provider === "kilo" || provider === "uncloseai") {
+    const keyless = provider === "kilo"
+      ? { baseUrl: KILO_BASE_URL, model: KILO_DEFAULT_MODEL }
+      : { baseUrl: UNCLOSEAI_BASE_URL, model: UNCLOSEAI_DEFAULT_MODEL };
+    const baseUrl = (env.AI_BASE_URL ?? keyless.baseUrl).trim().replace(/\/$/, "") || keyless.baseUrl;
+    const model = (env.AI_MODEL ?? keyless.model).trim() || keyless.model;
+    return { baseUrl, apiKey: (env.AI_API_KEY ?? "").trim(), model, timeoutMs: readTimeout(env) };
   }
   const apiKey = (env.AI_API_KEY ?? "").trim();
   if (!apiKey) return null;
@@ -160,7 +164,7 @@ export class EnvProvider implements AIProvider {
 }
 
 /**
- * Factory: LLM when `AI_API_KEY` (or `AI_PROVIDER=kilo`) is configured,
+ * Factory: LLM when `AI_API_KEY` (or `AI_PROVIDER=kilo|uncloseai`) is configured,
  * otherwise the deterministic rule provider. Callers MUST surface
  * `provider.engine` in their response.
  */
