@@ -619,3 +619,65 @@ describe('spec importer (feasible subset + warnings)', () => {
     assert.match(warnings[0].text, /2 test\(\) blocks merged/);
   });
 });
+
+describe('JUnit importer (migration shells + explicit warnings)', () => {
+  const XML = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<testsuites tests="3" failures="1" skipped="1">',
+    '  <testsuite name="checkout" tests="3" failures="1" skipped="1">',
+    '    <testcase classname="checkout" name="add to cart" time="1.5" />',
+    '    <testcase classname="checkout" name="pay now" time="0.4">',
+    '      <failure message="card declined">Error: payment failed</failure>',
+    '    </testcase>',
+    '    <testcase classname="checkout" name="refund">',
+    '      <skipped message="no refund env" />',
+    '    </testcase>',
+    '  </testsuite>',
+    '</testsuites>',
+  ].join('\n');
+
+  it('creates one draft shell per case with the outcome in the description', async () => {
+    const projectId = await makeProject('wave2-junit');
+    const res = await injectJson(app, 'POST', `/api/v1/projects/${projectId}/import-junit`, { xml: XML });
+    assert.equal(res.statusCode, 201);
+    const { tests, warnings } = res.json() as {
+      tests: Array<{ id: string; name: string }>;
+      warnings: Array<{ case: string; text: string }>;
+    };
+    assert.equal(tests.length, 3);
+    assert.deepEqual(tests.map((t) => t.name), [
+      'checkout :: add to cart',
+      'checkout :: pay now',
+      'checkout :: refund',
+    ]);
+    assert.equal(warnings.length, 3);
+    // Failed/skipped originals say so explicitly — never rewritten as clean.
+    assert.match(warnings[1].text, /original failed/);
+    assert.match(warnings[2].text, /original skipped/);
+
+    const stored = await injectJson(app, 'GET', `/api/v1/tests/${tests[1].id}`);
+    assert.equal(stored.statusCode, 200);
+    const row = stored.json() as { status: string; description: string; definitionJson: string };
+    assert.equal(row.status, 'draft');
+    assert.match(row.description, /original status: failed/);
+    assert.match(row.description, /card declined/);
+    assert.match(row.description, /shell has no steps/);
+    const def = JSON.parse(row.definitionJson) as { steps: unknown[]; tags: string[] };
+    assert.deepEqual(def.steps, []);
+    assert.ok(def.tags.includes('junit-import'));
+  });
+
+  it('rejects non-JUnit (400) and case-less documents (422 JUNIT_NO_CASES)', async () => {
+    const projectId = await makeProject('wave2-junit-bad');
+    const notXml = await injectJson(app, 'POST', `/api/v1/projects/${projectId}/import-junit`, { xml: '<html>hi</html>' });
+    assert.equal(notXml.statusCode, 400);
+    const empty = await injectJson(app, 'POST', `/api/v1/projects/${projectId}/import-junit`, {
+      xml: '<testsuite name="empty"></testsuite>',
+    });
+    assert.equal(empty.statusCode, 422);
+    assert.equal((empty.json() as { code: string }).code, 'JUNIT_NO_CASES');
+    // Nothing was stored by the rejected imports.
+    const list = await injectJson(app, 'GET', `/api/v1/projects/${projectId}/tests`);
+    assert.deepEqual(list.json(), []);
+  });
+});

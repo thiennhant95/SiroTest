@@ -161,6 +161,12 @@ describe("CachedProvider (LLM result cache by input hash)", () => {
     expect(withLlmCache(llm, { AI_CACHE: "0" } as NodeJS.ProcessEnv)).toBe(llm);
     expect(withLlmCache(llm, {} as NodeJS.ProcessEnv)).toBeInstanceOf(CachedProvider);
   });
+
+  it("providerStatus sees through the cache (llm stays llm)", () => {
+    const inner = new EnvProvider({ baseUrl: "https://llm.example.com", apiKey: "k", model: "m", timeoutMs: 5000 });
+    const cached = new CachedProvider(inner);
+    expect(providerStatus(cached)).toEqual({ engine: "llm", provider: "env-openai-compatible", model: "m" });
+  });
 });
 
 describe("EnvProvider (mocked fetch — no real network)", () => {
