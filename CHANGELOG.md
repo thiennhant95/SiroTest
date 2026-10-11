@@ -37,6 +37,7 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 - Rebrand UI to SiroTest; English UI + uniform buttons + IPv4/IPv6 dual-stack dev server (`faa98c1`, `d891781`)
 
 ### Fixed
+- Stale-stamp race: a definition PATCH landing mid-gate no longer lets old runs certify the new definition (verdict snapshots + compares, discards with explicit re-run note)
 - Cancel-wins in runner settle paths: an HTTP cancel that lands mid-run is never overwritten by the dying worker's `failed` (rows + gate children stay `cancelled`)
 - Ghost run page no longer leaks raw `API 404: {...}` JSON — friendly "Run <id> not found" like other ghost pages
 - Stability stamp voided on EVERY definition writer (restore, dataset import/delete, recorder save, suggestions apply, healing approve — previously only PATCH reset it)

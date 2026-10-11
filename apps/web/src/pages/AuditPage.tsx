@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { isNotFoundError } from "../lib/api";
-import { Badge, Button, DataTable, EmptyState, ErrorState, Field, Input, Skeleton, useToast } from "../components/ui";
+import { Badge, Button, CopyId, DataTable, EmptyState, ErrorState, Field, Input, Skeleton, useToast } from "../components/ui";
 
 const API = "/api/v1";
 const PAGE = 50;
@@ -160,7 +160,14 @@ export function AuditPage() {
                 key: "entityType",
                 header: "Entity",
                 render: (r) => (
-                  <span className="font-mono text-xs">{r.entityType ? `${r.entityType}:${r.entityId?.slice(0, 8)}` : "—"}</span>
+                  r.entityType && r.entityId ? (
+                    <span className="inline-flex items-center gap-1 font-mono text-xs">
+                      <span>{r.entityType}</span>
+                      <CopyId id={r.entityId} label={r.entityType} />
+                    </span>
+                  ) : (
+                    <span className="font-mono text-xs">—</span>
+                  )
                 ),
               },
               {
