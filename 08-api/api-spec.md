@@ -61,6 +61,10 @@ Example run request:
 `GET /tests/:id/stability` → `{stable, stableAt, stableRuns}` (any definition PATCH clears the stamp)
 `GET /tests/:id/rubric` → `{score/100, checks[]}` (stable-primaries 30, alternatives 15, no-hard-waits 15, assertions 20, named 10, enabled 10; pure, nothing runs)
 
+## Suggestions (deterministic + opt-in LLM extras)
+`POST /tests/:id/suggestions {sessionId?|steps?, assist?}` → `{suggestions[] (each engine:'rules'|'llm'), assist?: {engine, added, dropped, note}}` (rules always; `assist:true` appends schema-validated LLM extras, invalid dropped + counted, no LLM → rules-only note)
+`POST /tests/:id/suggestions/apply {suggestionIds|indexes, position?}` → inserts + versions (unknown ids fail loud)
+
 ## Healing (explicit, human-approved only)
 `GET /tests/:id/healing?status=pending|approved|rejected|all` → proposals with deterministic `score` 0–100 + `scoreReasons[]` (verified 40 + unique match 30 + winner-strategy stability 15 + decisiveness 10 + DOM preview 5; review aid, never auto-applies)
 `POST /healing/:pid/approve` → rewrites the step primary, demotes the old primary to alternatives head, mints a version (voids the stability stamp)
@@ -90,8 +94,8 @@ Schedule fields: `notifyOnFailure: boolean` (default `false`), `lastStatus: stri
 
 ## AI (preview-only, never persists)
 `POST /ai/gherkin`
-- Request: `{"text":"...","projectId":"...?"}` (`text` 1–8000 chars; `projectId` optional, requires read access)
-- Returns: `{engine:'rules', steps, unparsed, warnings, tags, scenarioName?}` (deterministic Vietnamese-Gherkin parser, no LLM)
+- Request: `{"text":"...","projectId":"...?","assist":true?}` (`text` 1–8000 chars; `projectId` optional, requires read access)
+- Returns: `{engine:'rules', scenarioNameSource:'rules'|'llm', steps, unparsed, warnings, tags, scenarioName?}` (steps always deterministic rules; opt-in `assist` lets an LLM propose only the scenarioName, rules name stays as fallback)
 
 ## Integrations (webhook provider)
 `GET /projects/:projectId/integrations`

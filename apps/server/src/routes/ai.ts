@@ -9,7 +9,10 @@
  *   GET  /ai/status      → { engine, provider, model? } (never leaks the key)
  *   POST /ai/nl-to-steps → { engine, steps, unparsed[] }
  *   POST /ai/gherkin     → { engine: 'rules', steps, unparsed[], warnings[],
- *                           scenarioName?, tags[] } (Vietnamese Gherkin, rules only)
+ *                           scenarioName?, scenarioNameSource: 'rules'|'llm',
+ *                           tags[] } (Vietnamese Gherkin, rules only for steps;
+ *                           opt-in `assist: true` lets an LLM propose only the
+ *                           scenarioName, rules name stays as fallback)
  *   POST /ai/explain     → { engine, explanation }
  *   POST /ai/cleanup     → { engine, steps, changes[] } (sorted definition is
  *                          NOT written back — caller PATCHes /tests/:id itself)
@@ -59,6 +62,8 @@ const gherkinBody = z.object({
   text: z.string().min(1).max(8000),
   /** When present, the caller must have read access to the project. Nothing is persisted. */
   projectId: z.string().min(1).optional(),
+  /** Opt-in LLM assist: propose a concise scenarioName (rules stay as fallback). */
+  assist: z.boolean().optional(),
 }).strict();
 
 const explainBody = z.object({
@@ -138,7 +143,29 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     }
     // Always deterministic rules; stateless preview — nothing is persisted.
     const result = gherkinViToSteps(body.text);
-    return { engine: 'rules' as const, ...result };
+    if (body.assist !== true) {
+      return { engine: 'rules' as const, scenarioNameSource: 'rules' as const, ...result };
+    }
+    // Opt-in LLM naming: a concise scenarioName only — steps always come
+    // from the rules parser. Any failure (or no LLM) keeps the rules name
+    // with an explicit source flag (never presented as LLM-named).
+    const provider = getAIProvider();
+    if (provider.engine === 'llm') {
+      try {
+        const secrets = body.projectId ? await loadProjectSecrets(body.projectId) : [];
+        const prompt = redactForLLM(
+          `Propose a short test scenario name (max 80 chars, plain text, no quotes) for this Vietnamese Gherkin:\n${body.text}`,
+          secrets,
+        ).slice(0, 8000);
+        const raw = (await provider.complete(prompt, { maxTokens: 100 })).trim().replace(/^["']|["']$/g, '').trim();
+        if (raw.length > 0 && raw.length <= 120 && !/[\r\n]/.test(raw)) {
+          return { engine: 'rules' as const, scenarioNameSource: 'llm' as const, ...result, scenarioName: raw };
+        }
+      } catch {
+        /* fall through to the rules name */
+      }
+    }
+    return { engine: 'rules' as const, scenarioNameSource: 'rules' as const, ...result };
   });
 
   app.post('/ai/explain', { preHandler: requireAuth }, async (req) => {

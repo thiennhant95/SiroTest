@@ -490,6 +490,21 @@ describe('P2 suggested assertions (deterministic, no AI)', () => {
     assert.deepEqual(tail, ['fill', 'assertVisible', 'assertValue']);
   });
 
+  it('assist without an LLM stays rules-only with an explicit note', async () => {
+    const { testId } = await makeProjectAndTest();
+    const gen = await injectJson(app, 'POST', `/api/v1/tests/${testId}/suggestions`, { assist: true });
+    assert.equal(gen.statusCode, 200);
+    const body = gen.json() as {
+      suggestions: Array<{ id: string; engine: string }>;
+      assist: { engine: string; added: number; dropped: number; note: string };
+    };
+    assert.ok(body.suggestions.length >= 1);
+    assert.ok(body.suggestions.every((s) => s.engine === 'rules'));
+    assert.equal(body.assist.engine, 'rules');
+    assert.equal(body.assist.added, 0);
+    assert.match(body.assist.note, /no LLM is configured/);
+  });
+
   it('unknown recorder session is 404 (sessionId path, no browser needed)', async () => {
     const { testId } = await makeProjectAndTest();
     const res = await injectJson(app, 'POST', `/api/v1/tests/${testId}/suggestions`, { sessionId: 'sess_nope' });
