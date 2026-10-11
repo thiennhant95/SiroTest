@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, traceViewerUrl } from "../api/client";
+import { aiApi, type ExplainResponse } from "../api/ai";
 import { ApiError, api as studioApi, apiBase, authHeaders, isNotFoundError } from "../lib/api";
 import { BugReportDialog } from "../components/BugReportDialog";
 import { RunTour, restartRunTour } from "../components/GuidedTour";
@@ -9,7 +10,7 @@ import { locatorPreview, type BuilderStep } from "../lib/steps";
 import { sampleRun } from "../mocks/sampleRun";
 import type { RunDetail, UserRole } from "../types";
 import { formatDuration, formatTime, shortError } from "../lib/format";
-import { CopyId, EmptyState, ErrorState, RoleSwitch, RunStatusBadge, Skeleton, useToast } from "../components/ui";
+import { Badge, CopyId, EmptyState, ErrorState, RoleSwitch, RunStatusBadge, Skeleton, useToast } from "../components/ui";
 
 function useRun(runId: string) {
   const [run, setRun] = useState<RunDetail | null>(null);
@@ -150,6 +151,57 @@ function AuthArtifactImage({ runId, artifactId, label }: { runId: string; artifa
       <figcaption>{label}</figcaption>
       <img src={src} alt={label} style={{ maxWidth: "100%", border: "1px solid #e2e8f0", borderRadius: 4 }} />
     </figure>
+  );
+}
+
+/** 1-click failure explanation (P2): POST /ai/explain {runId} inline.
+ *  The server reads the failed step from the DB; the response engine badge
+ *  (rules|llm) is always rendered — rule output is never presented as LLM.
+ *  Hidden for the offline demo run (no DB row to explain). */
+function ExplainWithAi({ runId, projectId, demo }: { runId: string; projectId?: string; demo: boolean }) {
+  const [result, setResult] = useState<ExplainResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  if (demo) return null;
+  const run = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setResult(await aiApi.explain({ runId }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not explain this failure");
+    } finally {
+      setLoading(false);
+    }
+  };
+  const exp = result?.explanation ?? null;
+  return (
+    <section aria-label="AI explanation" data-testid="explain-with-ai">
+      <h2>AI explanation {projectId ? <Link className="small" to={`/projects/${projectId}/ai`}>Open in AI assistant</Link> : null}</h2>
+      {!result && !error ? (
+        <button type="button" className="btn" data-testid="explain-btn" disabled={loading} onClick={() => void run()}>
+          {loading ? "Analyzing…" : "Explain with AI"}
+        </button>
+      ) : null}
+      {error ? <ErrorState message={error} onRetry={() => void run()} /> : null}
+      {result && exp ? (
+        <div>
+          <p className="small">
+            <Badge tone={result.engine === "llm" ? "indigo" : "slate"}>engine: {result.engine}</Badge>{" "}
+            <Badge tone={exp.category === "unknown" ? "amber" : "indigo"}>{exp.category}</Badge>{" "}
+            <Badge tone={exp.confidence === "high" ? "green" : exp.confidence === "medium" ? "amber" : "slate"}>
+              confidence: {exp.confidence}
+            </Badge>
+          </p>
+          <p>{exp.summary}</p>
+          <p className="small"><strong>Likely causes:</strong> {exp.likelyCauses.join("; ")}</p>
+          <p className="small"><strong>Suggested fixes:</strong> {exp.suggestedFixes.join("; ")}</p>
+          <button type="button" className="btn btn-ghost" disabled={loading} onClick={() => void run()}>
+            {loading ? "Analyzing…" : "Re-analyze"}
+          </button>
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -394,6 +446,10 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
         <div className="alert alert-pass" role="status">
           Test passed — all steps succeeded.
         </div>
+      ) : null}
+
+      {run.status === "failed" ? (
+        <ExplainWithAi runId={run.id} projectId={run.projectId} demo={runId === "demo" || run.id === sampleRun.id} />
       ) : null}
 
       {/* Timeline */}
