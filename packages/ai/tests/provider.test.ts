@@ -14,10 +14,18 @@ describe("selectProvider", () => {
     expect(p.engine).toBe("rules");
   });
 
-  it("returns the LLM provider when AI_API_KEY is set", () => {
-    const p = selectProvider({ AI_API_KEY: "sk-test" } as NodeJS.ProcessEnv);
+  it("returns the Kilo keyless provider when AI_PROVIDER=kilo", () => {
+    const p = selectProvider({ AI_PROVIDER: "kilo" } as NodeJS.ProcessEnv);
     expect(p).toBeInstanceOf(EnvProvider);
     expect(p.engine).toBe("llm");
+    expect((p as EnvProvider).model).toBe("kilo-auto/free");
+    expect((p as EnvProvider).baseUrl).toBe("https://api.kilo.ai/api/gateway");
+  });
+
+  it("readEnvConfig: kilo honors AI_MODEL override + optional key", () => {
+    const cfg = readEnvConfig({ AI_PROVIDER: "kilo", AI_MODEL: "openrouter/free", AI_API_KEY: "kilo-key" } as NodeJS.ProcessEnv)!;
+    expect(cfg.model).toBe("openrouter/free");
+    expect(cfg.apiKey).toBe("kilo-key");
   });
 
   it("readEnvConfig applies safe defaults", () => {
@@ -77,6 +85,20 @@ describe("EnvProvider (mocked fetch — no real network)", () => {
     const p = new EnvProvider({ baseUrl: "https://llm.example.com", apiKey: "sk-SECRET-KEY", model: "m", timeoutMs: 5000 });
     await expect(p.complete("hi")).rejects.toThrowError(/HTTP 401/);
     await expect(p.complete("hi")).rejects.toThrowError(/^(?!.*SECRET).*$/);
+  });
+
+  it("omits the auth header for keyless gateways", async () => {
+    const seen: { headers?: Record<string, string> } = {};
+    vi.stubGlobal(
+      "fetch",
+      (async (_url: string, init: { headers: Record<string, string> }) => {
+        seen.headers = init.headers;
+        return { ok: true, json: async () => ({ choices: [{ message: { content: "hi" } }] }) };
+      }) as typeof fetch,
+    );
+    const p = new EnvProvider({ baseUrl: "https://api.kilo.ai/api/gateway", apiKey: "", model: "kilo-auto/free", timeoutMs: 5000 });
+    expect(await p.complete("hello")).toBe("hi");
+    expect(seen.headers).not.toHaveProperty("authorization");
   });
 
   it("reports timeouts without leaking the key", async () => {
