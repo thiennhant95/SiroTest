@@ -63,6 +63,10 @@ export interface HealingProposal {
   status: "pending" | "approved" | "rejected";
   createdAt: string;
   decidedAt: string | null;
+  /** Deterministic review score 0–100 (server-computed from evidence; higher = safer approve). */
+  score?: number;
+  /** Weight breakdown for the score badge tooltip. */
+  scoreReasons?: string[];
 }
 
 export interface SuggestedAssertion {

@@ -61,6 +61,11 @@ Example run request:
 `GET /tests/:id/stability` → `{stable, stableAt, stableRuns}` (any definition PATCH clears the stamp)
 `GET /tests/:id/rubric` → `{score/100, checks[]}` (stable-primaries 30, alternatives 15, no-hard-waits 15, assertions 20, named 10, enabled 10; pure, nothing runs)
 
+## Healing (explicit, human-approved only)
+`GET /tests/:id/healing?status=pending|approved|rejected|all` → proposals with deterministic `score` 0–100 + `scoreReasons[]` (verified 40 + unique match 30 + winner-strategy stability 15 + decisiveness 10 + DOM preview 5; review aid, never auto-applies)
+`POST /healing/:pid/approve` → rewrites the step primary, demotes the old primary to alternatives head, mints a version (voids the stability stamp)
+`POST /healing/:pid/reject` → terminal reject, definition untouched
+
 ## Audit
 `GET /projects/:projectId/audit?action=&userId=&limit=&offset=` → project-scoped evidence trail (viewer+ may read; secrets redacted in `details`).
 
