@@ -10,7 +10,8 @@ Reusable business actions, test data/data-driven runs, suites/tags, auth/storage
 
 ## P2 — differentiated product (partial)
 Shipped: AI from natural language (rules; LLM with key), recorded-test cleanup, failure explanation, suggested assertions, explicit locator healing, plugin/action SDK, distributed workers, visual regression, RBAC/audit/retention, analytics/flaky.
-Open: enterprise SSO live verification, healing DOM scoring, JUnit import, MCP server, Docker packaging, k6.
+Open: enterprise SSO live verification, healing DOM scoring, JUnit import, Docker packaging, k6.
+AI leverage backlog (audit 2026-10-11, after flake): `AI_PROVIDER=ollama` first-class preset (local/private/free; solves keyless-logging for enterprise), 1-click "Explain with AI" in run page (trajectory already exports), LLM result cache by input hash, LLM-assisted suggestions/Gherkin naming (rules stay as fallback), vision-model visual-diff explanation, embeddings test-dedupe. Never: LLM-applied healing, LLM-generated primary locators (deterministic core stays).
 
 ## Gate rule
 Do not start P1 until a manual tester outside the implementation team can successfully create and maintain at least 5 representative business tests using P0.
