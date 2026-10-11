@@ -7,6 +7,7 @@ import { requireAuth, requireProjectAccess } from '../auth.js';
 import { requireWriteAccessToProject } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, fileUpload } from '../schemas.js';
+import { writeAudit } from './audit.js';
 
 /**
  * P1 wave-2 — file library for upload steps.
@@ -269,6 +270,11 @@ export async function fileRoutes(app: FastifyInstance): Promise<void> {
     } catch {
       // DB row is gone; a missing byte file needs no further action.
     }
+    await writeAudit({
+      projectId: row.projectId, userId: req.user!.id,
+      action: 'file.delete', entityType: 'file', entityId: fid,
+      details: { name: row.name },
+    });
     return reply.code(204).send();
   });
 }

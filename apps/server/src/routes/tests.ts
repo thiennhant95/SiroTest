@@ -152,7 +152,7 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
     } catch {
       throw new ApiError('NOT_FOUND', `Test ${id} not found`, 404);
     }
-    void writeAudit({
+    await writeAudit({
       projectId: doomed?.projectId ?? null, userId: req.user!.id,
       action: 'test.delete', entityType: 'test', entityId: id,
       details: { name: doomed?.name ?? null },
@@ -178,6 +178,11 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
         createdBy: req.user!.id, changeMessage: `duplicated from ${id}`,
       },
     });
+    await writeAudit({
+      projectId: src.projectId, userId: req.user!.id,
+      action: 'test.duplicate', entityType: 'test', entityId: copy.id,
+      details: { fromTestId: id, name: copy.name },
+    });
     return reply.code(201).send(copy);
   });
 
@@ -202,11 +207,18 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
       // Definition swapped back to an older shape: void the stamp (PATCH rule).
       data: { definitionJson: v.definitionJson, stable: false, stableAt: null, stableRuns: 0 },
     });
-    return db().testVersion.create({
+    const restored = await db().testVersion.create({
       data: {
         testId: id, versionNumber: next, definitionJson: v.definitionJson,
         createdBy: req.user!.id, changeMessage: `restore v${v.versionNumber}`,
       },
     });
+    const owner = await db().test.findUnique({ where: { id }, select: { projectId: true } });
+    await writeAudit({
+      projectId: owner?.projectId ?? null, userId: req.user!.id,
+      action: 'test.restore', entityType: 'test', entityId: id,
+      details: { versionId, versionNumber: next },
+    });
+    return restored;
   });
 }

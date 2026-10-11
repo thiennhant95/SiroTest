@@ -4,6 +4,7 @@ import { requireAuth, requireProjectAccess } from '../auth.js';
 import { assertNoActiveRuns, requireProjectWrite, requireWriteAccessToProject } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, envCreate, envUpdate } from '../schemas.js';
+import { writeAudit } from './audit.js';
 
 export async function environmentRoutes(app: FastifyInstance): Promise<void> {
   app.get('/projects/:projectId/environments', { preHandler: requireAuth }, async (req) => {
@@ -20,6 +21,11 @@ export async function environmentRoutes(app: FastifyInstance): Promise<void> {
       await db().environment.updateMany({ where: { projectId }, data: { isDefault: false } });
     }
     const created = await db().environment.create({ data: { projectId, ...body } });
+    await writeAudit({
+      projectId, userId: req.user!.id,
+      action: 'environment.create', entityType: 'environment', entityId: created.id,
+      details: { name: created.name },
+    });
     return reply.code(201).send(created);
   });
 
@@ -38,7 +44,7 @@ export async function environmentRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete('/environments/:id', { preHandler: requireAuth }, async (req, reply) => {
     const { id } = req.params as { id: string };
-    const existing = await db().environment.findUnique({ where: { id }, select: { projectId: true } });
+    const existing = await db().environment.findUnique({ where: { id }, select: { projectId: true, name: true } });
     if (!existing) throw new ApiError('NOT_FOUND', `Environment ${id} not found`, 404);
     await requireWriteAccessToProject(req, existing.projectId);
     await assertNoActiveRuns({ environmentId: id }, `Environment ${id}`);
@@ -47,6 +53,11 @@ export async function environmentRoutes(app: FastifyInstance): Promise<void> {
     } catch {
       throw new ApiError('NOT_FOUND', `Environment ${id} not found`, 404);
     }
+    await writeAudit({
+      projectId: existing.projectId, userId: req.user!.id,
+      action: 'environment.delete', entityType: 'environment', entityId: id,
+      details: { name: existing.name },
+    });
     return reply.code(204).send();
   });
 }

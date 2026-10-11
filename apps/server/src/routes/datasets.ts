@@ -7,6 +7,7 @@ import { ApiError } from '../errors.js';
 import { datasetImport, parseOrThrow } from '../schemas.js';
 import { DEFINITION_JSON_MAX_BYTES } from '../security.js';
 import { DatasetParseError, parseDatasetImport } from '../csv.js';
+import { writeAudit } from './audit.js';
 
 /** Max rows per embedded dataset (mirrors test-model zod cap of 500). */
 export const MAX_DATASET_ROWS = 500;
@@ -129,6 +130,12 @@ export async function datasetRoutes(app: FastifyInstance): Promise<void> {
       id, req.user!.id, raw, datasets,
       `dataset import (${body.format}, ${rows.length} rows → '${name}')`,
     );
+    // Names + counts only — row CONTENT may carry sensitive data, never logged.
+    await writeAudit({
+      projectId: test.projectId, userId: req.user!.id,
+      action: 'dataset.import', entityType: 'test', entityId: id,
+      details: { name, format: body.format, rows: rows.length },
+    });
     return reply.code(201).send({
       dataset: datasets.find((d) => d.name === name)!,
       definitionJson: saved['definitionJson'],
@@ -148,6 +155,11 @@ export async function datasetRoutes(app: FastifyInstance): Promise<void> {
     const saved = await persistDatasets(
       id, req.user!.id, raw, datasets, `dataset delete ('${removed.name}')`,
     );
+    await writeAudit({
+      projectId: test.projectId, userId: req.user!.id,
+      action: 'dataset.delete', entityType: 'test', entityId: id,
+      details: { name: removed.name, rows: removed.rows.length },
+    });
     return reply.code(200).send({ deleted: removed.id, definitionJson: saved['definitionJson'] });
   });
 }

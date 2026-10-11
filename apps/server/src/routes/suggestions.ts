@@ -6,6 +6,7 @@ import { requireAuth, requireProjectAccess } from '../auth.js';
 import { requireProjectWrite } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { validateDefinitionForStore } from '../security.js';
+import { writeAudit } from './audit.js';
 import { getAIProvider, loadProjectSecrets, redactForLLM } from '../ai-provider.js';
 import { recorderManager } from './recorder.js';
 
@@ -563,6 +564,13 @@ export async function suggestionRoutes(app: FastifyInstance): Promise<void> {
         createdBy: req.user!.id,
         changeMessage: `suggestions: inserted ${toInsert.length} assertion step(s) by ${req.user!.id}`,
       },
+    });
+    // Definition rewrite (like healing approve / restore): audited with the
+    // inserted count — the versions table holds the what, this holds the who.
+    await writeAudit({
+      projectId: test.projectId, userId: req.user!.id,
+      action: 'suggestions.apply', entityType: 'test', entityId: id,
+      details: { inserted: toInsert.length, versionNumber: version.versionNumber },
     });
     return {
       testId: id,

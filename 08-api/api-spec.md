@@ -73,7 +73,7 @@ Example run request:
 ## Audit
 `GET /projects/:projectId/audit?action=&userId=&limit=&offset=` → project-scoped evidence trail (viewer+ may read; secrets redacted in `details`).
 
-Recorded actions include: `stability.gate_created`, `stability.gate_cancelled`, `stability.verdict` (with `stale: true` when a mid-gate edit discarded the verdict), `worker.stale-requeue`, `worker.marked-offline`, `worker.revive`, `healing.approve`, `healing.reject`.
+Recorded actions include: `project.create`, `project.delete` (project-less orphan row — the project's own trail cascades on delete), `test.duplicate`, `test.restore`, `test.delete`, `suggestions.apply`, `suite.delete`, `suite.tests.add/move/replace/remove`, `stability.gate_created`, `stability.gate_cancelled`, `stability.verdict` (with `stale: true` when a mid-gate edit discarded the verdict), `worker.stale-requeue`, `worker.marked-offline`, `worker.revive`, `healing.approve`, `healing.reject`, `variable.create/update/delete` (key/scope/flags only — values never), `integration.create/update/delete` (provider/name only — secrets never), `schedule.create/update/delete`, `schedule.run-now`, `transfer.import` (counts only), `dataset.import/delete` (names+counts only — cell content never), `profile.create/update/delete` (name/scope only), `action.create/update/delete`, `environment.create/delete`, `file.delete`, `baseline.promote/delete`, `bug.report`.
 
 Durability rule: on paths that report the recorded change in the response, the audit row is awaited before responding — a client reading `/audit` immediately after never observes an empty trail.
 

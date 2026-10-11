@@ -9,6 +9,7 @@ import { requireGlobalWriter } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, projectImport, type ProjectExportPayload } from '../schemas.js';
 import { decryptSecret, encryptSecret, validateDefinitionForStore } from '../security.js';
+import { writeAudit } from './audit.js';
 import { assertValidCron } from './schedules.js';
 import { decodeFileBase64ForImport, sanitizeFileName } from './files.js';
 
@@ -432,6 +433,13 @@ export async function transferRoutes(app: FastifyInstance): Promise<void> {
           schedules: payload.schedules.length,
           files: payload.files.length,
         };
+        // Bulk create of a whole project (bypasses POST /projects) — audited
+        // with counts. Secrets import blank by design (counts only, no values).
+        await writeAudit({
+          projectId: project.id, userId: req.user!.id,
+          action: 'transfer.import', entityType: 'project', entityId: project.id,
+          details: { name: project.name, ...counts },
+        });
         return reply.code(201).send({ project, counts });
       } catch (err) {
         // No partial imports: roll back the whole project on any row failure.

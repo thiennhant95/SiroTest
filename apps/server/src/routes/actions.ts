@@ -13,6 +13,7 @@ import {
   parseActionRow,
   requireActionProjectAccess,
 } from '../actions.js';
+import { writeAudit } from './audit.js';
 
 /**
  * P1 reusable actions CRUD (backlog: "Reusable actions/business keywords +
@@ -113,6 +114,11 @@ export async function actionRoutes(app: FastifyInstance): Promise<void> {
           createdBy: req.user!.id,
         },
       });
+      await writeAudit({
+        projectId, userId: req.user!.id,
+        action: 'action.create', entityType: 'action', entityId: created.id,
+        details: { name: action.name },
+      });
       return reply.code(201).send(toApi(created));
     } catch (err) {
       if (conflictOf(err)) {
@@ -167,6 +173,13 @@ export async function actionRoutes(app: FastifyInstance): Promise<void> {
           definitionJson: JSON.stringify(next),
         },
       });
+      // Reusable code rewrite: every calling test compiles differently —
+      // audited with the new name (full body is one GET away).
+      await writeAudit({
+        projectId: row.projectId, userId: req.user!.id,
+        action: 'action.update', entityType: 'action', entityId: aid,
+        details: { name: next.name },
+      });
       return toApi(updated);
     } catch (err) {
       if (conflictOf(err)) {
@@ -195,6 +208,11 @@ export async function actionRoutes(app: FastifyInstance): Promise<void> {
       );
     }
     await db().action.delete({ where: { id: aid } });
+    await writeAudit({
+      projectId: row.projectId, userId: req.user!.id,
+      action: 'action.delete', entityType: 'action', entityId: aid,
+      details: { name: row.name },
+    });
     return reply.code(204).send();
   });
 }

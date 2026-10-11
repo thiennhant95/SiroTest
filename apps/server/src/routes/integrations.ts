@@ -13,6 +13,7 @@ import {
   sendToProvider,
 } from '../integrations.js';
 import { stripServerPaths } from '../security.js';
+import { writeAudit } from './audit.js';
 import { assertSafePath, storageRoot } from '@playwright-studio/runner';
 
 /**
@@ -82,6 +83,12 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
           secretJson: encryptSecrets(body.secrets ?? {}),
         },
       });
+      // Metadata only (provider/name) — secrets and config values never enter the trail.
+      await writeAudit({
+        projectId, userId: req.user!.id,
+        action: 'integration.create', entityType: 'integration', entityId: created.id,
+        details: { provider, name: body.name },
+      });
       return reply.code(201).send(mask(created));
     } catch {
       throw new ApiError('VALIDATION_ERROR', `Integration "${body.name}" already exists for ${provider}`, 409);
@@ -103,6 +110,16 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
         ...(body.secrets !== undefined ? { secretJson: encryptSecrets(body.secrets) } : {}),
       },
     });
+    await writeAudit({
+      projectId: row.projectId, userId: req.user!.id,
+      action: 'integration.update', entityType: 'integration', entityId: id,
+      details: {
+        provider: row.provider,
+        ...(body.name !== undefined ? { name: body.name } : {}),
+        ...(body.enabled !== undefined ? { enabled: body.enabled } : {}),
+        secretsRotated: body.secrets !== undefined,
+      },
+    });
     return mask(updated);
   });
 
@@ -112,6 +129,11 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
     if (!row) throw new ApiError('NOT_FOUND', `Integration ${id} not found`, 404);
     await requireWriteAccessToProject(req, row.projectId);
     await db().integration.delete({ where: { id } });
+    await writeAudit({
+      projectId: row.projectId, userId: req.user!.id,
+      action: 'integration.delete', entityType: 'integration', entityId: id,
+      details: { provider: row.provider, name: row.name },
+    });
     return reply.code(204).send();
   });
 

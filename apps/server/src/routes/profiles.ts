@@ -6,6 +6,7 @@ import { requireWriteAccessToProject } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, profileCreate, profileUpdate } from '../schemas.js';
 import { decryptSecret, encryptSecret } from '../security.js';
+import { writeAudit } from './audit.js';
 
 /**
  * P1 wave-2 — auth profiles (stored Playwright storageState, encrypted at rest).
@@ -153,6 +154,13 @@ export async function profileRoutes(app: FastifyInstance): Promise<void> {
           createdBy: req.user!.id,
         },
       })) as ProfileRow;
+      // Auth state is secret-bearing: audit lifecycle with metadata only
+      // (name/scope — storage bytes never enter the trail).
+      await writeAudit({
+        projectId, userId: req.user!.id,
+        action: 'profile.create', entityType: 'profile', entityId: created.id,
+        details: { name: body.name, environmentId: body.environmentId ?? null },
+      });
       return reply.code(201).send(maskProfileRow(created));
     } catch (err) {
       if (conflictOf(err)) {
@@ -185,6 +193,14 @@ export async function profileRoutes(app: FastifyInstance): Promise<void> {
           ...(state ? { stateEncrypted: encryptSecret(JSON.stringify(state)) } : {}),
         },
       })) as ProfileRow;
+      await writeAudit({
+        projectId: row.projectId, userId: req.user!.id,
+        action: 'profile.update', entityType: 'profile', entityId: pid,
+        details: {
+          ...(body.name !== undefined ? { name: body.name } : {}),
+          stateReplaced: state !== null,
+        },
+      });
       return maskProfileRow(updated);
     } catch (err) {
       if (conflictOf(err)) {
@@ -199,6 +215,11 @@ export async function profileRoutes(app: FastifyInstance): Promise<void> {
     const row = await loadProfileOrThrow(pid);
     await requireWriteAccessToProject(req, row.projectId);
     await db().authProfile.delete({ where: { id: pid } });
+    await writeAudit({
+      projectId: row.projectId, userId: req.user!.id,
+      action: 'profile.delete', entityType: 'profile', entityId: pid,
+      details: { name: row.name },
+    });
     return reply.code(204).send();
   });
 }
