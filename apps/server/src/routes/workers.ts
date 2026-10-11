@@ -98,7 +98,11 @@ export async function requeueStaleWorkers(
     report.staleWorkers.push(w.id);
     for (const r of claimed) {
       report.releasedRuns.push(r.id);
-      void writeAudit({
+      // Awaited: the sweep response reports these runs as released, so the
+      // audit evidence must be durable before we return — otherwise a client
+      // reading /audit immediately after can observe an empty trail (race
+      // caught by the full integration suite). writeAudit never throws.
+      await writeAudit({
         projectId: r.projectId,
         action: 'worker.stale-requeue',
         entityType: 'run',
@@ -106,7 +110,7 @@ export async function requeueStaleWorkers(
         details: { workerId: w.id, workerName: w.name },
       });
     }
-    void writeAudit({ action: 'worker.marked-offline', entityType: 'worker', entityId: w.id });
+    await writeAudit({ action: 'worker.marked-offline', entityType: 'worker', entityId: w.id });
   }
   return report;
 }

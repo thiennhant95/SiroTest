@@ -38,6 +38,7 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 
 ### Fixed
 - Stale-stamp race: a definition PATCH landing mid-gate no longer lets old runs certify the new definition (verdict snapshots + compares, discards with explicit re-run note)
+- Audit evidence race: `worker.stale-requeue`/`marked-offline`, `healing.approve/reject`, `stability.verdict/gate_created/gate_cancelled` audit rows are now awaited before the response (full-suite flake: sweep audit read came back empty under load); `writeAudit` doc states the durability rule
 - Cancel-wins in runner settle paths: an HTTP cancel that lands mid-run is never overwritten by the dying worker's `failed` (rows + gate children stay `cancelled`)
 - Ghost run page no longer leaks raw `API 404: {...}` JSON — friendly "Run <id> not found" like other ghost pages
 - Stability stamp voided on EVERY definition writer (restore, dataset import/delete, recorder save, suggestions apply, healing approve — previously only PATCH reset it)
