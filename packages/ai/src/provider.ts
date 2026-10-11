@@ -309,10 +309,10 @@ export class CachedProvider implements AIProvider {
   private misses = 0;
 
   constructor(
-    private readonly inner: AIProvider,
+    readonly wrapped: AIProvider,
     private readonly opts: LlmCacheOpts = {},
   ) {
-    this.name = `cached(${inner.name})`;
+    this.name = `cached(${wrapped.name})`;
   }
 
   stats(): { hits: number; misses: number; size: number } {
@@ -332,8 +332,8 @@ export class CachedProvider implements AIProvider {
     const key = createHash("sha256")
       .update(
         JSON.stringify({
-          p: this.inner.name,
-          m: providerModelTag(this.inner),
+          p: this.wrapped.name,
+          m: providerModelTag(this.wrapped),
           s: opts?.systemPrompt ?? "",
           j: opts?.jsonMode ?? false,
           t: opts?.maxTokens ?? 0,
@@ -353,7 +353,7 @@ export class CachedProvider implements AIProvider {
     }
     if (hit) this.store.delete(key);
     this.misses += 1;
-    const text = await this.inner.complete(prompt, opts);
+    const text = await this.wrapped.complete(prompt, opts);
     this.store.set(key, { text, expiresAt: now + ttlMs });
     while (this.store.size > maxEntries) {
       const oldest = this.store.keys().next();
@@ -397,6 +397,9 @@ export function providerStatus(provider: AIProvider): {
   provider: string;
   model?: string;
 } {
+  // The cache is transparent: status reports the wrapped LLM identity, so
+  // /ai/status keeps saying engine llm (never downgraded to rules).
+  if (provider instanceof CachedProvider) return providerStatus(provider.wrapped);
   if (provider instanceof FallbackProvider) {
     return { engine: "llm", provider: provider.name, model: provider.models.join(",") };
   }

@@ -70,6 +70,7 @@ Durability rule: on paths that report the recorded change in the response, the a
 
 ## Spec import
 `POST /projects/:projectId/import-spec` → `201 {test (draft), warnings[]}` (subset: goto/reload/nav/waits, getBy*/page.locator + actions, expect() assertions; multi-`test()` merge warns)
+`POST /projects/:projectId/import-junit` → `201 {tests[] (draft shells), warnings[]}` (JUnit `<testcase>` → draft shell with the original status/message in the description; shells have no steps until recorded; no cases → `422 JUNIT_NO_CASES`, non-JUnit → `400`)
 
 ## Schedules
 `GET /projects/:projectId/schedules`

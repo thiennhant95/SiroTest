@@ -229,6 +229,12 @@ export const specImport = z.object({
   name: z.string().min(1).max(200).optional(),
 }).strict();
 
+// P2 — JUnit XML import (migration aid → draft shells, see junit-import.ts).
+export const junitImport = z.object({
+  xml: z.string().min(1).max(512 * 1024),
+  suiteName: z.string().min(1).max(200).optional(),
+}).strict();
+
 // P1 wave-2 — project export/import payload (portable, ids remapped on import).
 const exportEnvironment = z.object({
   id: z.string().min(1),
