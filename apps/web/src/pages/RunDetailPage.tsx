@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, traceViewerUrl } from "../api/client";
-import { ApiError, api as studioApi, apiBase, authHeaders } from "../lib/api";
+import { ApiError, api as studioApi, apiBase, authHeaders, isNotFoundError } from "../lib/api";
 import { BugReportDialog } from "../components/BugReportDialog";
 import { RunTour, restartRunTour } from "../components/GuidedTour";
 import { useRunChannel } from "../hooks/useRunChannel";
@@ -28,7 +28,14 @@ function useRun(runId: string) {
         setRun(await api.getRun(runId));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load the run result");
+      // Ghost runId: never leak raw `API 404: {...}` JSON (other ghost pages are friendly).
+      setError(
+        isNotFoundError(e)
+          ? `Run ${runId} not found`
+          : e instanceof Error
+            ? e.message
+            : "Could not load the run result",
+      );
     } finally {
       setLoading(false);
     }
