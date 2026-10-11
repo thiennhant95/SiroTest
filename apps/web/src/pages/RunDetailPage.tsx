@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { api, traceViewerUrl } from "../api/client";
 import { ApiError, api as studioApi, apiBase, authHeaders } from "../lib/api";
 import { BugReportDialog } from "../components/BugReportDialog";
+import { RunTour, restartRunTour } from "../components/GuidedTour";
 import { useRunChannel } from "../hooks/useRunChannel";
 import { locatorPreview, type BuilderStep } from "../lib/steps";
 import { sampleRun } from "../mocks/sampleRun";
@@ -325,6 +326,15 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
         <div className="run-head-right">
           <RunStatusBadge status={run.status} />
           <RoleSwitch role={role} onChange={setRole} />
+          <button
+            type="button"
+            className="btn btn-small"
+            onClick={() => restartRunTour()}
+            aria-label="Replay guided tour"
+            title="Replay the guided tour"
+          >
+            ?
+          </button>
         </div>
       </header>
 
@@ -387,7 +397,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
           hint="The run may have been cancelled before it started."
         />
       ) : (
-        <ol className="timeline">
+        <ol className="timeline" data-tour="run-timeline">
           {run.steps.map((s) => (
             <details
               key={s.id}
@@ -485,7 +495,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
       )}
 
       {/* Artifacts */}
-      <h2>Evidence (screenshots / video / trace)</h2>
+      <h2 data-tour="run-evidence">Evidence (screenshots / video / trace)</h2>
       {shotArtifacts.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {shotArtifacts.map((a) => (
@@ -564,6 +574,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
         <button
           type="button"
           className="btn"
+          data-tour="run-bug"
           disabled={run.status === "running" || run.status === "queued"}
           onClick={() => setShowBug(true)}
           title="Build a Markdown bug report, download .md, or file to Jira/Backlog/Slack/Lark"
@@ -574,6 +585,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
       {showBug && run.projectId ? (
         <BugReportDialog runId={run.id} projectId={run.projectId} open={showBug} onClose={() => setShowBug(false)} />
       ) : null}
+      <RunTour />
     </section>
   );
 }

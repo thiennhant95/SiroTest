@@ -5,6 +5,7 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 ## [Unreleased] — 2026-10-03..2026-10-10
 
 ### Added
+- Guided tours: Builder 7 stops (record → stability → run) + run-result 3 stops (timeline → evidence → bug report), replayable
 - Run trajectory export: `GET /runs/:id/trajectory` (+ MCP `studio_get_trajectory`) for agent/LLM failure analysis
 - Keyless free LLM providers: `AI_PROVIDER=kilo|uncloseai` (no key, anonymous) + ordered fallback chains (`kilo,uncloseai`) (`733d55b`, `0c98379`, `736c8b9`)
 - Stability gate: `POST /tests/:id/stability` runs N× sequentially, stamps `Test.stable` on N/N (+ Builder badge + `Check 3×`)

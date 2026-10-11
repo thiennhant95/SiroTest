@@ -423,9 +423,11 @@ export function BuilderPage() {
             </Button>
           </Tooltip>
           <Tooltip tip="Record actions into steps">
-            <Button size="sm" variant="outline" onClick={() => nav(`/tests/${id}/record`)}>
-              ● Record
-            </Button>
+            <span data-tour="record">
+              <Button size="sm" variant="outline" onClick={() => nav(`/tests/${id}/record`)}>
+                ● Record
+              </Button>
+            </span>
           </Tooltip>
           <span title={runHint}>
             <Tooltip tip={runDisabled ? runHint : "Run the saved revision"}>
@@ -870,7 +872,7 @@ function StabilityBadge({ testId, envId, offline, version }: { testId: string; e
   }, [testId, offline, version]);
   if (offline) return null;
   return (
-    <span className="inline-flex items-center gap-1">
+    <span data-tour="stability" className="inline-flex items-center gap-1">
       {stamp ? (
         stamp.stable
           ? <Badge tone="green" title={`Passed ${stamp.stableRuns}/${stamp.stableRuns} consecutive runs. Any edit clears the stamp.`}>Stable {stamp.stableRuns}/{stamp.stableRuns}</Badge>
