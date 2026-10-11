@@ -361,9 +361,23 @@ describe('P2 healing proposals API', () => {
     const { proposalIds } = await mk({ strategy: 'testId', value: 'login-btn' });
     const { proposalIds: second } = await mk({ strategy: 'css', value: '.login-btn' });
 
+    // A healing-approved locator is a definition change: the stability stamp
+    // that described the OLD definition must be voided (same rule as PATCH).
+    const { db } = await import('../../apps/server/src/db.js');
+    await db().test.update({
+      where: { id: testId },
+      data: { stable: true, stableAt: new Date(), stableRuns: 3 },
+    });
+
     const approved = await injectJson(app, 'POST', `/api/v1/healing/${proposalIds[0]}/approve`);
     assert.equal(approved.statusCode, 200);
     assert.equal((approved.json() as { versionNumber: number }).versionNumber, versionsBefore.length + 1);
+    const afterApprove = (await injectJson(app, 'GET', `/api/v1/tests/${testId}`)).json() as {
+      stable: boolean;
+      stableRuns: number;
+    };
+    assert.equal(afterApprove.stable, false, 'approve must void the stability stamp');
+    assert.equal(afterApprove.stableRuns, 0);
 
     const def = JSON.parse(
       ((await injectJson(app, 'GET', `/api/v1/tests/${testId}`)).json() as { definitionJson: string }).definitionJson,

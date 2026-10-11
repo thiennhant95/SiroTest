@@ -109,6 +109,40 @@ export class RecorderSessionManager {
     return s;
   }
 
+  /**
+   * Stop every live session for a deleted test/project (drafts are
+   * discarded — the owning test is gone). Best-effort: never throws, so
+   * deletes cannot be blocked by recorder state. Returns stopped count.
+   */
+  stopSessionsForTest(testId: string): number {
+    let stopped = 0;
+    for (const s of [...this.sessions.values()]) {
+      if (s.testId !== testId || s.status === 'stopped') continue;
+      try {
+        this.stop(s.sessionId);
+        stopped += 1;
+      } catch {
+        // keep sweeping the rest
+      }
+    }
+    return stopped;
+  }
+
+  /** Same as above, matched on project (project delete cascades tests). */
+  stopSessionsForProject(projectId: string): number {
+    let stopped = 0;
+    for (const s of [...this.sessions.values()]) {
+      if (s.projectId !== projectId || s.status === 'stopped') continue;
+      try {
+        this.stop(s.sessionId);
+        stopped += 1;
+      } catch {
+        // keep sweeping the rest
+      }
+    }
+    return stopped;
+  }
+
   /** Browser closed/crashed: keep draft, mark interrupted (stays retrievable). */
   markInterrupted(sessionId: string, reason = 'browser-closed'): RecorderSession {
     const s = this.require(sessionId);

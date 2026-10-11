@@ -33,6 +33,8 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 - Rebrand UI to SiroTest; English UI + uniform buttons + IPv4/IPv6 dual-stack dev server (`faa98c1`, `d891781`)
 
 ### Fixed
+- Stability stamp voided on EVERY definition writer (restore, dataset import/delete, recorder save, suggestions apply, healing approve — previously only PATCH reset it)
+- Test/project delete reaps live recorder sessions (no orphaned headed browsers, no ghost RECORDER_ALREADY_ACTIVE)
 - Strict request schemas on ALL endpoints (unknown keys 400, never silently dropped) (`7ce6105`)
 - Retention scripts refuse without explicit STORAGE_PATH/DATABASE_URL; integration storage isolated to temp (`7553f70`)
 - PATCH create/update schemas reject unknown keys instead of silently dropping them (`6f15ffa`)

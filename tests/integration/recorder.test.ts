@@ -244,4 +244,26 @@ describe('session manager: pause/resume/interruption recovery', () => {
     const wireStep = (emitted.payload as { step: CapturedStep }).step;
     assert.equal(wireStep.value, '***MASKED***');
   });
+
+  it('stopSessionsForTest/Project reap live sessions; test starts are reusable after', () => {
+    const mgr = new RecorderSessionManager();
+    const a = mgr.start({ userId: 'u1', testId: 'ta', projectId: 'pa' });
+    const b = mgr.start({ userId: 'u1', testId: 'tb', projectId: 'pa' });
+    const c = mgr.start({ userId: 'u2', testId: 'tc', projectId: 'pb' });
+
+    assert.equal(mgr.stopSessionsForTest('ta'), 1, 'only the deleted test is swept');
+    assert.equal(mgr.getBySessionId(a.sessionId), undefined, 'stopped sessions leave the registry');
+    assert.ok(mgr.getBySessionId(b.sessionId), 'other test in same project untouched');
+    assert.ok(mgr.getBySessionId(c.sessionId), 'other project untouched');
+
+    assert.equal(mgr.stopSessionsForProject('pa'), 1, 'project sweep reaps remaining session');
+    assert.equal(mgr.getBySessionId(b.sessionId), undefined);
+    assert.ok(mgr.getBySessionId(c.sessionId), 'pb survives pa delete');
+
+    // Sweeps are idempotent and never throw; user can record again immediately.
+    assert.equal(mgr.stopSessionsForProject('pa'), 0);
+    assert.equal(mgr.stopSessionsForTest('missing'), 0);
+    assert.doesNotThrow(() => mgr.start({ userId: 'u1', testId: 'ta', projectId: 'pa' }),
+      'no RECORDER_ALREADY_ACTIVE ghost after delete-sweep');
+  });
 });

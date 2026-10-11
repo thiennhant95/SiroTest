@@ -187,7 +187,11 @@ function testBaseUrl(test: { definitionJson: string }): string | undefined {
       const appended = [...def.steps, ...stopped.draftSteps.map(toDefinitionStep)];
       const nextJson = JSON.stringify({ ...def, steps: appended });
       const next = (test.versions[0]?.versionNumber ?? 0) + 1;
-      await db().test.update({ where: { id: stopped.testId }, data: { definitionJson: nextJson } });
+      await db().test.update({
+        where: { id: stopped.testId },
+        // Appended recorded steps: void the stability stamp (PATCH rule).
+        data: { definitionJson: nextJson, stable: false, stableAt: null, stableRuns: 0 },
+      });
       await db().testVersion.create({
         data: {
           testId: stopped.testId, versionNumber: next, definitionJson: nextJson,
