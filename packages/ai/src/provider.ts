@@ -164,13 +164,88 @@ export class EnvProvider implements AIProvider {
 }
 
 /**
- * Factory: LLM when `AI_API_KEY` (or `AI_PROVIDER=kilo|uncloseai`) is configured,
- * otherwise the deterministic rule provider. Callers MUST surface
- * `provider.engine` in their response.
+ * Factory: LLM when `AI_API_KEY` (or `AI_PROVIDER=kilo|uncloseai[,…]`) is
+ * configured, otherwise the deterministic rule provider. Callers MUST
+ * surface `provider.engine` in their response.
+ *
+ * `AI_PROVIDER` accepts a comma list (`kilo,uncloseai`) tried IN ORDER —
+ * first success wins, total failure throws (callers fall back to rules).
+ * Tokens: `kilo`, `uncloseai`, `key` (= classic `AI_API_KEY` endpoint).
+ * Unknown tokens are dropped; an empty chain yields {@link RuleProvider}
+ * (visible as `engine: 'rules'` in `/ai/status`, never a crash).
  */
 export function selectProvider(env: NodeJS.ProcessEnv = process.env): AIProvider {
-  const cfg = readEnvConfig(env);
-  return cfg ? new EnvProvider(cfg) : new RuleProvider();
+  const tokens = (env.AI_PROVIDER ?? "")
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter((t) => t.length > 0);
+  if (tokens.length === 0) {
+    const cfg = readEnvConfig(env);
+    return cfg ? new EnvProvider(cfg) : new RuleProvider();
+  }
+  const seen = new Set<string>();
+  const chain: EnvProvider[] = [];
+  for (const token of tokens) {
+    const cfg = configForToken(token, env);
+    if (!cfg) continue;
+    const key = `${cfg.baseUrl}|${cfg.model}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    chain.push(new EnvProvider(cfg));
+  }
+  if (chain.length === 0) return new RuleProvider();
+  if (chain.length === 1) return chain[0]!;
+  return new FallbackProvider(chain);
+}
+
+function configForToken(token: string, env: NodeJS.ProcessEnv): EnvProviderConfig | null {
+  if (token === "kilo" || token === "uncloseai") {
+    const keyless = token === "kilo"
+      ? { baseUrl: KILO_BASE_URL, model: KILO_DEFAULT_MODEL }
+      : { baseUrl: UNCLOSEAI_BASE_URL, model: UNCLOSEAI_DEFAULT_MODEL };
+    const baseUrl = (env.AI_BASE_URL ?? keyless.baseUrl).trim().replace(/\/$/, "") || keyless.baseUrl;
+    const model = (env.AI_MODEL ?? keyless.model).trim() || keyless.model;
+    return { baseUrl, apiKey: (env.AI_API_KEY ?? "").trim(), model, timeoutMs: readTimeout(env) };
+  }
+  if (token === "key" || token === "env" || token === "openai") {
+    return readEnvConfig(env);
+  }
+  return null;
+}
+
+/**
+ * Tries LLM providers in order; first success wins. Total failure rethrows
+ * the LAST error so callers can fall back to rules (and log something real).
+ * `engine` stays `'llm'` — the response came from an LLM, whichever one.
+ */
+export class FallbackProvider implements AIProvider {
+  readonly engine: AIEngine = "llm";
+  readonly name: string;
+  readonly models: string[];
+
+  constructor(readonly chain: EnvProvider[]) {
+    if (chain.length === 0) throw new Error("FallbackProvider needs at least one provider");
+    this.models = chain.map((p) => p.model);
+    this.name = `fallback(${chain.map((p) => providerShortName(p)).join("+")})`;
+  }
+
+  async complete(prompt: string, opts?: AICompleteOptions): Promise<string> {
+    let lastErr: unknown = new Error("no providers in chain");
+    for (const p of this.chain) {
+      try {
+        return await p.complete(prompt, opts);
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+  }
+}
+
+function providerShortName(p: EnvProvider): string {
+  if (p.baseUrl === KILO_BASE_URL) return "kilo";
+  if (p.baseUrl === UNCLOSEAI_BASE_URL) return "uncloseai";
+  return "key";
 }
 
 /**
@@ -182,6 +257,9 @@ export function providerStatus(provider: AIProvider): {
   provider: string;
   model?: string;
 } {
+  if (provider instanceof FallbackProvider) {
+    return { engine: "llm", provider: provider.name, model: provider.models.join(",") };
+  }
   if (provider instanceof EnvProvider) {
     return { engine: "llm", provider: provider.name, model: provider.model };
   }

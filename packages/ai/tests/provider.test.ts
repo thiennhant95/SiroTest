@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import {
   EnvProvider,
+  FallbackProvider,
   RuleProvider,
   providerStatus,
   readEnvConfig,
@@ -28,6 +29,23 @@ describe("selectProvider", () => {
     expect(p.engine).toBe("llm");
     expect((p as EnvProvider).model).toBe("turboderp/Qwen3.8-27B-exl3");
     expect((p as EnvProvider).baseUrl).toBe("https://hermes.ai.unturf.com/v1");
+  });
+
+  it("builds an ordered fallback chain for comma lists", () => {
+    const p = selectProvider({ AI_PROVIDER: "kilo,uncloseai" } as NodeJS.ProcessEnv);
+    expect(p).toBeInstanceOf(FallbackProvider);
+    const chain = (p as FallbackProvider).chain;
+    expect(chain.map((c) => c.model)).toEqual(["kilo-auto/free", "turboderp/Qwen3.8-27B-exl3"]);
+    expect(providerStatus(p)).toEqual({
+      engine: "llm",
+      provider: "fallback(kilo+uncloseai)",
+      model: "kilo-auto/free,turboderp/Qwen3.8-27B-exl3",
+    });
+  });
+
+  it("unknown tokens yield rules (visible, never a crash)", () => {
+    const p = selectProvider({ AI_PROVIDER: "killo" } as NodeJS.ProcessEnv);
+    expect(p).toBeInstanceOf(RuleProvider);
   });
 
   it("readEnvConfig: kilo honors AI_MODEL override + optional key", () => {
@@ -107,6 +125,25 @@ describe("EnvProvider (mocked fetch — no real network)", () => {
     const p = new EnvProvider({ baseUrl: "https://api.kilo.ai/api/gateway", apiKey: "", model: "kilo-auto/free", timeoutMs: 5000 });
     expect(await p.complete("hello")).toBe("hi");
     expect(seen.headers).not.toHaveProperty("authorization");
+  });
+
+  it("fallback tries in order and throws the last error when all fail", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      (async (url: string) => {
+        calls.push(url);
+        if (url.includes("kilo")) return { ok: false, status: 429, json: async () => ({}) };
+        return { ok: true, json: async () => ({ choices: [{ message: { content: "second-wins" } }] }) };
+      }) as typeof fetch,
+    );
+    const p = selectProvider({ AI_PROVIDER: "kilo,uncloseai" } as NodeJS.ProcessEnv);
+    expect(await p.complete("hi")).toBe("second-wins");
+    expect(calls[0]).toContain("kilo");
+    expect(calls[1]).toContain("unturf");
+
+    vi.stubGlobal("fetch", (async () => ({ ok: false, status: 500, json: async () => ({}) })) as typeof fetch);
+    await expect(p.complete("hi")).rejects.toThrowError(/HTTP 500/);
   });
 
   it("reports timeouts without leaking the key", async () => {
