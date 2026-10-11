@@ -67,8 +67,11 @@ export interface AuditWrite {
 
 /**
  * Best-effort audit write: resolves to void and NEVER rejects (audit must
- * not fail the operation it records). Call WITHOUT await or with
- * `void writeAudit(…)` — it is already fire-and-forget safe.
+ * not fail the operation it records). On request paths that REPORT the
+ * recorded state change in the response, AWAIT it — otherwise a client
+ * reading /audit immediately after observes an empty trail (evidence race).
+ * `void writeAudit(…)` is only acceptable on paths where no response or
+ * follow-up read depends on the evidence being durable yet.
  */
 export async function writeAudit(entry: AuditWrite): Promise<void> {
   try {

@@ -139,7 +139,7 @@ async function applyVerdict(
       ? { stable: true, stableAt: new Date(), stableRuns: runs.length }
       : { stable: false, stableAt: null, stableRuns: 0 },
   });
-  void writeAudit({
+  await writeAudit({
     projectId, userId,
     action: 'stability.verdict', entityType: 'test', entityId: testId,
     details: { runs: runs.map((r) => r.id), passed, total: runs.length, stable, stale },
@@ -239,7 +239,7 @@ export async function stabilityRoutes(app: FastifyInstance): Promise<void> {
         cancelRequested: false,
       };
       registerGate(gate);
-      void writeAudit({
+      await writeAudit({
         projectId: test.projectId, userId: req.user!.id,
         action: 'stability.gate_created', entityType: 'test', entityId: id,
         details: { gateId: gate.gateId, runs: runsTotal },
@@ -290,7 +290,7 @@ export async function stabilityRoutes(app: FastifyInstance): Promise<void> {
     }
     if (gate.status === 'queued' || gate.status === 'running') {
       gate.cancelRequested = true;
-      void writeAudit({
+      await writeAudit({
         projectId: gate.projectId, userId: req.user!.id,
         action: 'stability.gate_cancelled', entityType: 'test', entityId: id,
         details: { gateId: gate.gateId },

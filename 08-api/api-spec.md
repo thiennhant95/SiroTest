@@ -61,6 +61,13 @@ Example run request:
 `GET /tests/:id/stability` → `{stable, stableAt, stableRuns}` (any definition PATCH clears the stamp)
 `GET /tests/:id/rubric` → `{score/100, checks[]}` (stable-primaries 30, alternatives 15, no-hard-waits 15, assertions 20, named 10, enabled 10; pure, nothing runs)
 
+## Audit
+`GET /projects/:projectId/audit?action=&userId=&limit=&offset=` → project-scoped evidence trail (viewer+ may read; secrets redacted in `details`).
+
+Recorded actions include: `stability.gate_created`, `stability.gate_cancelled`, `stability.verdict` (with `stale: true` when a mid-gate edit discarded the verdict), `worker.stale-requeue`, `worker.marked-offline`, `worker.revive`, `healing.approve`, `healing.reject`.
+
+Durability rule: on paths that report the recorded change in the response, the audit row is awaited before responding — a client reading `/audit` immediately after never observes an empty trail.
+
 ## Spec import
 `POST /projects/:projectId/import-spec` → `201 {test (draft), warnings[]}` (subset: goto/reload/nav/waits, getBy*/page.locator + actions, expect() assertions; multi-`test()` merge warns)
 

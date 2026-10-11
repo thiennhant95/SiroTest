@@ -325,7 +325,7 @@ export async function healingRoutes(app: FastifyInstance): Promise<void> {
       where: { id: pid },
       data: { status: 'approved', decidedAt: new Date() },
     });
-    void writeAudit({
+    await writeAudit({
       projectId: proposal.projectId, userId: req.user!.id,
       action: 'healing.approve', entityType: 'healingProposal', entityId: pid,
       details: { stepId: proposal.stepId, from: fromKey, to: toKey },
@@ -350,7 +350,7 @@ export async function healingRoutes(app: FastifyInstance): Promise<void> {
       where: { id: pid },
       data: { status: 'rejected', decidedAt: new Date() },
     });
-    void writeAudit({
+    await writeAudit({
       projectId: proposal.projectId, userId: req.user!.id,
       action: 'healing.reject', entityType: 'healingProposal', entityId: pid,
     });
