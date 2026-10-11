@@ -76,6 +76,14 @@ export function AiAssistantPage({ onInsertSteps, testId, runId, initialTab = "co
         </div>
         {status ? <EngineBadge engine={status.engine} /> : null}
       </div>
+      {status && /kilo|uncloseai|qwen/i.test(`${status.provider} ${status.model ?? ""}`) ? (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900" role="note">
+          <strong>Free keyless LLM tier ({status.provider}{status.model ? ` · ${status.model}` : ""}).</strong>{" "}
+          Anonymous and rate-limited — the upstream provider may log prompts. Project secret values are redacted
+          before sending, but do not use this tier with confidential data. Enterprise: set{" "}
+          <code className="rounded bg-amber-100 px-1 font-mono">AI_API_KEY</code> to your own endpoint instead.
+        </div>
+      ) : null}
       <Tabs<AiTab>
         value={tab}
         onChange={setTab}

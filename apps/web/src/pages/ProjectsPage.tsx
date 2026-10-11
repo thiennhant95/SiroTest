@@ -128,7 +128,6 @@ export function ProjectsPage() {
                   </Link>
                   {p.description ? <p className="truncate text-xs text-slate-500">{p.description}</p> : null}
                   <p className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-[11px] text-slate-400">
-                    <span>{p.id.slice(0, 12)}…</span>
                     {p.baseUrl ? <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-500">{p.baseUrl}</span> : null}
                   </p>
                 </div>

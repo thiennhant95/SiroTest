@@ -55,6 +55,9 @@ Example run request:
 
 ## Stability gate + rubric
 `POST /tests/:id/stability` → `200 {runs, passed, total, stable}` (runs the standard run path N=2–5× sequentially, sync; stamps `Test.stable` only on N/N)
+`POST /tests/:id/stability {async: true}` → `202 {gateId, status, total, poll}` (same loop in background; cancel-safe)
+`GET /tests/:id/stability/gates/:gateId` → `{gateId, status: queued|running|passed|failed|cancelled, passed, total, stable, runs[], error}` (poll every ~3s)
+`DELETE /tests/:id/stability/gates/:gateId` → marks cancel, kills the current child run, settles `cancelled` (idempotent)
 `GET /tests/:id/stability` → `{stable, stableAt, stableRuns}` (any definition PATCH clears the stamp)
 `GET /tests/:id/rubric` → `{score/100, checks[]}` (stable-primaries 30, alternatives 15, no-hard-waits 15, assertions 20, named 10, enabled 10; pure, nothing runs)
 

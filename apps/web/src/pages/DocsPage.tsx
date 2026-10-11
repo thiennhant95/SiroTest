@@ -281,7 +281,7 @@ Kịch bản: Đăng nhập thành công
     group: "Testing",
     title: "Stability gate + rubric",
     body: `## Certify a definition (not a single pass)
-Builder header shows the stamp: **Stable 3/3** (green) or **Not stable** (slate), plus **Rubric N/100**. Click **Check 3×** (needs an environment) to run the same test 3 times sequentially — the stamp is set only on 3/3 passes. Any edit clears it: stable describes the exact definition that passed, nothing else.
+Builder header shows the stamp: **Stable 3/3** (green) or **Not stable** (slate), plus **Rubric N/100**. Click **Check 3×** (needs an environment) to run the same test 3 times sequentially in the background — progress shows **Checking i/3…** with a **Cancel** button; the stamp is set only on 3/3 passes. Any edit clears it: stable describes the exact definition that passed, nothing else.
 
 ## Rubric (0–100, no browser needed)
 Scores the stored definition: stable primaries 30, backup locators 15, no hardcoded sleeps 15, assertions 20, named steps 10, all enabled 10. Fix the red checks before spending gate runs.
@@ -300,7 +300,12 @@ Explain, compose, cleanup and Gherkin all run local rule engines — every respo
 Set \`AI_PROVIDER=kilo\` or \`AI_PROVIDER=uncloseai\` (no key, anonymous free tier) or a classic \`AI_API_KEY\` endpoint. Comma lists try in order: \`AI_PROVIDER=kilo,uncloseai\`. LLM failures fall back to rules; \`engine: 'llm'\` only when the model really answered.
 
 ## Privacy
-Project secret values are redacted before anything reaches an LLM. Free tiers may log prompts upstream — do not send confidential data through them.`,
+Project secret values are redacted before anything reaches an LLM. Free tiers may log prompts upstream — do not send confidential data through them.
+
+> ⚠️ **Enterprise warning — keyless free tiers (\`kilo\`, \`uncloseai\`)**
+> These are anonymous, rate-limited third-party gateways: prompts may be logged upstream and there is no DPA.
+> Studio redacts project secret *values* before sending, but step names, URLs, selectors and failure text still go out.
+> For confidential work set \`AI_API_KEY\` to your own OpenAI-compatible endpoint (or leave AI unset — rules engines run offline and are the default).`,
   },
   {
     id: "bug-reports",

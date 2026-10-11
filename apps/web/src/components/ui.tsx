@@ -371,6 +371,40 @@ export function RoleSwitch({ role, onChange }: { role: "tester" | "developer"; o
   );
 }
 
+/**
+ * CopyId: internal IDs never render as text — where an ID is genuinely
+ * needed (support/debugging) show a copy button instead. Copies the full
+ * ID via clipboard API with a textarea fallback (non-secure contexts).
+ */
+export function CopyId({ id, label }: { id: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(id);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = id;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <button
+      type="button"
+      onClick={() => void copy()}
+      title={`Copy ${label} ID`}
+      aria-label={`Copy ${label} ID`}
+      className="inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] text-slate-500 hover:border-indigo-300 hover:text-indigo-700"
+    >
+      {copied ? "Copied ✓" : `⧉ ${label} ID`}
+    </button>
+  );
+}
+
 // ------------------------------------------------------------------ toast ---
 
 interface Toast {

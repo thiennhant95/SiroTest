@@ -164,8 +164,8 @@ export function SuiteRunDetailPage() {
               key: "runId",
               header: "Run",
               render: (r) => (
-                <Link to={`/runs/${r.runId}`} className="font-mono text-xs text-indigo-700 hover:underline">
-                  {r.runId.slice(0, 12)}…
+                <Link to={`/runs/${r.runId}`} className="text-xs font-medium text-indigo-700 hover:underline">
+                  Open run →
                 </Link>
               ),
             },

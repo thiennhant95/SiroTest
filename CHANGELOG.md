@@ -5,6 +5,9 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 ## [Unreleased] — 2026-10-03..2026-10-10
 
 ### Added
+- Async stability gate: `POST .../stability {async: true}` → 202 `{gateId, poll}` + poll/cancel endpoints; Builder "Check 3×" runs in background with progress + Cancel
+- `CopyId` button: internal IDs no longer render as text (projects/tests/builder/runs/workers/healing/record); copy-to-clipboard where the ID is genuinely needed
+- Suite-flake diagnostics: failing suite test now dumps child run error summaries instead of failing blind
 - Guided tours: Builder 7 stops (record → stability → run) + run-result 3 stops (timeline → evidence → bug report), replayable
 - Run trajectory export: `GET /runs/:id/trajectory` (+ MCP `studio_get_trajectory`) for agent/LLM failure analysis
 - Keyless free LLM providers: `AI_PROVIDER=kilo|uncloseai` (no key, anonymous) + ordered fallback chains (`kilo,uncloseai`) (`733d55b`, `0c98379`, `736c8b9`)
@@ -33,6 +36,7 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 - Rebrand UI to SiroTest; English UI + uniform buttons + IPv4/IPv6 dual-stack dev server (`faa98c1`, `d891781`)
 
 ### Fixed
+- Cancel-wins in runner settle paths: an HTTP cancel that lands mid-run is never overwritten by the dying worker's `failed` (rows + gate children stay `cancelled`)
 - Ghost run page no longer leaks raw `API 404: {...}` JSON — friendly "Run <id> not found" like other ghost pages
 - Stability stamp voided on EVERY definition writer (restore, dataset import/delete, recorder save, suggestions apply, healing approve — previously only PATCH reset it)
 - Test/project delete reaps live recorder sessions (no orphaned headed browsers, no ghost RECORDER_ALREADY_ACTIVE)
@@ -59,5 +63,6 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 - Plugin file paths no longer exposed to browser clients (`1915cc9`)
 
 ### Docs
+- Enterprise keyless-LLM warning: in-app Docs (AI providers) + amber banner in AI assistant whenever a kilo/uncloseai/Qwen free tier is active (may log prompts, no DPA — use `AI_API_KEY` for confidential work)
 - API spec, security spec, in-app Docs, operator webhook note, this changelog (`60dd0db`)
 - Scope/vision/personas/roadmap/user-flows reflect shipped state (`2fe7077`)
