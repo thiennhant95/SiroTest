@@ -4,6 +4,7 @@ import { requireAuth, requireProjectAccess } from '../auth.js';
 import { requireGlobalWriter, requireProjectWrite, requireRole } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, projectCreate, projectUpdate } from '../schemas.js';
+import { writeAudit } from './audit.js';
 import { recorderManager } from './recorder.js';
 
 export async function projectRoutes(app: FastifyInstance): Promise<void> {
@@ -27,6 +28,11 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
         create: { projectId: created.id, userId: userRow.id, role: 'owner' },
       });
     }
+    await writeAudit({
+      projectId: created.id, userId: req.user!.id,
+      action: 'project.create', entityType: 'project', entityId: created.id,
+      details: { name: created.name },
+    });
     return reply.code(201).send(created);
   });
 
@@ -60,6 +66,7 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
     if (active) {
       throw new ApiError('CONFLICT_ACTIVE_RUNS', `Project ${id} has active (queued/running) runs — cancel them first`, 409);
     }
+    const doomed = await db().project.findUnique({ where: { id }, select: { name: true } });
     // Reap recorder sessions (their tests cascade away; browsers must not linger).
     try {
       recorderManager.stopSessionsForProject(id);
@@ -71,6 +78,16 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
     } catch {
       throw new ApiError('NOT_FOUND', `Project ${id} not found`, 404);
     }
+    // Cascades every test/run/suite/variable AND the project's own audit rows
+    // (AuditLog.project is onDelete: Cascade) — so the delete evidence is
+    // written as a project-less orphan row that survives. It is invisible to
+    // the project-scoped GET /audit (the project is gone) and exists for
+    // direct-DB forensics: who deleted which project name/id, when.
+    await writeAudit({
+      projectId: null, userId: req.user!.id,
+      action: 'project.delete', entityType: 'project', entityId: id,
+      details: { name: doomed?.name ?? null },
+    });
     return reply.code(204).send();
   });
 }

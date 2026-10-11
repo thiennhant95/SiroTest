@@ -5,6 +5,7 @@ import { requireProjectWrite, requireWriteAccessToProject } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, variableCreate, variableUpdate } from '../schemas.js';
 import { encryptSecret, maskVariableRow } from '../security.js';
+import { writeAudit } from './audit.js';
 
 /**
  * Variables/secrets per project + environment (09-database/schema.md, 11-security/security.md).
@@ -64,6 +65,12 @@ export async function variableRoutes(app: FastifyInstance): Promise<void> {
           isSecret: body.isSecret ?? false,
         },
       });
+      // Metadata only (key/scope/secret-flag) — values NEVER enter the trail.
+      await writeAudit({
+        projectId, userId: req.user!.id,
+        action: 'variable.create', entityType: 'variable', entityId: created.id,
+        details: { key: body.key, environmentId: body.environmentId ?? null, isSecret: body.isSecret ?? false },
+      });
       return reply.code(201).send(mask(created as never));
     } catch {
       throw new ApiError('VALIDATION_ERROR', `Variable "${body.key}" already exists in this scope`, 409);
@@ -98,6 +105,16 @@ export async function variableRoutes(app: FastifyInstance): Promise<void> {
           ...(body.isSecret !== undefined ? { isSecret: body.isSecret } : {}),
         },
       });
+      await writeAudit({
+        projectId: existing.projectId, userId: req.user!.id,
+        action: 'variable.update', entityType: 'variable', entityId: id,
+        details: {
+          key: updated.key,
+          ...(body.key !== undefined ? { renamedFrom: existing.key } : {}),
+          valueChanged: body.value !== undefined,
+          ...(body.isSecret !== undefined ? { isSecret: body.isSecret } : {}),
+        },
+      });
       return mask(updated as never);
     } catch {
       throw new ApiError('NOT_FOUND', `Variable ${id} not found`, 404);
@@ -106,7 +123,7 @@ export async function variableRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete('/variables/:id', { preHandler: requireAuth }, async (req, reply) => {
     const { id } = req.params as { id: string };
-    const existing = await db().variable.findUnique({ where: { id }, select: { projectId: true } });
+    const existing = await db().variable.findUnique({ where: { id }, select: { projectId: true, key: true, isSecret: true } });
     if (!existing) throw new ApiError('NOT_FOUND', `Variable ${id} not found`, 404);
     await requireWriteAccessToProject(req, existing.projectId);
     try {
@@ -114,6 +131,11 @@ export async function variableRoutes(app: FastifyInstance): Promise<void> {
     } catch {
       throw new ApiError('NOT_FOUND', `Variable ${id} not found`, 404);
     }
+    await writeAudit({
+      projectId: existing.projectId, userId: req.user!.id,
+      action: 'variable.delete', entityType: 'variable', entityId: id,
+      details: { key: existing.key, wasSecret: existing.isSecret },
+    });
     return reply.code(204).send();
   });
 }

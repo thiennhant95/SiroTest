@@ -232,7 +232,7 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
       await assertNoActiveRuns({ testId: m.testId }, `Suite member ${m.testId}`);
     }
     await db().testSuite.delete({ where: { id: sid } });
-    void writeAudit({
+    await writeAudit({
       projectId: suite.projectId, userId: req.user!.id,
       action: 'suite.delete', entityType: 'suite', entityId: sid,
     });
@@ -297,6 +297,11 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
           where: { suiteId_testId: { suiteId: sid, testId: body.testId } },
           data: { sortOrder: body.sortOrder },
         });
+        await writeAudit({
+          projectId: suite.projectId, userId: req.user!.id,
+          action: 'suite.tests.move', entityType: 'suite', entityId: sid,
+          details: { testId: body.testId, sortOrder: body.sortOrder },
+        });
         return reply.code(200).send(updated);
       }
       throw new ApiError('VALIDATION_ERROR', `Test ${body.testId} is already in suite ${sid}`, 409);
@@ -308,6 +313,11 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
         testId: body.testId,
         sortOrder: body.sortOrder ?? maxOrder + 1,
       },
+    });
+    await writeAudit({
+      projectId: suite.projectId, userId: req.user!.id,
+      action: 'suite.tests.add', entityType: 'suite', entityId: sid,
+      details: { testId: body.testId },
     });
     return reply.code(201).send(created);
   });
@@ -334,6 +344,11 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
     await db().suiteTest.createMany({
       data: body.testIds.map((testId, i) => ({ suiteId: sid, testId, sortOrder: i })),
     });
+    await writeAudit({
+      projectId: suite.projectId, userId: req.user!.id,
+      action: 'suite.tests.replace', entityType: 'suite', entityId: sid,
+      details: { testIds: body.testIds },
+    });
     return db().suiteTest.findMany({
       where: { suiteId: sid },
       orderBy: { sortOrder: 'asc' },
@@ -350,6 +365,11 @@ export async function suiteRoutes(app: FastifyInstance): Promise<void> {
     } catch {
       throw new ApiError('NOT_FOUND', `Test ${testId} is not in suite ${sid}`, 404);
     }
+    await writeAudit({
+      projectId: suite.projectId, userId: req.user!.id,
+      action: 'suite.tests.remove', entityType: 'suite', entityId: sid,
+      details: { testId },
+    });
     return reply.code(204).send();
   });
 

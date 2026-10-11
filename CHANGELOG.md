@@ -45,6 +45,7 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 - Rebrand UI to SiroTest; English UI + uniform buttons + IPv4/IPv6 dual-stack dev server (`faa98c1`, `d891781`)
 
 ### Fixed
+- Audit-trail gaps: 25 previously unaudited destructive/rewrite/secret-boundary writes now leave rows (project.create/delete, test.duplicate/restore, suggestions.apply, suite.tests add/move/replace, variable/integration/schedule/profile/action/environment lifecycle, transfer.import, dataset.import/delete, file.delete, baseline.promote/delete); secret-bearing details carry metadata only, verified by tests
 - Stale-stamp race: a definition PATCH landing mid-gate no longer lets old runs certify the new definition (verdict snapshots + compares, discards with explicit re-run note)
 - Audit evidence race: `worker.stale-requeue`/`marked-offline`, `healing.approve/reject`, `stability.verdict/gate_created/gate_cancelled` audit rows are now awaited before the response (full-suite flake: sweep audit read came back empty under load); `writeAudit` doc states the durability rule
 - Cancel-wins in runner settle paths: an HTTP cancel that lands mid-run is never overwritten by the dying worker's `failed` (rows + gate children stay `cancelled`)

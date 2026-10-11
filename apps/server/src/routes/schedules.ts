@@ -158,6 +158,14 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
         createdBy: req.user!.id,
       },
     });
+    await writeAudit({
+      projectId, userId: req.user!.id,
+      action: 'schedule.create', entityType: 'schedule', entityId: created.id,
+      details: {
+        cron: created.cron, enabled: created.enabled,
+        ...(created.suiteId ? { suiteId: created.suiteId } : { testId: created.testId }),
+      },
+    });
     return reply.code(201).send(created);
   });
 
@@ -193,7 +201,7 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
     if (nextEnabled) {
       await assertNoDuplicate(row.projectId, target.suiteId, target.testId, nextCron, sid);
     }
-    return db().schedule.update({
+    const updated = await db().schedule.update({
       where: { id: sid },
       data: {
         suiteId: target.suiteId,
@@ -211,6 +219,20 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
         ...(body.notifyOnFailure !== undefined ? { notifyOnFailure: body.notifyOnFailure } : {}),
       },
     });
+    // Cron/target/enabled changes alter autonomous future runs — audited
+    // with only the touched fields (full row is one GET away).
+    await writeAudit({
+      projectId: row.projectId, userId: req.user!.id,
+      action: 'schedule.update', entityType: 'schedule', entityId: sid,
+      details: {
+        ...(body.cron !== undefined ? { cron: body.cron } : {}),
+        ...(body.enabled !== undefined ? { enabled: body.enabled } : {}),
+        ...(body.suiteId !== undefined || body.testId !== undefined
+          ? { suiteId: target.suiteId, testId: target.testId }
+          : {}),
+      },
+    });
+    return updated;
   });
 
   app.delete('/schedules/:sid', { preHandler: requireAuth }, async (req, reply) => {
@@ -219,6 +241,11 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
     await requireWriteAccessToProject(req, row.projectId);
     // Run history is preserved (Run rows carry no scheduleId FK).
     await db().schedule.delete({ where: { id: sid } });
+    await writeAudit({
+      projectId: row.projectId, userId: req.user!.id,
+      action: 'schedule.delete', entityType: 'schedule', entityId: sid,
+      details: { cron: row.cron },
+    });
     return reply.code(204).send();
   });
 

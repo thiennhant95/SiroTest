@@ -17,6 +17,7 @@ import { requireAuth, requirePrivileged, requireProjectAccess } from '../auth.js
 import { requireProjectWrite } from '../rbac.js';
 import { notifyRunWebhooks } from '../integrations.js';
 import { ApiError } from '../errors.js';
+import { writeAudit } from './audit.js';
 import { ARTIFACT_MAX_BYTES, checkAllowedHttpUrl, stripServerPaths } from '../security.js';
 import { resolveRunInputs } from '../run-inputs.js';
 import {
@@ -182,6 +183,11 @@ export async function visualRoutes(app: FastifyInstance): Promise<void> {
         where: { id: existing.id },
         data: { width: dims.width, height: dims.height, createdBy: (req as FastifyRequest).user!.id },
       });
+      await writeAudit({
+        projectId: test.projectId, userId: (req as FastifyRequest).user!.id,
+        action: 'baseline.promote', entityType: 'test', entityId: id,
+        details: { name: body.name, runId: body.runId },
+      });
       return reply.code(200).send(toMeta(updated));
     }
     const created = await db().baseline.create({
@@ -199,6 +205,11 @@ export async function visualRoutes(app: FastifyInstance): Promise<void> {
     await mkdir(join(storageRoot(), 'baselines'), { recursive: true });
     await copyFile(abs, assertSafePath(storageRoot(), rel));
     const saved = await db().baseline.update({ where: { id: created.id }, data: { path: rel } });
+    await writeAudit({
+      projectId: test.projectId, userId: (req as FastifyRequest).user!.id,
+      action: 'baseline.promote', entityType: 'test', entityId: id,
+      details: { name: body.name, runId: body.runId },
+    });
     return reply.code(201).send(toMeta(saved));
   });
 
@@ -214,6 +225,12 @@ export async function visualRoutes(app: FastifyInstance): Promise<void> {
     } catch {
       // DB row is gone; a missing byte file needs no further action.
     }
+    const owner = await db().test.findUnique({ where: { id }, select: { projectId: true } });
+    await writeAudit({
+      projectId: owner?.projectId ?? null, userId: (req as FastifyRequest).user!.id,
+      action: 'baseline.delete', entityType: 'test', entityId: id,
+      details: { name },
+    });
     return reply.code(204).send();
   });
 
