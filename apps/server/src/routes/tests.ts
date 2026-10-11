@@ -7,6 +7,7 @@ import { writeAudit } from './audit.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, testCreate, testUpdate } from '../schemas.js';
 import { validateDefinitionForStore } from '../security.js';
+import { recorderManager } from './recorder.js';
 
 /** Reject unknown step types (custom code disabled in P0) before persisting. */
 function assertStorableDefinition(definitionJson: unknown): void {
@@ -139,6 +140,13 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
     // Never pull rows out from under a live worker (cascade would crash it).
     await assertNoActiveRuns({ testId: id }, `Test ${id}`);
     const doomed = await db().test.findUnique({ where: { id }, select: { projectId: true, name: true } });
+    // Reap live recorder sessions first: deleting the test must not orphan
+    // a headed browser (best-effort — drafts die with the test, delete never blocks).
+    try {
+      recorderManager.stopSessionsForTest(id);
+    } catch {
+      // ignore — DB delete below is authoritative
+    }
     try {
       await db().test.delete({ where: { id } });
     } catch {
@@ -189,7 +197,11 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
       where: { testId: id }, orderBy: { versionNumber: 'desc' }, take: 1,
     });
     const next = (latest[0]?.versionNumber ?? 0) + 1;
-    await db().test.update({ where: { id }, data: { definitionJson: v.definitionJson } });
+    await db().test.update({
+      where: { id },
+      // Definition swapped back to an older shape: void the stamp (PATCH rule).
+      data: { definitionJson: v.definitionJson, stable: false, stableAt: null, stableRuns: 0 },
+    });
     return db().testVersion.create({
       data: {
         testId: id, versionNumber: next, definitionJson: v.definitionJson,

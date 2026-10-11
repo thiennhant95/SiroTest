@@ -305,7 +305,12 @@ export async function healingRoutes(app: FastifyInstance): Promise<void> {
     assertStorableDefinition(nextDef);
     const nextJson = JSON.stringify(nextDef);
 
-    const updated = await db().test.update({ where: { id: test.id }, data: { definitionJson: nextJson } });
+    const updated = await db().test.update({
+      where: { id: test.id },
+      // The definition changed: the stability stamp describes the OLD
+      // definition, so it is voided (same rule as PATCH /tests/:id).
+      data: { definitionJson: nextJson, stable: false, stableAt: null, stableRuns: 0 },
+    });
     const nextVersion = (test.versions[0]?.versionNumber ?? 0) + 1;
     const version = await db().testVersion.create({
       data: {

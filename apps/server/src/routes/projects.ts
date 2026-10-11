@@ -4,6 +4,7 @@ import { requireAuth, requireProjectAccess } from '../auth.js';
 import { requireGlobalWriter, requireProjectWrite, requireRole } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow, projectCreate, projectUpdate } from '../schemas.js';
+import { recorderManager } from './recorder.js';
 
 export async function projectRoutes(app: FastifyInstance): Promise<void> {
   app.get('/projects', { preHandler: requireAuth }, async (req) => {
@@ -58,6 +59,12 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
     });
     if (active) {
       throw new ApiError('CONFLICT_ACTIVE_RUNS', `Project ${id} has active (queued/running) runs — cancel them first`, 409);
+    }
+    // Reap recorder sessions (their tests cascade away; browsers must not linger).
+    try {
+      recorderManager.stopSessionsForProject(id);
+    } catch {
+      // ignore — DB delete below is authoritative
     }
     try {
       await db().project.delete({ where: { id } });

@@ -397,7 +397,11 @@ export async function suggestionRoutes(app: FastifyInstance): Promise<void> {
 
     assertStorableSteps(next);
     const nextJson = JSON.stringify({ ...def, steps: next });
-    const updated = await db().test.update({ where: { id }, data: { definitionJson: nextJson } });
+    const updated = await db().test.update({
+      where: { id },
+      // Inserted steps: void the stability stamp (PATCH rule).
+      data: { definitionJson: nextJson, stable: false, stableAt: null, stableRuns: 0 },
+    });
     const nextVersion = (test.versions[0]?.versionNumber ?? 0) + 1;
     const version = await db().testVersion.create({
       data: {

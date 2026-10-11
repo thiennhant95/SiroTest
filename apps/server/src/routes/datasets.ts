@@ -55,7 +55,11 @@ async function persistDatasets(
     );
   }
   const definitionJson = JSON.stringify(next);
-  const updated = await db().test.update({ where: { id: testId }, data: { definitionJson } });
+  const updated = await db().test.update({
+    where: { id: testId },
+    // Definition (embedded datasets) changed: void the stability stamp (PATCH rule).
+    data: { definitionJson, stable: false, stableAt: null, stableRuns: 0 },
+  });
   const latest = await db().testVersion.findMany({
     where: { testId }, orderBy: { versionNumber: 'desc' }, take: 1,
   });
