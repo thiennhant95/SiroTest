@@ -305,7 +305,9 @@ Project secret values are redacted before anything reaches an LLM. Free tiers ma
 > ⚠️ **Enterprise warning — keyless free tiers (\`kilo\`, \`uncloseai\`)**
 > These are anonymous, rate-limited third-party gateways: prompts may be logged upstream and there is no DPA.
 > Studio redacts project secret *values* before sending, but step names, URLs, selectors and failure text still go out.
-> For confidential work set \`AI_API_KEY\` to your own OpenAI-compatible endpoint (or leave AI unset — rules engines run offline and are the default).`,
+> For confidential work set \`AI_API_KEY\` to your own OpenAI-compatible endpoint (or leave AI unset — rules engines run offline and are the default).
+>
+> ✅ **Recommended for teams: self-hosted gateway.** Point \`AI_BASE_URL\` at your own OpenAI-compatible gateway (with \`AI_API_KEY\` + \`AI_MODEL\`, e.g. \`gemini-2.5-flash\`) — prompts stay inside your infrastructure, no third-party logging, and the keyless-tier warning does not apply. Studio-side secret redaction still runs as defense in depth.`,
   },
   {
     id: "bug-reports",
