@@ -19,7 +19,15 @@ describe("selectProvider", () => {
     expect(p).toBeInstanceOf(EnvProvider);
     expect(p.engine).toBe("llm");
     expect((p as EnvProvider).model).toBe("kilo-auto/free");
-    expect((p as EnvProvider).baseUrl).toBe("https://api.kilo.ai/api/gateway");
+    expect((p as EnvProvider).baseUrl).toBe("https://api.kilo.ai/api/gateway/v1");
+  });
+
+  it("returns the uncloseai keyless provider when AI_PROVIDER=uncloseai", () => {
+    const p = selectProvider({ AI_PROVIDER: "uncloseai" } as NodeJS.ProcessEnv);
+    expect(p).toBeInstanceOf(EnvProvider);
+    expect(p.engine).toBe("llm");
+    expect((p as EnvProvider).model).toBe("turboderp/Qwen3.8-27B-exl3");
+    expect((p as EnvProvider).baseUrl).toBe("https://hermes.ai.unturf.com/v1");
   });
 
   it("readEnvConfig: kilo honors AI_MODEL override + optional key", () => {

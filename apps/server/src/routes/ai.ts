@@ -14,17 +14,17 @@
  *   POST /ai/cleanup     → { engine, steps, changes[] } (sorted definition is
  *                          NOT written back — caller PATCHes /tests/:id itself)
  *
- * Engine honesty: without `AI_API_KEY` (or `AI_PROVIDER=kilo`) every endpoint
- * answers with `engine: 'rules'` (deterministic @vv/ai rule engines). With an
- * LLM, nl-to-steps and explain attempt it and fall back to rules on any
- * failure (parse error, timeout, HTTP error) — the reported `engine` always
- * reflects the path that actually produced the payload (`/ai/gherkin` is
- * always rules: deterministic Vietnamese-Gherkin parser, no LLM involved).
+ * Engine honesty: without `AI_API_KEY` (or `AI_PROVIDER=kilo|uncloseai`)
+ * every endpoint answers with `engine: 'rules'` (deterministic @vv/ai rule
+ * engines). With an LLM, nl-to-steps and explain attempt it and fall back
+ * to rules on any failure (parse error, timeout, HTTP error) — the reported
+ * `engine` always reflects the path that actually produced the payload
+ * (`/ai/gherkin` is always rules: deterministic Vietnamese-Gherkin parser,
+ * no LLM involved).
  *
- * Kilo free tier (`AI_PROVIDER=kilo`, no key, `kilo-auto/free` default):
- * anonymous and rate-limited (~200 req/hour/IP); upstream may log prompts,
- * so project secrets are redacted before sending and confidential data
- * should not go through it.
+ * Keyless free tiers (`AI_PROVIDER=kilo|uncloseai`, no key):
+ * anonymous and rate-limited; upstream may log prompts, so project secrets
+ * are redacted before sending and confidential data should not go through it.
  */
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
