@@ -239,6 +239,11 @@ export async function stabilityRoutes(app: FastifyInstance): Promise<void> {
         cancelRequested: false,
       };
       registerGate(gate);
+      void writeAudit({
+        projectId: test.projectId, userId: req.user!.id,
+        action: 'stability.gate_created', entityType: 'test', entityId: id,
+        details: { gateId: gate.gateId, runs: runsTotal },
+      });
       void driveGate(app, gate, req.user!.id, forwardHeaders, triggerPayload)
         .catch(() => { /* driveGate settles the gate itself; never reject */ });
       return reply.code(202).send({ ...publicGate(gate), poll: `/api/v1/tests/${id}/stability/gates/${gate.gateId}` });
@@ -285,6 +290,11 @@ export async function stabilityRoutes(app: FastifyInstance): Promise<void> {
     }
     if (gate.status === 'queued' || gate.status === 'running') {
       gate.cancelRequested = true;
+      void writeAudit({
+        projectId: gate.projectId, userId: req.user!.id,
+        action: 'stability.gate_cancelled', entityType: 'test', entityId: id,
+        details: { gateId: gate.gateId },
+      });
       // Stop the currently executing child NOW (not just the flag — the
       // driver only re-checks between runs). Best-effort: the driver also
       // cancels on wake; the runCancel path is idempotent-ish (409 when
