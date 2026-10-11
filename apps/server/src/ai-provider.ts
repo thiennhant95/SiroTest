@@ -1,8 +1,9 @@
 /**
  * ai-provider.ts — server-side AI wiring for P2 routes (routes/ai.ts).
  *
- * - {@link getAIProvider} selects the LLM provider when `AI_API_KEY` is set,
- *   otherwise the deterministic rule provider (never fakes AI).
+ * - {@link getAIProvider} selects the LLM provider when `AI_API_KEY` is set
+ *   (or `AI_PROVIDER=kilo` for the keyless Kilo free tier), otherwise the
+ *   deterministic rule provider (never fakes AI).
  * - {@link loadProjectSecrets} + {@link redactForLLM} guarantee secret values
  *   and absolute server paths are stripped BEFORE any text is sent to an LLM.
  */
