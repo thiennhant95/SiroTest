@@ -137,13 +137,22 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Integration P0a (recorder + compiler)
-        run: pnpm test:integration:p0a
+        run: pnpm test:integration:p0a 2>&1 | tee integration-p0a.log
 
       - name: Integration P0b (compiler + lifecycle)
-        run: pnpm test:integration:p0b
+        run: pnpm test:integration:p0b 2>&1 | tee integration-p0b.log
 
       - name: Integration P0c (API CRUD, real worker)
-        run: pnpm test:integration:p0c
+        run: pnpm test:integration:p0c 2>&1 | tee integration-p0c.log
+
+      - name: Upload TAP logs on failure (flake forensics)
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: integration-p0-tap-logs
+          path: integration-p0*.log
+          if-no-files-found: ignore
+          retention-days: 7
 
   integration-p1:
     name: Integration P1 (+ rbac/notify/webhook/gherkin)
@@ -190,7 +199,16 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Integration P1 (isolated SQLite, real worker)
-        run: pnpm test:integration:p1
+        run: pnpm test:integration:p1 2>&1 | tee integration-p1.log
+
+      - name: Upload TAP logs on failure (flake forensics)
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: integration-p1-tap-logs
+          path: integration-p1.log
+          if-no-files-found: ignore
+          retention-days: 7
 
   integration-p2:
     name: Integration P2
@@ -237,7 +255,16 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Integration P2 (isolated SQLite, real worker)
-        run: pnpm test:integration:p2
+        run: pnpm test:integration:p2 2>&1 | tee integration-p2.log
+
+      - name: Upload TAP logs on failure (flake forensics)
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: integration-p2-tap-logs
+          path: integration-p2.log
+          if-no-files-found: ignore
+          retention-days: 7
 
   e2e:
     name: Studio E2E (Chromium)

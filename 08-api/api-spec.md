@@ -51,6 +51,7 @@ Example run request:
 ## Compiler/export
 `POST /tests/:id/compile`
 `GET /tests/:id/export?format=spec`
+`GET /runs/:id/trajectory` → agent timeline (ordered steps with type/status/timings/truncated errors + artifact refs; server paths stripped)
 
 ## Stability gate + rubric
 `POST /tests/:id/stability` → `200 {runs, passed, total, stable}` (runs the standard run path N=2–5× sequentially, sync; stamps `Test.stable` only on N/N)

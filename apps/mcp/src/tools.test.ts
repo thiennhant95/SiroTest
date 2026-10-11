@@ -28,6 +28,7 @@ describe('mcp tools', () => {
       'studio_export_spec',
       'studio_get_run',
       'studio_get_test',
+      'studio_get_trajectory',
       'studio_list_healing',
       'studio_list_projects',
       'studio_list_tests',

@@ -18,6 +18,7 @@ import {
 // Set it BEFORE the server module is evaluated -> dynamic import.
 process.env.SKIP_LISTEN = '1';
 const { buildApp } = await import('../../apps/server/src/app.js');
+const { db } = await import('../../apps/server/src/db.js');
 
 type App = FastifyInstance;
 let app: App;
@@ -324,6 +325,53 @@ describe('variables + secret redaction', () => {
     const code = ((await injectJson(app, 'POST', `/api/v1/tests/${testId}/compile`)).json() as { code: string }).code;
     assert.match(code, /process\.env(\.ADMIN_PASSWORD|\['ADMIN_PASSWORD'\])/);
     assert.ok(!code.includes('s3cr3t-pw-zzz'), 'secret plaintext must never appear in generated code');
+  });
+});
+
+describe('run trajectory export (agent timeline)', () => {
+  it('orders steps with types, clips errors, strips server paths', async () => {
+    const projectId = ((await injectJson(app, 'POST', '/api/v1/projects', { name: 'api-traj' })).json() as { id: string }).id;
+    const testId = ((await injectJson(app, 'POST', `/api/v1/projects/${projectId}/tests`, {
+      name: 'traj-demo',
+      definitionJson: {
+        schemaVersion: '1.0', name: 'traj-demo', browser: 'chromium',
+        steps: [
+          { id: 's1', type: 'goto', name: 'Open', enabled: true, url: 'https://x' },
+          { id: 's2', type: 'assertVisible', name: 'See it', enabled: true, target: { primary: { strategy: 'text', value: 'X' } } },
+        ],
+      },
+    })).json() as { id: string }).id;
+    const run = await db().run.create({
+      data: { projectId, testId, browser: 'chromium', status: 'failed', trigger: 'manual', durationMs: 9000 },
+    });
+    await db().runStep.createMany({
+      data: [
+        { runId: run.id, stepId: 's1', sortOrder: 0, status: 'passed', durationMs: 1000 },
+        { runId: run.id, stepId: 's2', sortOrder: 1, status: 'failed', durationMs: 5000, errorMessage: `boom at C:\\srv\\app\\run.spec.ts:11 ${'E'.repeat(5000)}` },
+      ],
+    });
+    await db().artifact.create({
+      data: { runId: run.id, type: 'trace', path: `runs/${run.id}/trace.zip`, mimeType: 'application/zip', sizeBytes: 42 },
+    });
+
+    const res = await injectJson(app, 'GET', `/api/v1/runs/${run.id}/trajectory`);
+    assert.equal(res.statusCode, 200);
+    const traj = res.json() as {
+      runId: string; testId: string; testName: string; status: string;
+      steps: Array<{ stepId: string; type: string; name: string; status: string; error?: string }>;
+      artifacts: Array<{ type: string; path: string; sizeBytes: number }>;
+    };
+    assert.equal(traj.runId, run.id);
+    assert.equal(traj.testName, 'traj-demo');
+    assert.deepEqual(traj.steps.map((s) => [s.stepId, s.type, s.name, s.status]), [
+      ['s1', 'goto', 'Open', 'passed'],
+      ['s2', 'assertVisible', 'See it', 'failed'],
+    ]);
+    const err = traj.steps[1].error!;
+    assert.ok(err.length < 5000 && err.endsWith('(truncated)'));
+    assert.ok(!err.includes('C:\\srv\\app'), 'server paths stripped');
+    assert.deepEqual(traj.artifacts, [{ type: 'trace', path: `runs/${run.id}/trace.zip`, sizeBytes: 42 }]);
+    assert.equal((await injectJson(app, 'GET', '/api/v1/runs/run_nope/trajectory')).statusCode, 404);
   });
 });
 

@@ -215,6 +215,66 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
     return run;
   });
 
+  // GET /runs/:id/trajectory — agent-consumable run timeline (trajectory
+  // export): ordered steps with type/status/timings/truncated errors plus
+  // artifact refs. Read-only, same access as the run itself. Secrets stay
+  // redacted (stored errors are scrubbed at persist time); absolute server
+  // paths are stripped like the run detail endpoint.
+  app.get('/runs/:id/trajectory', { preHandler: requireAuth }, async (req) => {
+    const { id } = req.params as { id: string };
+    await requireProjectAccess(req);
+    const run = await db().run.findUnique({
+      where: { id },
+      include: { steps: { orderBy: { sortOrder: 'asc' } }, artifacts: true },
+    });
+    if (!run) throw new ApiError('NOT_FOUND', `Run ${id} not found`, 404);
+    const test = await db().test.findUnique({ where: { id: run.testId }, select: { name: true, definitionJson: true } });
+    const meta = new Map<string, { type: string; name: string }>();
+    try {
+      const steps = (JSON.parse(test?.definitionJson ?? '{}') as { steps?: Array<{ id?: unknown; type?: unknown; name?: unknown }> }).steps;
+      if (Array.isArray(steps)) {
+        for (const s of steps) {
+          if (typeof s?.id === 'string') {
+            meta.set(s.id, {
+              type: typeof s.type === 'string' ? s.type : 'unknown',
+              name: typeof s.name === 'string' && s.name ? s.name : typeof s.type === 'string' ? s.type : s.id,
+            });
+          }
+        }
+      }
+    } catch {
+      // Corrupt definition — trajectory still works with stepIds alone.
+    }
+    const clip = (s: string | null | undefined): string | undefined => {
+      if (!s) return undefined;
+      const clean = stripServerPaths(s);
+      return clean.length > 2000 ? `${clean.slice(0, 2000)}…(truncated)` : clean;
+    };
+    return {
+      runId: run.id,
+      testId: run.testId,
+      testName: test?.name ?? run.testId,
+      status: run.status,
+      trigger: run.trigger,
+      browser: run.browser,
+      startedAt: run.startedAt,
+      finishedAt: run.finishedAt,
+      durationMs: run.durationMs,
+      ...(run.errorSummary ? { error: clip(run.errorSummary) } : {}),
+      steps: run.steps.map((s) => ({
+        stepId: s.stepId,
+        type: meta.get(s.stepId)?.type ?? 'unknown',
+        name: meta.get(s.stepId)?.name ?? s.stepId,
+        status: s.status,
+        startedAt: s.startedAt,
+        finishedAt: s.finishedAt,
+        durationMs: s.durationMs,
+        ...(s.errorMessage ? { error: clip(s.errorMessage) } : {}),
+      })),
+      artifacts: run.artifacts.map((a) => ({ type: a.type, path: a.path, sizeBytes: a.sizeBytes })),
+    };
+  });
+
   app.post('/runs/:id/cancel', { preHandler: requireAuth }, async (req) => {
     const { id } = req.params as { id: string };
     await requireProjectWrite(req);
