@@ -1,11 +1,15 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import {
+  CachedProvider,
   EnvProvider,
   FallbackProvider,
   RuleProvider,
   providerStatus,
   readEnvConfig,
   selectProvider,
+  withLlmCache,
+  type AICompleteOptions,
+  type AIProvider,
 } from "../src/provider";
 
 describe("selectProvider", () => {
@@ -86,6 +90,76 @@ describe("selectProvider", () => {
     const none = selectProvider({ PATH: "x" } as NodeJS.ProcessEnv, { model: "pro" });
     expect(none).toBeInstanceOf(RuleProvider);
     expect(none.engine).toBe("rules");
+  });
+});
+
+describe("CachedProvider (LLM result cache by input hash)", () => {
+  function stubInner(replies: Array<string | Error>): { provider: AIProvider; calls: string[] } {
+    const calls: string[] = [];
+    let n = 0;
+    const provider: AIProvider = {
+      name: "stub-llm",
+      engine: "llm",
+      complete: async (prompt: string, _opts?: AICompleteOptions) => {
+        calls.push(prompt);
+        const next = replies[Math.min(n++, replies.length - 1)]!;
+        if (next instanceof Error) throw next;
+        return next;
+      },
+    };
+    return { provider, calls };
+  }
+
+  it("repeats hit the cache; different inputs miss", async () => {
+    const { provider, calls } = stubInner(["one", "two"]);
+    const cached = new CachedProvider(provider);
+    expect(await cached.complete("same")).toBe("one");
+    expect(await cached.complete("same")).toBe("one");
+    expect(await cached.complete("other")).toBe("two");
+    expect(calls).toEqual(["same", "other"]);
+    expect(cached.stats()).toEqual({ hits: 1, misses: 2, size: 2 });
+  });
+
+  it("opts (systemPrompt/jsonMode/maxTokens) partition the key", async () => {
+    const { provider, calls } = stubInner(["a", "b"]);
+    const cached = new CachedProvider(provider);
+    await cached.complete("q", { systemPrompt: "s1" });
+    await cached.complete("q", { systemPrompt: "s2" });
+    expect(calls).toEqual(["q", "q"]);
+  });
+
+  it("errors are never cached", async () => {
+    const { provider, calls } = stubInner([new Error("boom-429"), "recovered"]);
+    const cached = new CachedProvider(provider);
+    await expect(cached.complete("q")).rejects.toThrowError(/boom-429/);
+    expect(await cached.complete("q")).toBe("recovered");
+    expect(calls).toEqual(["q", "q"]);
+    expect(cached.stats().size).toBe(1);
+  });
+
+  it("TTL expiry re-fetches", async () => {
+    const { provider } = stubInner(["v1", "v2"]);
+    const cached = new CachedProvider(provider, { ttlMs: 5 });
+    expect(await cached.complete("q")).toBe("v1");
+    await new Promise((r) => setTimeout(r, 15));
+    expect(await cached.complete("q")).toBe("v2");
+  });
+
+  it("LRU evicts the oldest entry past maxEntries", async () => {
+    const { provider, calls } = stubInner(["1", "2", "3", "1-again"]);
+    const cached = new CachedProvider(provider, { maxEntries: 2 });
+    await cached.complete("a");
+    await cached.complete("b");
+    await cached.complete("c"); // evicts "a"
+    await cached.complete("a");
+    expect(calls).toEqual(["a", "b", "c", "a"]);
+  });
+
+  it("withLlmCache passes rules through and honors AI_CACHE=0", () => {
+    expect(withLlmCache(new RuleProvider())).toBeInstanceOf(RuleProvider);
+    const llm: AIProvider = { name: "x", engine: "llm", complete: async () => "y" };
+    expect(withLlmCache(llm, { AI_CACHE: "0" } as NodeJS.ProcessEnv)).toBe(llm);
+    expect(withLlmCache(llm, {} as NodeJS.ProcessEnv)).toBeInstanceOf(CachedProvider);
   });
 });
 
