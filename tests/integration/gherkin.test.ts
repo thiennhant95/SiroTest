@@ -93,4 +93,14 @@ describe('POST /ai/gherkin', () => {
     const res = await callAs(OWNER, { text: '' });
     assert.equal(res.statusCode, 400);
   });
+
+  it('assist without an LLM keeps the rules name with source=rules', async () => {
+    const res = await callAs(OWNER, { text: LOGIN_TEXT, assist: true });
+    assert.equal(res.statusCode, 200);
+    const body = res.json() as { engine: string; scenarioName?: string; scenarioNameSource: string; steps: unknown[] };
+    assert.equal(body.engine, 'rules');
+    assert.equal(body.scenarioNameSource, 'rules');
+    assert.ok(body.scenarioName, 'rules name still present');
+    assert.ok(body.steps.length > 0, 'steps still rules-parsed');
+  });
 });

@@ -4,7 +4,9 @@ import { isNotFoundError } from "../lib/api";
 import { EmptyState, ErrorState, Skeleton, useToast } from "./ui";
 
 /**
- * P2 — suggested assertions from observed page (deterministic rules, NO AI).
+ * P2 — suggested assertions from observed page (deterministic rules by
+ * default; opt-in "Assist with AI" appends validated LLM-proposed extras,
+ * each labeled, rules stay as fallback).
  * Wired into BuilderPage bottom tab "Suggest".
  *
  * The panel fetches rule-based suggestions (fill → assertValue, click →
@@ -28,16 +30,20 @@ export function SuggestionsPanel({ testId, sessionId, onApplied }: SuggestionsPa
   const [error, setError] = useState<string | null>(null);
   const [unsupported, setUnsupported] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [assist, setAssist] = useState(false);
+  const [assistNote, setAssistNote] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     setUnsupported(false);
     setNotice(null);
+    setAssistNote(null);
     try {
-      const res = await p2api.fetchSuggestions(testId, sessionId ? { sessionId } : {});
+      const res = await p2api.fetchSuggestions(testId, sessionId ? { sessionId, ...(assist ? { assist: true } : {}) } : (assist ? { assist: true } : {}));
       setSuggestions(res.suggestions);
       setSource(res.source);
+      if (res.assist) setAssistNote(`${res.assist.engine === "llm" ? "LLM assist" : "Rules only"}: ${res.assist.note}`);
       setChecked(new Set(res.suggestions.map((s) => s.id)));
     } catch (e) {
       if (isNotFoundError(e)) {
@@ -49,7 +55,7 @@ export function SuggestionsPanel({ testId, sessionId, onApplied }: SuggestionsPa
     } finally {
       setLoading(false);
     }
-  }, [testId, sessionId]);
+  }, [testId, sessionId, assist]);
 
   useEffect(() => {
     void refresh();
@@ -92,11 +98,23 @@ export function SuggestionsPanel({ testId, sessionId, onApplied }: SuggestionsPa
     <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <strong>Suggested assertions</strong>
-        <button type="button" disabled={loading} onClick={() => void refresh()}>
-          {loading ? "Refreshing…" : "Refresh"}
-        </button>
+        <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <label style={{ fontSize: 12, color: "#555" }}>
+            <input
+              type="checkbox"
+              checked={assist}
+              onChange={(e) => setAssist(e.target.checked)}
+              style={{ marginRight: 4 }}
+            />
+            Assist with AI
+          </label>
+          <button type="button" disabled={loading} onClick={() => void refresh()}>
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
+        </span>
       </div>
-      {source && <p style={{ fontSize: 12, color: "#666" }}>mined from: {source} (deterministic rules, no AI)</p>}
+      {source && <p style={{ fontSize: 12, color: "#666" }}>mined from: {source} (deterministic rules{assist ? " + opt-in LLM extras" : ", no AI"})</p>}
+      {assistNote && <p style={{ fontSize: 12, color: "#555" }}>{assistNote}</p>}
       {loading ? <Skeleton className="h-10" /> : null}
       {unsupported ? (
         <EmptyState
@@ -117,6 +135,7 @@ export function SuggestionsPanel({ testId, sessionId, onApplied }: SuggestionsPa
               <input type="checkbox" checked={checked.has(s.id)} onChange={() => toggle(s.id)} />
               <span>
                 <code>{s.kind}</code> after <code>{s.afterStepId}</code>
+                {s.engine === "llm" && <em> (LLM-proposed)</em>}
                 {s.masked && <em> (secret masked)</em>}
                 <br />
                 <span style={{ fontSize: 13, color: "#444" }}>{s.reason}</span>

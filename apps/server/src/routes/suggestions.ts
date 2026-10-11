@@ -1,14 +1,18 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { validateGeneratedSteps, type AIProvider } from '@vv/ai';
 import { db } from '../db.js';
 import { requireAuth, requireProjectAccess } from '../auth.js';
 import { requireProjectWrite } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { validateDefinitionForStore } from '../security.js';
+import { getAIProvider, loadProjectSecrets, redactForLLM } from '../ai-provider.js';
 import { recorderManager } from './recorder.js';
 
 /**
- * P2 — suggested assertions from observed page (deterministic rules, NO AI).
+ * P2 — suggested assertions from observed page (deterministic rules, NO AI
+ * by default; opt-in `assist: true` appends LLM-proposed EXTRA assertions —
+ * each schema-validated, engine-tagged `llm`, invalid ones dropped + counted).
  *
  * AI-generated assertions are a different P2 task; everything here is a
  * fixed rule over interaction steps the recorder/test already contains:
@@ -49,6 +53,9 @@ const suggestionsBody = z.object({
   sessionId: z.string().min(1).optional(),
   /** Explicit draft steps (recorded but not yet saved); wins over sessionId. */
   steps: z.array(z.record(z.unknown())).max(500).optional(),
+  /** Opt-in LLM assist: propose EXTRA assertions beyond the rules (validated,
+   *  engine-tagged, rules stay as fallback — never replaces them). */
+  assist: z.boolean().optional(),
   // Intentionally NON-strict: the apply route re-parses its own body with
   // this schema to read an optional source override ({suggestionIds,
   // indexes, position} live alongside), so unknown keys must pass through.
@@ -92,6 +99,8 @@ export interface SuggestedAssertion {
   step: Record<string, unknown>;
   /** Human-readable rule explanation. */
   reason: string;
+  /** Which engine produced this suggestion (rules always present; llm only with assist). */
+  engine: 'rules' | 'llm';
   /** True when `expected` is a secret {{VAR}} reference (never resolved). */
   masked?: boolean;
 }
@@ -131,6 +140,7 @@ export function buildSuggestions(steps: LooseStep[]): SuggestedAssertion[] {
         id: idFor(stepId, 'assertValue'),
         stepId,
         kind: 'assertValue',
+        engine: 'rules',
         afterStepId: stepId,
         step: { type: 'assertValue', enabled: true, target, expected: step['value'] },
         reason: sensitive
@@ -147,7 +157,8 @@ export function buildSuggestions(steps: LooseStep[]): SuggestedAssertion[] {
           id: idFor(stepId, 'assertVisible'),
           stepId,
           kind: 'assertVisible',
-          afterStepId: stepId,
+          engine: 'rules',
+        afterStepId: stepId,
           step: { type: 'assertVisible', enabled: true, target: nextTarget },
           reason: `click leads to the next step's target — assert it became visible`,
         });
@@ -157,7 +168,8 @@ export function buildSuggestions(steps: LooseStep[]): SuggestedAssertion[] {
           id: idFor(stepId, 'assertVisible'),
           stepId,
           kind: 'assertVisible',
-          afterStepId: stepId,
+          engine: 'rules',
+        afterStepId: stepId,
           step: { type: 'assertVisible', enabled: true, target },
           reason: `click has no following target — assert the clicked element is still visible (weak fallback)`,
         });
@@ -167,6 +179,7 @@ export function buildSuggestions(steps: LooseStep[]): SuggestedAssertion[] {
         id: idFor(stepId, 'assertChecked'),
         stepId,
         kind: 'assertChecked',
+        engine: 'rules',
         afterStepId: stepId,
         step: { type: 'assertChecked', enabled: true, target },
         reason: `check sets checked state — assert it`,
@@ -176,6 +189,7 @@ export function buildSuggestions(steps: LooseStep[]): SuggestedAssertion[] {
         id: idFor(stepId, 'assertValue'),
         stepId,
         kind: 'assertValue',
+        engine: 'rules',
         afterStepId: stepId,
         step: { type: 'assertValue', enabled: true, target, expected: step['value'] },
         reason: `select sets a known option — assert the field holds it`,
@@ -185,6 +199,7 @@ export function buildSuggestions(steps: LooseStep[]): SuggestedAssertion[] {
         id: idFor(stepId, 'assertVisible'),
         stepId,
         kind: 'assertVisible',
+        engine: 'rules',
         afterStepId: stepId,
         step: { type: 'assertVisible', enabled: true, target },
         reason: `waitForElement already waits for the target — pin it with an assertion`,
@@ -194,6 +209,7 @@ export function buildSuggestions(steps: LooseStep[]): SuggestedAssertion[] {
         id: idFor(stepId, 'assertURL'),
         stepId,
         kind: 'assertURL',
+        engine: 'rules',
         afterStepId: stepId,
         step: { type: 'assertURL', enabled: true, expected: step['url'] },
         reason: `goto navigates to a known URL — assert it`,
@@ -209,7 +225,8 @@ export function buildSuggestions(steps: LooseStep[]): SuggestedAssertion[] {
           id: idFor(stepId, 'assertURL'),
           stepId,
           kind: 'assertURL',
-          afterStepId: stepId,
+          engine: 'rules',
+        afterStepId: stepId,
           step: { type: 'assertURL', enabled: true, expected },
           reason: `waitForURL already waits for the URL — pin it with an assertion`,
         });
@@ -278,6 +295,136 @@ function assertStorableSteps(steps: unknown): void {
 }
 
 // ---------------------------------------------------------------------------
+// Opt-in LLM assist (P2 backlog): EXTRA assertion proposals beyond the rules
+// ---------------------------------------------------------------------------
+
+export interface AssistResult {
+  engine: 'rules' | 'llm';
+  added: number;
+  dropped: number;
+  note: string;
+}
+
+function stripFences(raw: string): string {
+  return raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+}
+
+const ASSERTION_KINDS: ReadonlySet<string> = new Set([
+  'assertVisible', 'assertHidden', 'assertText', 'assertContainsText',
+  'assertValue', 'assertURL', 'assertTitle', 'assertEnabled',
+  'assertDisabled', 'assertChecked', 'screenshot',
+]);
+
+function summarizeStep(step: LooseStep, index: number): string {
+  const id = typeof step['id'] === 'string' ? (step['id'] as string) : `step-${index}`;
+  const type = typeof step['type'] === 'string' ? (step['type'] as string) : '?';
+  const t = step['target'] as { primary?: Record<string, unknown> } | undefined;
+  const primary = t?.primary && typeof t.primary === 'object' ? t.primary : null;
+  // Values stay OUT of the prompt (fill values may be secret-adjacent);
+  // the model proposes targets/assertions, the server re-attaches nothing.
+  const where = primary
+    ? Object.entries(primary)
+      .filter(([k]) => k !== 'value')
+      .map(([k, v]) => `${k}=${typeof v === 'string' ? v.slice(0, 60) : JSON.stringify(v)}`)
+      .join(',')
+    : 'no-target';
+  return `${id}: ${type} [${where}]`;
+}
+
+/**
+ * Ask the LLM for EXTRA assertions (rules output is untouched — extras are
+ * appended, engine-tagged `llm`). Every candidate must survive canonical
+ * schema validation + the store allowlist + reference a real step id;
+ * anything else is dropped and COUNTED in the note (never silent).
+ * No LLM configured (or any failure) → rules-only with an explicit note.
+ */
+export async function llmAssistSuggestions(
+  steps: LooseStep[],
+  projectId: string,
+  deps: { provider?: AIProvider; secrets?: string[] } = {},
+): Promise<{ extra: SuggestedAssertion[]; result: AssistResult }> {
+  const none = (note: string): { extra: SuggestedAssertion[]; result: AssistResult } => ({
+    extra: [],
+    result: { engine: 'rules', added: 0, dropped: 0, note },
+  });
+  const provider = deps.provider ?? getAIProvider();
+  if (provider.engine !== 'llm') {
+    return none('LLM assist requested but no LLM is configured — rules only (set AI_API_KEY or AI_PROVIDER)');
+  }
+  const stepIds = new Set<string>();
+  steps.forEach((s, i) => stepIds.add(typeof (s as LooseStep)['id'] === 'string' ? ((s as LooseStep)['id'] as string) : `step-${i}`));
+  const secrets = deps.secrets ?? await loadProjectSecrets(projectId).catch(() => [] as string[]);
+  const prompt = redactForLLM(
+    [
+      'This test has these steps (id: type [locator]). Propose EXTRA Playwright assertions',
+      'that the deterministic rules would miss (e.g. assertHidden after navigation,',
+      'assertTitle after goto, assertContainsText for dynamic content). Respond with a',
+      'single JSON object: {"assertions": [{"kind": "<assertKind>", "afterStepId": "<id>",',
+      '"target": <LocatorSpec|null>, "expected": "<string|null>"}]}.',
+      'Reference ONLY the step ids above; propose at most 5. Empty array when nothing is missing.',
+      '',
+      ...steps.map((s, i) => summarizeStep(s as LooseStep, i)),
+    ].join('\n'),
+    secrets,
+  ).slice(0, 12000);
+  let raw: string;
+  try {
+    raw = await provider.complete(prompt, { jsonMode: true, maxTokens: 1500 });
+  } catch (err) {
+    return none(`LLM assist failed (${(err as Error).message}) — rules only`);
+  }
+  let candidates: unknown[];
+  try {
+    const parsed = JSON.parse(stripFences(raw)) as { assertions?: unknown };
+    candidates = Array.isArray(parsed.assertions) ? parsed.assertions : [];
+  } catch {
+    return none('LLM assist returned unparseable JSON — rules only');
+  }
+  const extra: SuggestedAssertion[] = [];
+  let dropped = 0;
+  const perKindCount = new Map<string, number>();
+  for (const c of candidates.slice(0, 5)) {
+    const cand = (c ?? {}) as Record<string, unknown>;
+    if (typeof cand['kind'] !== 'string' || !ASSERTION_KINDS.has(cand['kind'] as string)) { dropped += 1; continue; }
+    if (typeof cand['afterStepId'] !== 'string' || !stepIds.has(cand['afterStepId'] as string)) { dropped += 1; continue; }
+    const stepPayload: Record<string, unknown> = {
+      type: cand['kind'],
+      enabled: true,
+      ...(cand['target'] !== undefined && cand['target'] !== null ? { target: cand['target'] } : {}),
+      ...(typeof cand['expected'] === 'string' ? { expected: (cand['expected'] as string).slice(0, 500) } : {}),
+    };
+    const { valid, invalidCount } = validateGeneratedSteps([{ id: 'assist_tmp', ...stepPayload }]);
+    if (invalidCount > 0 || valid.length === 0) { dropped += 1; continue; }
+    if (validateDefinitionForStore({ steps: [valid[0]] }).length > 0) { dropped += 1; continue; }
+    const kind = cand['kind'] as string;
+    const afterStepId = cand['afterStepId'] as string;
+    const n = (perKindCount.get(`${afterStepId}:${kind}`) ?? 0) + 1;
+    perKindCount.set(`${afterStepId}:${kind}`, n);
+    extra.push({
+      id: `sug:llm:${afterStepId}:${kind}:${n}`,
+      stepId: afterStepId,
+      kind,
+      engine: 'llm',
+      afterStepId,
+      step: { ...(valid[0] as unknown as Record<string, unknown>), id: undefined },
+      reason: `LLM-proposed extra assertion after ${afterStepId} (schema-validated; review before applying)`,
+    });
+    // `id: undefined` drops the temp id in JSON — the apply route mints a fresh one.
+  }
+  return {
+    extra,
+    result: {
+      engine: 'llm',
+      added: extra.length,
+      dropped,
+      note: dropped > 0
+        ? `LLM proposed ${extra.length + dropped}; ${dropped} failed validation and were dropped`
+        : `LLM proposed ${extra.length} extra assertion(s)`,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
 
@@ -290,7 +437,12 @@ export async function suggestionRoutes(app: FastifyInstance): Promise<void> {
     if (!test) throw new ApiError('NOT_FOUND', `Test ${id} not found`, 404);
     const body = parseOrThrowLocal(suggestionsBody, req.body ?? {});
     const { steps, source } = resolveSourceSteps(test, body, req.user!.id);
-    return { testId: id, source, stepCount: steps.length, suggestions: buildSuggestions(steps) };
+    const rules = buildSuggestions(steps);
+    if (body.assist !== true) {
+      return { testId: id, source, stepCount: steps.length, suggestions: rules };
+    }
+    const { extra, result: assist } = await llmAssistSuggestions(steps, test.projectId);
+    return { testId: id, source, stepCount: steps.length, suggestions: [...rules, ...extra], assist };
   });
 
   // Apply selected suggestions: insert assertion steps + mint a new version.

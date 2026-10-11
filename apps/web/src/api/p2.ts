@@ -77,6 +77,8 @@ export interface SuggestedAssertion {
   step: Record<string, unknown>;
   reason: string;
   masked?: boolean;
+  /** Which engine proposed it (llm only with opt-in assist). */
+  engine?: "rules" | "llm";
 }
 
 export interface ApplyResult {
@@ -95,13 +97,15 @@ export interface GherkinStep {
   [k: string]: unknown;
 }
 
-/** Result of POST /ai/gherkin (engine is always 'rules' — no LLM). */
+/** Result of POST /ai/gherkin (steps always 'rules'; only scenarioName may be llm-assisted). */
 export interface GherkinParseResult {
   engine: "rules";
   steps: GherkinStep[];
   unparsed: string[];
   warnings: string[];
   scenarioName?: string;
+  /** Who named it (llm only with opt-in assist:true, rules name as fallback). */
+  scenarioNameSource?: "rules" | "llm";
   tags: string[];
 }
 
@@ -113,8 +117,8 @@ export const p2api = {
   rejectHealing: (proposalId: string) =>
     req<HealingProposal>(`/healing/${proposalId}/reject`, { method: "POST" }),
 
-  fetchSuggestions: (testId: string, body: { sessionId?: string; steps?: unknown[] } = {}) =>
-    req<{ testId: string; source: string; stepCount: number; suggestions: SuggestedAssertion[] }>(
+  fetchSuggestions: (testId: string, body: { sessionId?: string; steps?: unknown[]; assist?: boolean } = {}) =>
+    req<{ testId: string; source: string; stepCount: number; suggestions: SuggestedAssertion[]; assist?: { engine: string; added: number; dropped: number; note: string } }>(
       `/tests/${testId}/suggestions`,
       { method: "POST", body: JSON.stringify(body) },
     ),
@@ -129,9 +133,9 @@ export const p2api = {
       body: JSON.stringify(body),
     }),
 
-  parseGherkin: (text: string, projectId?: string) =>
+  parseGherkin: (text: string, projectId?: string, assist?: boolean) =>
     req<GherkinParseResult>(`/ai/gherkin`, {
       method: "POST",
-      body: JSON.stringify(projectId ? { text, projectId } : { text }),
+      body: JSON.stringify({ text, ...(projectId ? { projectId } : {}), ...(assist ? { assist: true } : {}) }),
     }),
 };

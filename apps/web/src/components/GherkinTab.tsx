@@ -29,6 +29,7 @@ export interface GherkinTabProps {
 export function GherkinTab({ testId, projectId, onInserted }: GherkinTabProps) {
   const toast = useToast();
   const [text, setText] = useState("");
+  const [assist, setAssist] = useState(false);
   const [result, setResult] = useState<GherkinParseResult | null>(null);
   const [parsing, setParsing] = useState(false);
   const [inserting, setInserting] = useState(false);
@@ -44,7 +45,7 @@ export function GherkinTab({ testId, projectId, onInserted }: GherkinTabProps) {
     setError(null);
     setNotice(null);
     try {
-      const res = await p2api.parseGherkin(text, projectId || undefined);
+      const res = await p2api.parseGherkin(text, projectId || undefined, assist || undefined);
       setResult(res);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Parse failed";
@@ -103,7 +104,11 @@ export function GherkinTab({ testId, projectId, onInserted }: GherkinTabProps) {
         {result ? (
           <span style={{ display: "inline-flex", gap: 4 }}>
             <Badge tone="slate">{result.engine}</Badge>
-            {result.scenarioName ? <Badge tone="indigo">{result.scenarioName}</Badge> : null}
+            {result.scenarioName ? (
+              <Badge tone="indigo" title={result.scenarioNameSource === "llm" ? "Named by LLM (opt-in assist)" : "Named by rules"}>
+                {result.scenarioName}{result.scenarioNameSource === "llm" ? " ✦" : ""}
+              </Badge>
+            ) : null}
             {result.tags.map((t) => (
               <Badge key={t} tone="slate">#{t}</Badge>
             ))}
@@ -112,6 +117,15 @@ export function GherkinTab({ testId, projectId, onInserted }: GherkinTabProps) {
       </div>
       <p style={{ fontSize: 12, color: "#666" }}>
         Write Cho rằng / Khi / Thì steps, parse them with deterministic rules (no AI), then insert.
+        <label style={{ marginLeft: 8 }}>
+          <input
+            type="checkbox"
+            checked={assist}
+            onChange={(e) => setAssist(e.target.checked)}
+            style={{ marginRight: 4 }}
+          />
+          Name with AI
+        </label>
       </p>
       <Field label="Gherkin text (Tiếng Việt)">
         <Textarea
