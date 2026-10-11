@@ -337,7 +337,12 @@ describe('P2 healing proposals API', () => {
 
     const listed = await injectJson(app, 'GET', `/api/v1/tests/${testId}/healing?status=pending`);
     assert.equal(listed.statusCode, 200);
-    assert.equal((listed.json() as unknown[]).length, 1);
+    const rows = listed.json() as Array<{ score: number; scoreReasons: string[] }>;
+    assert.equal(rows.length, 1);
+    // Deterministic score travels with the listing: verified + unique +
+    // testId-winner + second-try + preview = 40+30+15+7+5 = 97.
+    assert.equal(rows[0].score, 97);
+    assert.ok(rows[0].scoreReasons.length >= 4);
   });
 
   it('approve rewrites primary, demotes old primary, bumps version; reject is terminal', async () => {

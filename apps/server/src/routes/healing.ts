@@ -118,6 +118,106 @@ export function assertLocatorShape(locator: unknown, what: string): asserts loca
   }
 }
 
+// ---------------------------------------------------------------------------
+// Deterministic proposal scoring (P2: healing DOM scoring — review aid only)
+// ---------------------------------------------------------------------------
+
+export interface HealingScore {
+  /** 0–100, higher = safer to approve. Deterministic from evidence alone. */
+  score: number;
+  /** Human-readable weight breakdown (also used as the UI badge tooltip). */
+  reasons: string[];
+}
+
+/** Stability rank of the winning strategy (mirrors 05-locator priority). */
+function strategyPoints(strategy: unknown): { points: number; label: string } {
+  switch (strategy) {
+    case 'role':
+    case 'label':
+    case 'placeholder':
+    case 'testId':
+      return { points: 15, label: `stable strategy '${strategy}' (+15)` };
+    case 'text':
+      return { points: 10, label: `text strategy (+10)` };
+    case 'css':
+      return { points: 5, label: `css strategy (+5)` };
+    default:
+      return { points: 0, label: `xpath/fallback strategy (+0)` };
+  }
+}
+
+/**
+ * Score a proposal 0–100 from its stored evidence (pure, no I/O):
+ * verified live match 40 + unique match 30 + winner-strategy stability 15 +
+ * decisiveness (few tried) 10 + DOM preview captured 5.
+ *
+ * The score NEVER applies anything — it only orders the human review queue
+ * (high score = safer approve). Unparseable evidence scores 0 explicitly.
+ */
+export function scoreHealingEvidence(
+  fromLocator: unknown,
+  toLocator: unknown,
+  evidence: { tried?: unknown; matchCount?: unknown; preview?: unknown; verified?: unknown },
+): HealingScore {
+  const reasons: string[] = [];
+  let score = 0;
+  try {
+    if (evidence.verified === true) {
+      score += 40;
+      reasons.push('verified live match (+40)');
+    } else {
+      reasons.push('not live-verified (+0)');
+    }
+    if (evidence.matchCount === 1) {
+      score += 30;
+      reasons.push('unique match (+30)');
+    } else if (typeof evidence.matchCount === 'number' && evidence.matchCount > 1) {
+      reasons.push(`${evidence.matchCount} matches — ambiguous (+0)`);
+    } else {
+      reasons.push('no usable match count (+0)');
+    }
+    const to = (toLocator ?? {}) as Record<string, unknown>;
+    const sp = strategyPoints(to['strategy']);
+    score += sp.points;
+    reasons.push(sp.label);
+    const triedCount = Array.isArray(evidence.tried) ? evidence.tried.length : 0;
+    if (triedCount <= 1) {
+      score += 10;
+      reasons.push(triedCount === 1 ? 'first alternative won (+10)' : 'no tried list — neutral (+10)');
+    } else if (triedCount === 2) {
+      score += 7;
+      reasons.push('second alternative won (+7)');
+    } else {
+      score += 4;
+      reasons.push(`${triedCount} alternatives tried (+4)`);
+    }
+    if (typeof evidence.preview === 'string' && evidence.preview.trim().length > 0) {
+      score += 5;
+      reasons.push('DOM preview captured (+5)');
+    } else {
+      reasons.push('no DOM preview (+0)');
+    }
+    const from = (fromLocator ?? {}) as Record<string, unknown>;
+    if (typeof from['strategy'] === 'string' && typeof to['strategy'] === 'string' && from['strategy'] !== to['strategy']) {
+      reasons.push(`strategy change ${String(from['strategy'])} → ${String(to['strategy'])}`);
+    }
+  } catch {
+    return { score: 0, reasons: ['unparseable evidence (+0)'] };
+  }
+  return { score: Math.max(0, Math.min(100, score)), reasons };
+}
+
+/** Parse a stored JSON column defensively (corrupt rows score 0, never 500). */
+function parseStoredJson(raw: string | null | undefined): Record<string, unknown> {
+  if (typeof raw !== 'string') return {};
+  try {
+    const v = JSON.parse(raw) as unknown;
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
 /** Project membership for routes whose params carry no resolvable project. */
 async function requireTestProjectAccess(req: FastifyRequest, projectId: string): Promise<void> {
   const user = req.user;
@@ -237,9 +337,19 @@ export async function healingRoutes(app: FastifyInstance): Promise<void> {
     const test = await db().test.findUnique({ where: { id } });
     if (!test) throw new ApiError('NOT_FOUND', `Test ${id} not found`, 404);
     const { status } = parseOrThrowLocal(healingListQuery, req.query);
-    return db().healingProposal.findMany({
+    const rows = await db().healingProposal.findMany({
       where: { testId: id, ...(status === 'all' ? {} : { status }) },
       orderBy: { createdAt: 'desc' },
+    });
+    // Review aid: deterministic score attached per proposal. List order stays
+    // created-desc (stable history); the client sorts/filters by score.
+    return rows.map((p) => {
+      const { score, reasons } = scoreHealingEvidence(
+        parseStoredJson(p.fromLocator),
+        parseStoredJson(p.toLocator),
+        parseStoredJson(p.evidence),
+      );
+      return { ...p, score, scoreReasons: reasons };
     });
   });
 

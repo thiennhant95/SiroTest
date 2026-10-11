@@ -53,7 +53,11 @@ export function HealingPage() {
     setError(null);
     setUnsupported(false);
     try {
-      setProposals(await p2api.listHealing(testId, filter));
+      const rows = await p2api.listHealing(testId, filter);
+      // Review queue: highest score first (server keeps created-desc history;
+      // the client orders the queue so the safest approves surface first).
+      rows.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+      setProposals(rows);
     } catch (e) {
       if (isNotFoundError(e)) {
         setUnsupported(true);
@@ -146,6 +150,14 @@ export function HealingPage() {
                 <span className="text-slate-400">·</span>
                 <CopyId id={p.runId} label="run" />
                 <Badge tone={p.status === "pending" ? "amber" : p.status === "approved" ? "green" : "slate"}>{p.status}</Badge>
+                {p.score !== undefined ? (
+                  <Badge
+                    tone={p.score >= 80 ? "green" : p.score >= 50 ? "amber" : "slate"}
+                    title={(p.scoreReasons ?? []).join("; ") || "No score breakdown"}
+                  >
+                    score {p.score}
+                  </Badge>
+                ) : null}
               </div>
               <div className="mt-2 space-y-1 rounded-md bg-slate-50 p-2 font-mono text-[13px]">
                 <div><span className="text-red-600">− from:</span> {locatorPreview(candidateOf(p.fromLocator))}</div>
