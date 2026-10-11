@@ -857,12 +857,12 @@ function AutosaveBadge({
   return <Badge tone="green">Saved</Badge>;
 }
 
-/** Stability stamp + rubric at a glance. Check runs the gate (minutes) — needs an environment. */
+/** Stability stamp + rubric at a glance. Check runs the gate async (202 + poll) — needs an environment. */
 function StabilityBadge({ testId, envId, offline, version }: { testId: string; envId: string; offline: boolean; version: string }) {
   const toast = useToast();
   const [stamp, setStamp] = useState<{ stable: boolean; stableRuns: number } | null>(null);
   const [score, setScore] = useState<number | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [gate, setGate] = useState<{ gateId: string; done: number; total: number } | null>(null);
   useEffect(() => {
     if (offline) return;
     let live = true;
@@ -870,7 +870,35 @@ function StabilityBadge({ testId, envId, offline, version }: { testId: string; e
     void api.getRubric(testId).then((r) => { if (live) setScore(r.score); }).catch(() => undefined);
     return () => { live = false; };
   }, [testId, offline, version]);
+  // Poll the async gate; stops on terminal state or unmount/test change.
+  useEffect(() => {
+    if (!gate) return;
+    let live = true;
+    const tick = async () => {
+      try {
+        const g = await api.getStabilityGate(testId, gate.gateId);
+        if (!live) return;
+        const done = g.runs.filter((r) => ["passed", "failed", "cancelled"].includes(r.status)).length;
+        if (g.status === "passed" || g.status === "failed" || g.status === "cancelled") {
+          setGate(null);
+          setStamp({ stable: g.stable, stableRuns: g.stable ? g.total : 0 });
+          if (g.status === "cancelled") toast.push("info", "Stability check cancelled.");
+          else toast.push(g.stable ? "success" : "error", g.stable ? `Stable ${g.passed}/${g.total} — stamp set.` : g.error ? `Gate failed: ${g.error}` : `Unstable: ${g.passed}/${g.total} passed. Inspect the runs.`);
+        } else {
+          setGate({ gateId: gate.gateId, done, total: g.total });
+        }
+      } catch (e) {
+        if (!live) return;
+        setGate(null);
+        toast.push("error", e instanceof ApiError ? e.message : "Stability check failed");
+      }
+    };
+    void tick();
+    const timer = window.setInterval(() => void tick(), 3000);
+    return () => { live = false; window.clearInterval(timer); };
+  }, [gate?.gateId, testId]);
   if (offline) return null;
+  const busy = gate !== null;
   return (
     <span data-tour="stability" className="inline-flex items-center gap-1">
       {stamp ? (
@@ -883,18 +911,29 @@ function StabilityBadge({ testId, envId, offline, version }: { testId: string; e
         size="sm"
         variant="outline"
         disabled={busy || !envId}
-        title={envId ? "Run 3 consecutive passes (takes minutes) — stamps the definition stable on 3/3" : "Select an environment first"}
+        title={envId ? "Run 3 consecutive passes in the background (202 + poll) — stamps the definition stable on 3/3" : "Select an environment first"}
         onClick={() => {
           if (!envId) { toast.push("error", "Select an environment first."); return; }
-          setBusy(true);
-          void api.checkStability(testId, { environmentId: envId, runs: 3 }).then((v) => {
-            setStamp({ stable: v.stable, stableRuns: v.stable ? v.total : 0 });
-            toast.push(v.stable ? "success" : "error", v.stable ? `Stable ${v.passed}/${v.total} — stamp set.` : `Unstable: ${v.passed}/${v.total} passed. Inspect the runs.`);
-          }).catch((e) => toast.push("error", e instanceof ApiError ? e.message : "Stability check failed")).finally(() => setBusy(false));
+          if (busy) return;
+          void api.startStabilityGate(testId, { environmentId: envId, runs: 3 }).then((g) => {
+            setGate({ gateId: g.gateId, done: 0, total: g.total });
+          }).catch((e) => toast.push("error", e instanceof ApiError ? e.message : "Stability check failed"));
         }}
       >
-        {busy ? "Checking…" : "Check 3×"}
+        {busy && gate ? `Checking ${gate.done}/${gate.total}…` : "Check 3×"}
       </Button>
+      {busy && gate ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          title="Cancel the running stability gate"
+          onClick={() => {
+            void api.cancelStabilityGate(testId, gate.gateId).catch(() => undefined);
+          }}
+        >
+          Cancel
+        </Button>
+      ) : null}
     </span>
   );
 }
@@ -1003,8 +1042,8 @@ function RunsPanel({ testId }: { testId: string }) {
           key: "id",
           header: "Run",
           render: (r) => (
-            <Link to={`/runs/${r.id}`} className="font-mono text-indigo-700 hover:underline">
-              <code>{r.id}</code>
+            <Link to={`/runs/${r.id}`} className="text-indigo-700 hover:underline">
+              Open →
             </Link>
           ),
         },

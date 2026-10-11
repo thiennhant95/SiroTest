@@ -328,6 +328,17 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  startStabilityGate: (id: string, body: { environmentId: string; runs?: number }) =>
+    day6req<{ gateId: string; status: string; total: number; poll: string }>(`/tests/${id}/stability`, {
+      method: "POST",
+      body: JSON.stringify({ ...body, async: true }),
+    }),
+  getStabilityGate: (id: string, gateId: string) =>
+    day6req<{ gateId: string; status: string; passed: number; total: number; stable: boolean; runs: Array<{ id: string; status: string }>; error: string | null }>(`/tests/${id}/stability/gates/${gateId}`),
+  cancelStabilityGate: (id: string, gateId: string) =>
+    day6req<{ gateId: string; status: string }>(`/tests/${id}/stability/gates/${gateId}`, {
+      method: "DELETE",
+    }),
   getRubric: (id: string) =>
     day6req<{ score: number; maxScore: number; checks: Array<{ id: string; label: string; earned: number; max: number; detail: string }> }>(`/tests/${id}/rubric`),
   saveTest: (id: string, definitionJson: unknown, changeMessage?: string) =>

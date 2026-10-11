@@ -52,7 +52,6 @@ export function RunProgress({ runId, knownSecrets, onBack }: Props) {
           WS: {connected ? 'connected' : 'reconnecting…'}
         </span>
       </div>
-      <h3 className="text-sm font-semibold">Run <code className="rounded bg-slate-100 px-1 font-mono text-xs">{runId.slice(0, 12)}…</code></h3>
       <p className="text-sm">
         Status: <strong data-testid="run-status">{run ? TERMINAL_LABEL[run.status] ?? run.status : 'loading…'}</strong>
         {error && <span className="text-red-700"> · {redactText(error, knownSecrets)}</span>}

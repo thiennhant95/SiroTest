@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { isNotFoundError } from "../lib/api";
-import { Badge, Button, EmptyState, ErrorState, Field, Input, Skeleton, useToast } from "../components/ui";
+import { Badge, Button, CopyId, EmptyState, ErrorState, Field, Input, Skeleton, useToast } from "../components/ui";
 
 const API = "/api/v1";
 
@@ -188,7 +188,7 @@ export function WorkersPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <strong className="text-sm">{w.name}</strong>
                 <Badge tone={w.status === "online" ? "green" : "slate"}>{w.status}</Badge>
-                <span className="font-mono text-[11px] text-slate-400">{w.id.slice(0, 12)}…</span>
+                <CopyId id={w.id} label="worker" />
                 <Button type="button" size="sm" variant="ghost" className="ml-auto text-red-600 hover:text-red-700" onClick={() => void deregister(w.id)}>
                   Deregister
                 </Button>

@@ -726,7 +726,13 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     }
     for (const artifact of await collectArtifacts(ws, runId)) {
       await store.addArtifact(artifact);
-    }    await store.updateRun(runId, {
+    }
+    // Cancel wins: an HTTP cancel may have settled this row 'cancelled'
+    // while the worker was dying — never overwrite it with 'failed'
+    // (same rule as the queue guard: never resurrect a settled run).
+    const cur = await store.getRun(runId).catch(() => null);
+    if (cur?.status === 'cancelled') status = 'cancelled';
+    await store.updateRun(runId, {
       status,
       finishedAt,
       durationMs: finishedAt - startedAt,
@@ -744,6 +750,9 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     const finishedAt = now();
     errorSummary = redactSecrets(err instanceof Error ? err.message : String(err), secrets);
     if (token.cancelled) status = 'cancelled';
+    // Cancel wins here too (HTTP cancel settled the row while we crashed).
+    const cur = await store.getRun(runId).catch(() => null);
+    if (cur?.status === 'cancelled') status = 'cancelled';
     await store.updateRun(runId, { status, finishedAt, durationMs: finishedAt - startedAt, errorSummary });
     publish(buildEvent(status === 'cancelled' ? 'run.cancelled' : 'run.failed', runId, { status, error: errorSummary }));
   } finally {

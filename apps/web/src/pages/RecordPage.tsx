@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Badge, Button, Field, Input, useToast } from "../components/ui";
+import { Badge, Button, CopyId, Field, Input, useToast } from "../components/ui";
 import { ApiError, api } from "../lib/api";
 
 /** /tests/:id/record — thin wrapper over recorder REST endpoints. */
@@ -31,9 +31,9 @@ export function RecordPage() {
       </Link>
       <h1 className="text-xl font-semibold">Record session</h1>
       <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
-        <span>Test <code className="rounded bg-slate-100 px-1 font-mono text-xs">{id}</code></span>
+        <span className="inline-flex items-center gap-2">Test <CopyId id={id ?? ""} label="test" /></span>
         {sessionId ? (
-          <Badge tone="indigo">session {sessionId.slice(0, 12)}…</Badge>
+          <Badge tone="indigo">session <CopyId id={sessionId} label="session" /></Badge>
         ) : (
           <Badge>not started</Badge>
         )}

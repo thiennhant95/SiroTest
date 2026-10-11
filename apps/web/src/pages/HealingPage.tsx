@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { p2api, type HealingProposal } from "../api/p2";
 import { isNotFoundError } from "../lib/api";
 import { locatorPreview } from "../lib/steps";
-import { EmptyState, ErrorState, Badge, Button, Skeleton, useToast } from "../components/ui";
+import { CopyId, EmptyState, ErrorState, Badge, Button, Skeleton, useToast } from "../components/ui";
 
 /**
  * P2 — reviewable locator healing (`/tests/:id/healing`, wired in App.tsx).
@@ -144,7 +144,7 @@ export function HealingPage() {
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <strong>Step <code className="rounded bg-slate-100 px-1 font-mono text-xs">{p.stepId}</code></strong>
                 <span className="text-slate-400">·</span>
-                <span className="font-mono text-xs text-slate-500">{p.runId.slice(0, 12)}…</span>
+                <CopyId id={p.runId} label="run" />
                 <Badge tone={p.status === "pending" ? "amber" : p.status === "approved" ? "green" : "slate"}>{p.status}</Badge>
               </div>
               <div className="mt-2 space-y-1 rounded-md bg-slate-50 p-2 font-mono text-[13px]">

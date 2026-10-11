@@ -219,6 +219,14 @@ describe('suite runs (parallel) + JUnit export', () => {
     const final = await waitSuiteTerminal(suiteRunId, 120_000) as {
       status: string; tests: Array<{ testId: string; finalStatus: string; retryCount: number }>;
     };
+    if (final.status !== 'passed') {
+      // Flake diagnostics: never fail blind — dump child error summaries.
+      const kids = await db().run.findMany({ where: { suiteRunId } });
+      console.error(
+        '[suite-flake-diag]',
+        JSON.stringify(kids.map((k) => ({ id: k.id, status: k.status, errorSummary: (k.errorSummary ?? '').slice(0, 400) }))),
+      );
+    }
     assert.equal(final.status, 'passed');
     assert.equal(final.tests.length, 2);
     for (const t of final.tests) {

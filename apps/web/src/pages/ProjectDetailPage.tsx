@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, api, type ProjectRecord, type TestRecord } from "../lib/api";
-import { EmptyState, ErrorState, Skeleton } from "../components/ui";
+import { CopyId, EmptyState, ErrorState, Skeleton } from "../components/ui";
 import { ExportProjectButton, ImportSpecDialog } from "../components/ProjectTransfer";
 
 /**
@@ -96,7 +96,7 @@ export function ProjectDetailPage() {
         {project!.description ? (
           <p className="text-sm text-slate-500">{project!.description}</p>
         ) : null}
-        <p className="font-mono text-[11px] text-slate-400">{project!.id}</p>
+        <p className="mt-1"><CopyId id={project!.id} label="project" /></p>
       </div>
       <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Project sections">
         {sections.map((s) => (
@@ -162,7 +162,6 @@ export function ProjectDetailPage() {
                 >
                   {t.name}
                 </Link>
-                <p className="font-mono text-[11px] text-slate-400">{t.id}</p>
               </li>
             ))}
           </ul>

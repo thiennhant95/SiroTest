@@ -153,7 +153,6 @@ export function ProjectTestsPage() {
                 <Link to={`/tests/${t.id}`} className="block truncate text-sm font-semibold text-indigo-700 hover:underline">
                   {t.name}
                 </Link>
-                <p className="font-mono text-[11px] text-slate-400">{t.id.slice(0, 12)}…</p>
               </div>
               <Link to={`/tests/${t.id}`} className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-indigo-400 hover:text-indigo-700">
                 Open builder →

@@ -135,6 +135,150 @@ describe('stability gate (N consecutive passes stamp the definition)', () => {
     const missing = await injectJson(app, 'POST', '/api/v1/tests/test_nope/stability', { environmentId: envId });
     assert.equal(missing.statusCode, 404);
   });
+
+  async function pollGate(testId: string, gateId: string, timeoutMs = 180_000): Promise<{
+    status: string; stable: boolean; passed: number; total: number;
+    runs: Array<{ id: string; status: string }>; error: string | null;
+  }> {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      const cur = await injectJson(app, 'GET', `/api/v1/tests/${testId}/stability/gates/${gateId}`);
+      assert.equal(cur.statusCode, 200);
+      const g = cur.json() as { status: string };
+      if (['passed', 'failed', 'cancelled'].includes(g.status)) {
+        return g as { status: string; stable: boolean; passed: number; total: number; runs: Array<{ id: string; status: string }>; error: string | null };
+      }
+      assert.ok(Date.now() < deadline, `gate ${gateId} should settle (last: ${g.status})`);
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+
+  it('async gate: 202 immediately, poll settles passed, stamp set', async () => {
+    const { testId, envId } = await makeGateTest();
+    const started = await injectJson(app, 'POST', `/api/v1/tests/${testId}/stability`, {
+      environmentId: envId, runs: 2, async: true,
+    });
+    assert.equal(started.statusCode, 202);
+    const { gateId, poll } = started.json() as { gateId: string; poll: string; status: string };
+    assert.ok(gateId.startsWith('gate_'));
+    assert.ok(poll.endsWith(`/stability/gates/${gateId}`));
+
+    const final = await pollGate(testId, gateId);
+    assert.equal(final.status, 'passed');
+    assert.equal(final.stable, true);
+    assert.equal(final.passed, 2);
+    assert.deepEqual(final.runs.map((r) => r.status), ['passed', 'passed']);
+
+    const stamp = (await injectJson(app, 'GET', `/api/v1/tests/${testId}/stability`)).json() as { stable: boolean; stableRuns: number };
+    assert.equal(stamp.stable, true);
+    assert.equal(stamp.stableRuns, 2);
+  });
+
+  it('async gate on a failing test settles failed, no stamp, verdict lists runs', async () => {
+    const projectId = await makeProject(`stability-fail-${Date.now()}`);
+    const env = await injectJson(app, 'POST', `/api/v1/projects/${projectId}/environments`, { name: 'lab', baseUrl: labBase });
+    const envId = (env.json() as { id: string }).id;
+    const test = await injectJson(app, 'POST', `/api/v1/projects/${projectId}/tests`, {
+      name: 'always red',
+      definitionJson: {
+        schemaVersion: '1.0', name: 'always red', browser: 'chromium',
+        steps: [
+          { id: 's1', type: 'goto', enabled: true, url: `${labBase}/login` },
+          {
+            id: 's2', type: 'assertVisible', enabled: true,
+            target: { primary: { strategy: 'role', role: 'heading', name: 'Does Not Exist' }, alternatives: [] },
+          },
+        ],
+      },
+    });
+    const testId = (test.json() as { id: string }).id;
+    const started = await injectJson(app, 'POST', `/api/v1/tests/${testId}/stability`, {
+      environmentId: envId, runs: 2, async: true,
+    });
+    assert.equal(started.statusCode, 202);
+    const final = await pollGate(testId, (started.json() as { gateId: string }).gateId);
+    assert.equal(final.status, 'failed');
+    assert.equal(final.stable, false);
+    assert.equal(final.error, null);
+    const stamp = (await injectJson(app, 'GET', `/api/v1/tests/${testId}/stability`)).json() as { stable: boolean };
+    assert.equal(stamp.stable, false);
+  });
+
+  it('async gate validates before 202; ghost gates 404', async () => {
+    const { testId, envId } = await makeGateTest();
+    const tooMany = await injectJson(app, 'POST', `/api/v1/tests/${testId}/stability`, {
+      environmentId: envId, runs: 9, async: true,
+    });
+    assert.equal(tooMany.statusCode, 400);
+    assert.equal((await injectJson(app, 'GET', `/api/v1/tests/${testId}/stability/gates/gate_nope`)).statusCode, 404);
+    const { testId: other } = await makeGateTest();
+    const started = await injectJson(app, 'POST', `/api/v1/tests/${testId}/stability`, {
+      environmentId: envId, runs: 2, async: true,
+    });
+    const gateId = (started.json() as { gateId: string }).gateId;
+    // Gate belongs to another test → 404 (no cross-test reads).
+    assert.equal((await injectJson(app, 'GET', `/api/v1/tests/${other}/stability/gates/${gateId}`)).statusCode, 404);
+    const final = await pollGate(testId, gateId);
+    assert.equal(final.status, 'passed');
+  });
+
+  it('cancelling an async gate settles cancelled and stops the child run', async () => {
+    const projectId = await makeProject(`stability-slow-${Date.now()}`);
+    const env = await injectJson(app, 'POST', `/api/v1/projects/${projectId}/environments`, { name: 'lab', baseUrl: labBase });
+    const envId = (env.json() as { id: string }).id;
+    const test = await injectJson(app, 'POST', `/api/v1/projects/${projectId}/tests`, {
+      name: 'slow gate',
+      definitionJson: {
+        schemaVersion: '1.0', name: 'slow gate', browser: 'chromium',
+        // 20s: long enough to cancel mid-flight, well under the 30s step /
+        // 60s test timeouts (a 60s sleep races the test timeout and fails).
+        steps: [{ id: 's1', type: 'waitForTimeout', enabled: true, milliseconds: 20_000 }],
+      },
+    });
+    const testId = (test.json() as { id: string }).id;
+    const started = await injectJson(app, 'POST', `/api/v1/tests/${testId}/stability`, {
+      environmentId: envId, runs: 2, async: true,
+    });
+    assert.equal(started.statusCode, 202);
+    const gateId = (started.json() as { gateId: string }).gateId;
+
+    // Wait until the first child run is actually executing, then cancel.
+    const childId = await (async () => {
+      const deadline = Date.now() + 60_000;
+      for (;;) {
+        const cur = (await injectJson(app, 'GET', `/api/v1/tests/${testId}/stability/gates/${gateId}`)).json() as {
+          runs: Array<{ id: string; status: string }>;
+        };
+        if (cur.runs.length > 0) return cur.runs[0]!.id;
+        assert.ok(Date.now() < deadline, 'gate should trigger its first run');
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    })();
+    const cancelled = await injectJson(app, 'DELETE', `/api/v1/tests/${testId}/stability/gates/${gateId}`);
+    assert.equal(cancelled.statusCode, 200);
+
+    const final = await pollGate(testId, gateId, 120_000);
+    if (final.status !== 'cancelled') {
+      console.error('[gate-cancel-diag]', JSON.stringify(final).slice(0, 1000));
+    }
+    assert.equal(final.status, 'cancelled');
+    // The child run must not run to completion after the cancel.
+    const deadline = Date.now() + 60_000;
+    for (;;) {
+      const row = (await injectJson(app, 'GET', `/api/v1/runs/${childId}`)).json() as { status: string; error?: string };
+      if (['passed', 'failed', 'cancelled'].includes(row.status)) {
+        if (row.status !== 'cancelled') {
+          console.error('[gate-cancel-diag] child:', JSON.stringify({ status: row.status, error: (row.error ?? '').slice(0, 500) }));
+        }
+        assert.equal(row.status, 'cancelled');
+        break;
+      }
+      assert.ok(Date.now() < deadline, 'child run should settle after gate cancel');
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    // Cancelling a settled gate is idempotent.
+    assert.equal((await injectJson(app, 'DELETE', `/api/v1/tests/${testId}/stability/gates/${gateId}`)).statusCode, 200);
+  });
 });
 
 describe('recording rubric (deterministic 0-100)', () => {
