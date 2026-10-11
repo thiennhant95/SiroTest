@@ -19,6 +19,8 @@ export interface AiStatus {
   engine: AIEngine;
   provider: string;
   model?: string;
+  /** Per-task routing: model used by failure explanation when it differs from `model`. */
+  explainModel?: string;
 }
 
 export interface NlToStepsResponse {

@@ -25,6 +25,10 @@
  * Keyless free tiers (`AI_PROVIDER=kilo|uncloseai`, no key):
  * anonymous and rate-limited; upstream may log prompts, so project secrets
  * are redacted before sending and confidential data should not go through it.
+ *
+ * Per-task routing: `AI_EXPLAIN_MODEL` overrides the model for POST
+ * /ai/explain only (reasoning-heavy); nl-to-steps/cleanup stay on the cheap
+ * `AI_MODEL` default. Reported as `explainModel` in GET /ai/status when set.
  */
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -41,7 +45,7 @@ import { requireReadAccessToProject } from '../rbac.js';
 import { ApiError } from '../errors.js';
 import { parseOrThrow } from '../schemas.js';
 import { db } from '../db.js';
-import { aiStatus, getAIProvider, loadProjectSecrets, redactForLLM } from '../ai-provider.js';
+import { aiStatus, getAIProvider, getExplainProvider, loadProjectSecrets, redactForLLM } from '../ai-provider.js';
 
 // ------------------------------------------------------------- zod (colocated) ---
 
@@ -176,6 +180,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const redacted = redactForLLM(errorSummary!, secrets).slice(0, 20000);
+    // Per-task routing: explanation is reasoning-heavy, so it honors
+    // AI_EXPLAIN_MODEL while interactive tasks stay on the cheap default.
     const { engine, explanation } = await explainFailure(
       {
         errorSummary: redacted,
@@ -184,7 +190,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         ...(locator !== undefined ? { locator } : {}),
         ...(timeoutMs !== undefined ? { timeoutMs } : {}),
       },
-      getAIProvider(),
+      getExplainProvider(),
     );
     return { engine, explanation };
   });

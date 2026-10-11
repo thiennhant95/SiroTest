@@ -15,9 +15,32 @@ export function getAIProvider(): AIProvider {
   return selectProvider();
 }
 
+/**
+ * Per-task routing: `AI_EXPLAIN_MODEL` overrides the model for failure
+ * explanation ONLY (reasoning-heavy; interactive tasks stay on the cheap
+ * `AI_MODEL` default). Same endpoint/key/timeout, just a different model —
+ * and never an endpoint conjured from nothing (no LLM configured → rules).
+ */
+export function explainModelOverride(): string | undefined {
+  const m = (process.env.AI_EXPLAIN_MODEL ?? "").trim();
+  return m || undefined;
+}
+
+export function getExplainProvider(): AIProvider {
+  const model = explainModelOverride();
+  return selectProvider(process.env, model ? { model } : undefined);
+}
+
 /** Safe for GET /ai/status — engine/provider/model only, never the key. */
-export function aiStatus(): { engine: 'rules' | 'llm'; provider: string; model?: string } {
-  return providerStatus(getAIProvider());
+export function aiStatus(): { engine: 'rules' | 'llm'; provider: string; model?: string; explainModel?: string } {
+  const status = providerStatus(getAIProvider());
+  const explainModel = explainModelOverride();
+  // Report the override only when it actually changes something (LLM active
+  // and a different model than the default) — otherwise it is noise.
+  if (status.engine === 'llm' && explainModel && explainModel !== status.model) {
+    return { ...status, explainModel };
+  }
+  return status;
 }
 
 /**

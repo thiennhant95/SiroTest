@@ -299,6 +299,9 @@ Explain, compose, cleanup and Gherkin all run local rule engines — every respo
 ## Opt-in LLM (keyless available)
 Set \`AI_PROVIDER=kilo\` or \`AI_PROVIDER=uncloseai\` (no key, anonymous free tier) or a classic \`AI_API_KEY\` endpoint. Comma lists try in order: \`AI_PROVIDER=kilo,uncloseai\`. LLM failures fall back to rules; \`engine: 'llm'\` only when the model really answered.
 
+## Per-task model (reasoning where it pays)
+\`AI_MODEL\` is the cheap default for interactive tasks (compose/cleanup). \`AI_EXPLAIN_MODEL\` overrides the model for failure explanation only — e.g. a pro/reasoning model — same endpoint and key, reported as \`explainModel\` in \`GET /ai/status\` and shown in the Explain tab.
+
 ## Privacy
 Project secret values are redacted before anything reaches an LLM. Free tiers may log prompts upstream — do not send confidential data through them.
 

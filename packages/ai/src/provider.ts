@@ -173,25 +173,38 @@ export class EnvProvider implements AIProvider {
  * Tokens: `kilo`, `uncloseai`, `key` (= classic `AI_API_KEY` endpoint).
  * Unknown tokens are dropped; an empty chain yields {@link RuleProvider}
  * (visible as `engine: 'rules'` in `/ai/status`, never a crash).
+ *
+ * `opts.model` overrides the model for EVERY EnvProvider built (per-task
+ * routing, e.g. a stronger reasoning model for failure explanation while
+ * interactive tasks stay on the cheap default). It never conjures an
+ * endpoint: with no LLM configured the result is still {@link RuleProvider}.
  */
-export function selectProvider(env: NodeJS.ProcessEnv = process.env): AIProvider {
+export interface SelectProviderOpts {
+  /** Override the model for all LLM providers built by this call. */
+  model?: string;
+}
+
+export function selectProvider(env: NodeJS.ProcessEnv = process.env, opts: SelectProviderOpts = {}): AIProvider {
+  const modelOverride = (opts.model ?? "").trim() || undefined;
   const tokens = (env.AI_PROVIDER ?? "")
     .split(",")
     .map((t) => t.trim().toLowerCase())
     .filter((t) => t.length > 0);
   if (tokens.length === 0) {
     const cfg = readEnvConfig(env);
-    return cfg ? new EnvProvider(cfg) : new RuleProvider();
+    if (!cfg) return new RuleProvider();
+    return new EnvProvider(modelOverride ? { ...cfg, model: modelOverride } : cfg);
   }
   const seen = new Set<string>();
   const chain: EnvProvider[] = [];
   for (const token of tokens) {
     const cfg = configForToken(token, env);
     if (!cfg) continue;
-    const key = `${cfg.baseUrl}|${cfg.model}`;
+    const effective = modelOverride ? { ...cfg, model: modelOverride } : cfg;
+    const key = `${effective.baseUrl}|${effective.model}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    chain.push(new EnvProvider(cfg));
+    chain.push(new EnvProvider(effective));
   }
   if (chain.length === 0) return new RuleProvider();
   if (chain.length === 1) return chain[0]!;

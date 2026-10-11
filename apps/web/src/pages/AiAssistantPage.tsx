@@ -94,7 +94,7 @@ export function AiAssistantPage({ onInsertSteps, testId, runId, initialTab = "co
         ]}
       />
       {tab === "compose" ? <ComposeTab onInsertSteps={onInsertSteps} /> : null}
-      {tab === "explain" ? <ExplainTab initialRunId={runId} /> : null}
+      {tab === "explain" ? <ExplainTab initialRunId={runId} explainModel={status?.explainModel} /> : null}
       {tab === "cleanup" ? <CleanupTab testId={testId} onInsertSteps={onInsertSteps} /> : null}
     </div>
   );
@@ -185,7 +185,7 @@ function ComposeTab({ onInsertSteps }: { onInsertSteps?: (steps: AiStep[]) => vo
 
 /* ---------------------------------------------------------- explain --- */
 
-function ExplainTab({ initialRunId }: { initialRunId?: string }) {
+function ExplainTab({ initialRunId, explainModel }: { initialRunId?: string; explainModel?: string }) {
   const [runId, setRunId] = useState(initialRunId ?? "");
   const [errorText, setErrorText] = useState("");
   const [stepType, setStepType] = useState("");
@@ -212,6 +212,12 @@ function ExplainTab({ initialRunId }: { initialRunId?: string }) {
 
   return (
     <div className="space-y-3">
+      {explainModel ? (
+        <p className="text-xs text-slate-500">
+          Reasoning model: <code className="rounded bg-slate-100 px-1 font-mono">{explainModel}</code>{" "}
+          (per-task <code className="rounded bg-slate-100 px-1 font-mono">AI_EXPLAIN_MODEL</code>; other tabs use the default)
+        </p>
+      ) : null}
       <Field label="Run ID (read error from run in DB)" hint="Leave blank to paste an error manually below.">
         <Input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="run_…" />
       </Field>

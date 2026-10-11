@@ -71,6 +71,22 @@ describe("selectProvider", () => {
   it("rule status shape", () => {
     expect(providerStatus(new RuleProvider())).toEqual({ engine: "rules", provider: "rule-based" });
   });
+
+  it("model override applies to single + chain, never conjures an endpoint", () => {
+    const single = selectProvider({ AI_API_KEY: "k", AI_MODEL: "cheap" } as NodeJS.ProcessEnv, { model: "pro" });
+    expect(single).toBeInstanceOf(EnvProvider);
+    expect((single as EnvProvider).model).toBe("pro");
+
+    const chained = selectProvider({ AI_PROVIDER: "kilo,uncloseai" } as NodeJS.ProcessEnv, { model: "pro" });
+    expect(chained).toBeInstanceOf(FallbackProvider);
+    expect((chained as FallbackProvider).chain.map((c) => c.model)).toEqual(["pro", "pro"]);
+    expect(providerStatus(chained).model).toBe("pro,pro");
+
+    // Override alone conjures nothing: no LLM configured → still rules.
+    const none = selectProvider({ PATH: "x" } as NodeJS.ProcessEnv, { model: "pro" });
+    expect(none).toBeInstanceOf(RuleProvider);
+    expect(none.engine).toBe("rules");
+  });
 });
 
 describe("EnvProvider (mocked fetch — no real network)", () => {

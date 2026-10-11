@@ -5,6 +5,7 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 ## [Unreleased] — 2026-10-03..2026-10-10
 
 ### Added
+- Per-task AI model routing: `AI_EXPLAIN_MODEL` overrides the model for failure explanation only (interactive tasks stay on cheap `AI_MODEL`); reported as `explainModel` in `GET /ai/status` + Explain tab caption; live-verified vs self-hosted gateway (flash default + pro explain, Vietnamese explanations)
 - Async stability gate: `POST .../stability {async: true}` → 202 `{gateId, poll}` + poll/cancel endpoints; Builder "Check 3×" runs in background with progress + Cancel
 - `CopyId` button: internal IDs no longer render as text (projects/tests/builder/runs/workers/healing/record); copy-to-clipboard where the ID is genuinely needed
 - Suite-flake diagnostics: failing suite test now dumps child run error summaries instead of failing blind
