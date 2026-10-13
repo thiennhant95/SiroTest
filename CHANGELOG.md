@@ -2,7 +2,7 @@
 
 Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 
-## [Unreleased] — 2026-10-03..2026-10-10
+## [0.1.0] — 2026-10-13 (release: P0 GREEN + P2 audit/AI batch)
 
 ### Verified — P0 release gate GREEN on `86fca3f` (2026-10-13, re-verified)
 - No known data-loss bug (versioning/restore + recorder draft-preservation suites green, no open reports)
