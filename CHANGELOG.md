@@ -4,6 +4,14 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 
 ## [Unreleased] — 2026-10-03..2026-10-10
 
+### Verified — P0 release gate GREEN on `86fca3f` (2026-10-13, re-verified)
+- No known data-loss bug (versioning/restore + recorder draft-preservation suites green, no open reports)
+- Compiler covers every P0 step in both compilers, same order
+- Core E2E 6/6 on Chromium (studio flow + compiled-spec pass/fail + fixture login + failure artifacts)
+- Secret redaction green (release-gate redaction suite + `test:security` 33/33)
+- Interrupted runner/recorder recovery green (cancel-kill-child + browser-death/interruption suites)
+- Full evidence: `test:unit` 140/140, `test:security` 33/33, `test:server-unit` 69/69, `test:integration` 185/185, `test:e2e` 6/6
+
 ### Verified — P0 release gate GREEN on `34605af` (2026-10-11)
 - No known data-loss bug (versioning/restore + recorder draft-preservation suites green, no open reports)
 - Compiler covers every P0 step in both compilers, same order
