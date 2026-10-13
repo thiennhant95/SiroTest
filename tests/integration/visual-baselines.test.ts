@@ -179,6 +179,35 @@ describe('baselines CRUD + promote + serve', () => {
     assert.equal(res.statusCode, 400);
   });
 
+  it('promote + delete leave audit rows (durable, metadata only)', async () => {
+    const artifactPath = `runs/${runId}/screenshots/visual-hero.png`;
+    let res = await injectJson(app, 'POST', `/tests/${testId}/baselines`, { name: 'audited', runId, artifactPath });
+    assert.equal(res.statusCode, 201);
+
+    const promoted = await db().auditLog.findMany({
+      where: { action: 'baseline.promote', entityId: testId },
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+    });
+    assert.equal(promoted.length, 1);
+    assert.equal(promoted[0].projectId, projectId);
+    assert.equal(promoted[0].userId, TEST_USER_ID);
+    const details = JSON.parse(promoted[0].details ?? '{}') as { name?: string; runId?: string };
+    assert.equal(details.name, 'audited');
+    assert.equal(details.runId, runId);
+
+    res = await injectJson(app, 'DELETE', `/tests/${testId}/baselines/audited`);
+    assert.equal(res.statusCode, 204);
+    const deleted = await db().auditLog.findMany({
+      where: { action: 'baseline.delete', entityId: testId },
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+    });
+    assert.equal(deleted.length, 1);
+    assert.equal(deleted[0].projectId, projectId);
+    assert.match(deleted[0].details ?? '', /audited/);
+  });
+
   it('enforces auth + membership (401/403)', async () => {
     const anon = await app.inject({ method: 'GET', url: `/tests/${testId}/baselines` });
     assert.equal(anon.statusCode, 401);
