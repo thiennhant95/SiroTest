@@ -47,7 +47,7 @@ const BUILDER_STOPS: TourStop[] = [
   {
     target: '[data-tour="tabs"]',
     title: "Bottom tabs",
-    body: "Variables holds {{BASE_URL}} and secrets. Gherkin writes steps in Vietnamese. Suggest proposes assertions. Datasets drive rows. Runs lists history. Code shows the generated spec (read-only).",
+    body: "Variables holds {{BASE_URL}} and secrets. Gherkin writes steps in Vietnamese (opt-in AI naming). Suggest proposes assertions (opt-in AI extras). Datasets drive rows. Runs lists history. Code shows the generated spec (read-only).",
   },
 ];
 
@@ -56,6 +56,11 @@ const RUN_STOPS: TourStop[] = [
     target: '[data-tour="run-timeline"]',
     title: "Step timeline",
     body: "Every step with status and time. Failed steps open with the concise error — switch to Developer role for the raw technical details.",
+  },
+  {
+    target: '[data-tour="run-explain"]',
+    title: "Explain with AI",
+    body: "On failed runs, one click explains the failure (likely causes + suggested fixes). The engine badge always says whether rules or an LLM produced it.",
   },
   {
     target: '[data-tour="run-evidence"]',
@@ -70,7 +75,9 @@ const RUN_STOPS: TourStop[] = [
 ];
 
 const BUILDER_V2_FLAG = "vv-tour-builder-v2";
-const RUN_FLAG = "vv-tour-run-done";
+// Bumped for the Explain stop: users who finished the 3-stop tour see the
+// 4-stop version once (same v2 precedent as the Builder tour).
+const RUN_FLAG = "vv-tour-run-v2";
 
 /** First-run guided tour (spotlight + tooltip, no deps). */
 function Tour({ stops, flag, label }: TourProps) {
@@ -114,12 +121,17 @@ function Tour({ stops, flag, label }: TourProps) {
     setIndex(null);
   };
 
+  // The tooltip is ~240px tall: clamp top so the action buttons never land
+  // below the fold (on short viewports the overlay blocks scrolling, which
+  // used to strand users on the last stop with "Got it" unreachable).
   const boxStyle: React.CSSProperties = rect
     ? {
         position: "fixed",
         left: Math.max(8, Math.min(rect.left, window.innerWidth - 330)),
-        top: Math.min(rect.bottom + 10, window.innerHeight - 190),
+        top: Math.max(8, Math.min(rect.bottom + 10, window.innerHeight - 260)),
         width: 320,
+        maxHeight: "calc(100vh - 100px)",
+        overflowY: "auto",
         zIndex: 60,
       }
     : { position: "fixed", left: "50%", top: 80, transform: "translateX(-50%)", width: 320, zIndex: 60 };
@@ -171,7 +183,7 @@ export function BuilderTour() {
   return <Tour stops={BUILDER_STOPS} flag={BUILDER_V2_FLAG} label="Builder tour" />;
 }
 
-/** Run-result tour (3 stops: timeline → evidence → bug report). */
+/** Run-result tour (4 stops: timeline → explain → evidence → bug report). */
 export function RunTour() {
   return <Tour stops={RUN_STOPS} flag={RUN_FLAG} label="Run result tour" />;
 }

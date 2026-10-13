@@ -176,7 +176,7 @@ function ExplainWithAi({ runId, projectId, demo }: { runId: string; projectId?: 
   };
   const exp = result?.explanation ?? null;
   return (
-    <section aria-label="AI explanation" data-testid="explain-with-ai">
+    <section aria-label="AI explanation" data-testid="explain-with-ai" data-tour="run-explain">
       <h2>AI explanation {projectId ? <Link className="small" to={`/projects/${projectId}/ai`}>Open in AI assistant</Link> : null}</h2>
       {!result && !error ? (
         <button type="button" className="btn" data-testid="explain-btn" disabled={loading} onClick={() => void run()}>
