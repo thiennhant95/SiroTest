@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SiroTest — Thuyết trình chốt pilot (cty phần mềm 20 người)</title>
+<style>
+  :root { --indigo:#4f46e5; --slate:#0f172a; --muted:#64748b; --bg:#f1f5f9; --card:#ffffff; --green:#16a34a; --amber:#d97706; --red:#dc2626; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:"Segoe UI", system-ui, -apple-system, sans-serif; background:var(--bg); color:var(--slate); height:100vh; overflow:hidden; }
+  #deck { height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .slide { display:none; width:min(1060px,100%); max-height:calc(100vh - 48px); overflow-y:auto; background:var(--card); border-radius:16px; box-shadow:0 12px 40px rgba(15,23,42,.12); padding:52px 60px; }
+  .slide.active { display:block; }
+  .kicker { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--indigo); font-weight:700; margin-bottom:12px; }
+  h1 { font-size:42px; line-height:1.15; margin-bottom:16px; }
+  h2 { font-size:31px; margin-bottom:16px; }
+  p.sub { font-size:19px; color:var(--muted); line-height:1.6; }
+  ul { margin:16px 0 0 4px; list-style:none; }
+  ul li { font-size:18px; line-height:1.55; padding:9px 0 9px 34px; position:relative; }
+  ul li::before { content:"✓"; position:absolute; left:0; color:var(--green); font-weight:800; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px; }
+  .card { border:1px solid #e2e8f0; border-radius:12px; padding:16px 18px; background:#f8fafc; }
+  .card h3 { font-size:17px; margin-bottom:6px; }
+  .card p { font-size:15px; color:var(--muted); line-height:1.55; }
+  .who { display:inline-block; font-size:12px; font-weight:800; letter-spacing:1px; text-transform:uppercase; padding:2px 10px; border-radius:20px; margin-bottom:6px; }
+  .w-dev{background:#e0e7ff;color:#3730a3}.w-test{background:#dcfce7;color:#166534}.w-brse{background:#fef3c7;color:#92400e}.w-lead{background:#fce7f3;color:#9d174d}.w-mgr{background:#fee2e2;color:#991b1b}
+  table { width:100%; border-collapse:collapse; margin-top:16px; font-size:16px; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid #e2e8f0; vertical-align:top; }
+  th { background:#eef2ff; color:var(--indigo); font-size:14px; text-transform:uppercase; letter-spacing:.5px; }
+  td.hl { font-weight:700; color:var(--green); }
+  .bignum { font-size:50px; font-weight:800; color:var(--indigo); }
+  .numrow { display:flex; gap:34px; margin-top:20px; }
+  .numrow div p { font-size:15px; color:var(--muted); margin-top:4px; }
+  .story { background:#f8fafc; border-left:5px solid var(--indigo); border-radius:0 10px 10px 0; padding:18px 22px; font-size:18px; line-height:1.7; margin-top:16px; font-style:italic; }
+  .warn { background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:13px 18px; font-size:16px; margin-top:14px; }
+  .pledge { background:#f0fdf4; border:2px solid var(--green); border-radius:12px; padding:18px 22px; font-size:18px; margin-top:16px; line-height:1.6; }
+  .mono { font-family:Consolas,monospace; font-size:.92em; background:#f1f5f9; padding:1px 7px; border-radius:5px; }
+  .note { display:none; margin-top:24px; border-left:4px solid var(--amber); background:#fffbeb; padding:13px 18px; font-size:15px; line-height:1.65; color:#78350f; border-radius:0 8px 8px 0; }
+  body.shownotes .note { display:block; }
+  #hud { position:fixed; bottom:12px; left:0; right:0; text-align:center; font-size:13px; color:var(--muted); }
+  #hud kbd { background:#fff; border:1px solid #cbd5e1; border-radius:4px; padding:1px 7px; font-size:12px; }
+  .cover { text-align:center; }
+  .cover .logo { font-size:22px; font-weight:800; color:var(--indigo); letter-spacing:1px; margin-bottom:24px; }
+  .cta { display:inline-block; margin-top:20px; background:var(--indigo); color:#fff; font-size:18px; font-weight:700; padding:14px 34px; border-radius:10px; }
+  .time { display:inline-block; font-size:12px; color:var(--muted); border:1px solid #e2e8f0; border-radius:20px; padding:2px 12px; margin-bottom:10px; }
+  @media print { body{overflow:visible} .slide{display:block; box-shadow:none; margin-bottom:24px} #hud{display:none} }
+</style>
+</head>
+<body>
+<div id="deck">
+
+<!-- 1 HOOK -->
+<section class="slide active"><div class="cover">
+  <div class="logo">SIROTEST</div>
+  <div class="time">Phút 0–2 · Mục tiêu: cả phòng gật đầu</div>
+  <h1>Release gần nhất,<br>ai là người thức khuya nhất công ty?</h1>
+  <p class="sub">Nếu câu trả lời là tester — buổi hôm nay dành cho người đó.<br>Nếu là dev fix bug khách báo — càng dành cho người đó.</p>
+  <div class="note"><b>KỊCH BẢN MỞ (học thuộc):</b> "Cảm ơn mọi người. Tôi xin 35 phút, trong đó 7 phút tôi chạy thử trực tiếp — không slide, không video quay sẵn. Nhưng trước đó cho tôi hỏi 2 câu: (1) Release gần nhất team mình regression mất mấy ngày? (2) Lần gần nhất khách báo bug mà team mình 'tưởng đã test rồi' là khi nào?" — IM LẶNG, để họ trả lời. Ghi con số lên bảng/giấy. Mọi slide tiền sau này dùng lại số đó. Đây là kỹ thuật quan trọng nhất: <b>họ tự nói ra nỗi đau thì họ tự thuyết phục mình.</b></div>
+</div></section>
+
+<!-- 2 STORY -->
+<section class="slide">
+  <div class="kicker">Mở đầu · Câu chuyện có thật ở mọi cty nhỏ</div>
+  <div class="time">Phút 2–5 · Mục tiêu: cảm xúc, không phải logic</div>
+  <h2>Thứ Sáu, 6 giờ chiều</h2>
+  <div class="story">Dev vừa merge một tính năng nhỏ. Tester đã về. Thứ Hai, khách gọi: "Sao bấm Thanh toán nó trắng trang?" — cái luồng mà tuần trước test tay vẫn pass. Cả team bỏ 2 ngày dò lại từ đầu, mà vẫn không chắc còn chỗ nào sập nữa không. Release tiếp theo, tester lại ngồi click lại 200 case… bằng tay.</div>
+  <ul>
+    <li><b>Vấn đề không phải team kém</b> — vấn đề là trí nhớ con người không phải hệ thống kiểm thử.</li>
+  </ul>
+  <div class="note"><b>Nói:</b> Kể chậm, nhìn vào tester khi nói câu "tester đã về", nhìn dev khi nói "merge tính năng nhỏ". Nếu ai đó cười gật gù — đó là đồng minh, nhớ mặt họ, lát nữa đưa chuột cho họ bấm demo.</div>
+</section>
+
+<!-- 3 COST -->
+<section class="slide">
+  <div class="kicker">Tiền · Tính bằng số của chính công ty</div>
+  <div class="time">Phút 5–9 · Mục tiêu: manager thấy tiền cháy</div>
+  <h2>Regression tay tốn bao nhiêu?</h2>
+  <div class="numrow">
+    <div><div class="bignum">__h</div><p>mỗi release<br>(điền số họ vừa cho)</p></div>
+    <div><div class="bignum">× N</div><p>release / năm<br>= ngày công đốt</p></div>
+    <div><div class="bignum">+ ?</div><p>bug lọt ra khách hàng<br>= tiền + uy tín</p></div>
+  </div>
+  <ul>
+    <li><b>Và cái tốn nhất không đo được:</b> dev giỏi phải đi fix bug cũ thay vì làm tính năng mới — dự án chậm, người giỏi chán.</li>
+    <li><b>SiroTest đổi lại:</b> record 1 lần → chạy lại vô hạn lần, mỗi lần ~20 phút, bấm 1 nút, chạy đêm cũng được.</li>
+  </ul>
+  <div class="note"><b>Nói với MANAGER:</b> "Anh/chị cho tôi số: 1 release regression mấy ngày, 1 năm mấy release? Tôi nhân ngay tại đây." — Viết phép tính ra. "Tiền này không mua được gì cả, nó chỉ mua sự 'hi vọng là không sập'." Dừng 3 giây. Rồi qua demo.</div>
+</section>
+
+<!-- 4 DEMO -->
+<section class="slide">
+  <div class="kicker">Chứng minh · Không slide, chỉ làm thật</div>
+  <div class="time">Phút 9–16 · Mục tiêu: dev tin (dev chỉ tin cái chạy được)</div>
+  <h2>7 phút live — mời 1 tester lên bấm cùng tôi</h2>
+  <ul>
+    <li><b>Phút 1–2:</b> tester thao tác đăng nhập trên trình duyệt thật — steps tự hiện, không gõ code.</li>
+    <li><b>Phút 3:</b> bấm <b>"Check 3×"</b> — máy chạy 3 lần, đóng dấu <b>Ổn định 3/3</b>.</li>
+    <li><b>Phút 4–5:</b> cố tình sửa sai 1 chữ → fail → bấm <b>"Giải thích bằng AI"</b>, đọc kết quả tiếng Việt.</li>
+    <li><b>Phút 6:</b> xuất code <span class="mono">.spec.ts</span> + file JUnit — <b>chứng minh dev vẫn sở hữu test.</b></li>
+    <li><b>Phút 7:</b> mở nhật ký audit — mọi click vừa rồi đều có dấu vết ai làm.</li>
+  </ul>
+  <div class="warn">Mất mạng? Dùng app mẫu dựng sẵn trong tool. Máy demo sập? Có video quay sẵn phương án C — nhưng chỉ dùng khi bất đắc dĩ.</div>
+  <div class="note"><b>CHIẾN THUẬT QUAN TRỌNG NHẤT:</b> (1) Đưa chuột cho TESTER bấm record — người bấm sẽ thành champion bênh tool sau này. (2) Khi xuất code, quay sang DEV: "Em review giúp anh đoạn code này có phải Playwright chuẩn không?" — để dev tự xác nhận trước cả phòng = chốt hạ kháng cự. (3) Khi AI giải thích xong, hỏi cả phòng: "Lần cuối các bạn phải đọc stack trace mờ mắt là khi nào?"</div>
+</section>
+
+<!-- 5 TESTER -->
+<section class="slide">
+  <div class="kicker">Cho Tester · Người được lợi đầu tiên</div>
+  <div class="time">Phút 16–19 · Mục tiêu: tester thành đồng minh</div>
+  <h2><span class="who w-test">Tester</span><br>Từ "người click" thành "người duyệt"</h2>
+  <ul>
+    <li><b>Hết regression tay:</b> việc lặp lại để máy làm; việc của bạn là nghĩ case khó — việc có giá trị hơn.</li>
+    <li><b>Con dấu Ổn định 3/3:</b> test nào chưa pass 3 lần liên tiếp thì máy không cho gọi là xong — <b>khỏi cãi nhau với dev</b> xem test đã "chắc" chưa.</li>
+    <li><b>Dev đổi giao diện?</b> Máy tự đề xuất chỗ sửa mới, bạn chỉ bấm <b>Duyệt / Từ chối</b> — máy không bao giờ tự sửa lén sau lưng bạn.</li>
+    <li><b>Thăng tiến:</b> tester biết vận hành automation + đọc báo cáo có trọng lượng hơn tester chỉ biết click tay.</li>
+  </ul>
+  <div class="note"><b>Nói với tester (chân thành):</b> "Tool này không thay chị — nó thay cái phần việc chán nhất của chị. Chị vẫn là người quyết định test nào đạt." Nỗi sợ lớn nhất của tester là mất việc — gỡ nó ngay câu đầu.</div>
+</section>
+
+<!-- 6 DEV -->
+<section class="slide">
+  <div class="kicker">Cho Dev · Đối tượng khó tính nhất, xử lý ở đây</div>
+  <div class="time">Phút 19–22 · Mục tiêu: dev gật đầu</div>
+  <h2><span class="who w-dev">Dev</span><br>Test là code thật — các bạn vẫn làm chủ</h2>
+  <ul>
+    <li><b>Output là Playwright thuần</b> (<span class="mono">.spec.ts</span>): review, sửa, version control như code product. <b>Không bị nhốt trong tool.</b></li>
+    <li><b>Chạy trong CI:</b> xuất JUnit cắm vào pipeline hiện tại — PR nào sập test biết ngay, khỏi đợi tester báo.</li>
+    <li><b>Có sẵn test cũ?</b> Import Playwright/JUnit từ dự án cũ vào — không viết lại từ số 0.</li>
+    <li><b>Dev đổi UI làm sập test?</b> Sập có kiểm soát: đề xuất sửa hiện rõ từng cái cho tester duyệt, không phải "sáng ra 50 test đỏ không hiểu vì sao".</li>
+  </ul>
+  <div class="note"><b>Nói với dev (ngang hàng, đừng dạy):</b> "Tôi biết các bạn ghét low-code vì nó coi thường nghề. Tool này ngược lại: nó sinh code để các bạn review. Lúc demo các bạn đã tự xác nhận code chuẩn rồi." Nếu dev vẫn cau mày, hỏi thẳng: "Em lo nhất điều gì? Anh trả lời cụ thể." — Kháng cự nói ra mới gỡ được.</div>
+</section>
+
+<!-- 7 BRSE -->
+<section class="slide">
+  <div class="kicker">Cho BRSE · Vũ khí chào hàng dự án</div>
+  <div class="time">Phút 22–24 · Mục tiêu: BRSE thấy mình "lên giá"</div>
+  <h2><span class="who w-brse">BRSE</span><br>Viết tiếng Việt, ra test chạy được</h2>
+  <div class="card" style="margin-top:14px">
+    <p style="font-size:17px; color:var(--slate); line-height:1.9">
+    <b>Kịch bản:</b> Đăng nhập thành công<br>
+    <b>Cho rằng</b> mở trang quản trị · <b>Khi</b> nhập "Email" là "admin@x.io"<br>
+    <b>Và</b> bấm nút "Sign In" · <b>Thì</b> kiểm tra "Dashboard" hiển thị</p>
+  </div>
+  <ul>
+    <li><b>Đặc tả = test thực thi:</b> hết cảnh "spec một đằng, test một nẻo" — khách đổi yêu cầu, sửa spec là có test mới.</li>
+    <li>Mang đi chào hàng được: <b>"Đặc tả của chúng tôi chạy được thành test tự động"</b> — ít cty nhỏ nào nói được câu này.</li>
+  </ul>
+  <div class="note"><b>Nói với BRSE + manager:</b> Đây là đòn bẩy kinh doanh, không chỉ là tool test. Dự án outsource nào cũng hỏi "bên anh đảm bảo chất lượng thế nào?" — giờ có câu trả lời khác biệt.</div>
+</section>
+
+<!-- 8 LEADER -->
+<section class="slide">
+  <div class="kicker">Cho Leader · Quy trình và kỷ luật release</div>
+  <div class="time">Phút 24–26 · Mục tiêu: leader thấy release có kỷ luật</div>
+  <h2><span class="who w-lead">Leader</span><br>Release theo quy trình, không theo cảm tính</h2>
+  <ul>
+    <li><b>Suite + chạy song song + hẹn giờ:</b> tối bật chạy cả bộ, sáng ra đọc kết quả — release đúng giờ, không thức đêm.</li>
+    <li><b>Bắt test "lúc pass lúc fail" (flaky):</b> máy tự đánh dấu test không đáng tin — khỏi cảnh "em chạy lại thì nó pass mà".</li>
+    <li><b>Chuẩn "xong" rõ ràng:</b> test chưa có dấu Ổn định thì chưa được merge vào bộ regression — leader khỏi phải tin lời hứa.</li>
+    <li><b>Lịch sử đầy đủ:</b> test nào hỏng từ khi nào, ai sửa, vì sao — truy vết trong 1 phút thay vì họp 1 tiếng.</li>
+  </ul>
+  <div class="note"><b>Nói với leader:</b> "Anh/chị đang quản lý bằng niềm tin. Tool này cho anh/chị quản lý bằng bằng chứng." Hỏi: "Hiện tại trước release anh/chị dựa vào gì để gật đầu?"</div>
+</section>
+
+<!-- 9 MANAGER -->
+<section class="slide">
+  <div class="kicker">Cho Manager · Người ký tiền</div>
+  <div class="time">Phút 26–29 · Mục tiêu: hết lo rủi ro + tiền</div>
+  <h2><span class="who w-mgr">Manager</span><br>Rẻ, an toàn, dữ liệu ở nhà</h2>
+  <ul>
+    <li><b>0đ license theo đầu người:</b> tự host trên máy công ty (Windows, không cần Docker) — team tăng từ 20 lên 40 người cũng không tăng tiền.</li>
+    <li><b>Dữ liệu không ra khỏi công ty:</b> AI mặc định chạy локаль không mạng; bật LLM thì secret bị che trước khi gửi — dự án bảo mật cao vẫn dùng được.</li>
+    <li><b>Kiểm toán đầy đủ:</b> ai tạo/sửa/xóa/duyệt cái gì lúc nào — kể cả xóa cả project cũng còn dấu vết. Đáp ứng yêu cầu compliance của khách lớn.</li>
+    <li><b>Mật khẩu mã hóa AES-256:</b> không bao giờ lọt vào code, log hay báo cáo gửi khách.</li>
+  </ul>
+  <div class="note"><b>Nói với manager (chốt tiền + rủi ro):</b> "Tổng chi phí = 0đ license + 30 phút cài đặt + 2 tuần pilot. Rủi ro lớn nhất là... không thử." Hỏi: "Bên mình có dự án nào khách yêu cầu bảo mật dữ liệu / audit không? Đó là nơi tool này phát huy đầu tiên."</div>
+</section>
+
+<!-- 9B MAINTENANCE -->
+<section class="slide">
+  <div class="kicker">Cho dự án bảo trì · Tiền đều mỗi tháng, rủi ro mỗi lần deploy</div>
+  <div class="time">Phút 29–31 · Mục tiêu: manager thấy hotfix hết đáng sợ</div>
+  <h2>Dự án bảo trì: hết cảnh "đụng vào là sập"</h2>
+  <ul>
+    <li><b>Nỗi đau:</b> code cũ 2–3 năm, người viết đã nghỉ. Mỗi lần khách báo bug, sửa 1 chỗ — run rẩy deploy vì không biết sập chỗ nào khác.</li>
+    <li><b>Record 1 lần, giữ cả năm:</b> dựng bộ regression cho hệ thống đang chạy → mỗi lần hotfix chỉ cần chạy lại ~20 phút trước khi deploy.</li>
+    <li><b>Bug khách báo không bao giờ tái diễn:</b> record đúng thao tác khách làm → thành test vĩnh viễn. Lần sau lỗi đó quay lại, máy báo trước khi deploy.</li>
+    <li><b>Bằng chứng cho khách:</b> "đã fix + suite pass 100% + dấu Ổn định" — gửi kèm biên bản nghiệm thu, khách hết vặn.</li>
+    <li><b>Người mới vào thay người cũ:</b> đọc bộ suite là hiểu hết luồng nghiệp vụ — tài liệu sống, không cần bàn giao miệng.</li>
+  </ul>
+  <div class="note"><b>Nói với manager/leader:</b> "Bên mình dự án bảo trì chiếm bao nhiêu % doanh thu? Đó là tiền đều — và mỗi lần deploy hotfix là một lần đánh bạc. Tool này biến đánh bạc thành quy trình: fix → chạy suite → deploy → gửi bằng chứng cho khách." Hỏi: "Lần gần nhất deploy hotfix xong phải deploy tiếp bản chữa cháy là khi nào?"</div>
+</section>
+
+<!-- 9C NEW PROJECT -->
+<section class="slide">
+  <div class="kicker">Cho dự án mới · Đang phát triển, UI đổi từng sprint</div>
+  <div class="time">Phút 31–33 · Mục tiêu: leader + BRSE thấy test chạy song song dev</div>
+  <h2>Dự án mới: tester chạy cùng sprint, không chạy sau</h2>
+  <ul>
+    <li><b>Nỗi đau:</b> dev chạy sprint 1, tester test sprint 1 ở sprint 3 — lệch pha. Cuối dự án bug dồn, UAT với khách thành ác mộng.</li>
+    <li><b>Có UI là record được ngay:</b> màn hình vừa xong, tester record luôn trong sprint — dev và test chạy song song, không chờ nhau.</li>
+    <li><b>UI đổi liên tục?</b> Đúng việc của máy đề xuất locator mới: designer đổi nút, tester bấm Duyệt 5 phút thay vì viết lại 50 case.</li>
+    <li><b>Chuẩn "xong" mỗi sprint:</b> user story chỉ được gọi là done khi suite liên quan pass — BRSE viết Gherkin từ đầu sprint, dev hiểu đúng ý ngay từ đầu, hết "trái-hiểu".</li>
+    <li><b>CI chặn từ sớm:</b> dev merge code sập test là biết trong phút, không để tới UAT mới vỡ.</li>
+  </ul>
+  <div class="note"><b>Nói với leader/BRSE:</b> "Bệnh của dự án mới là bug phát hiện muộn — càng muộn càng đắt (sửa ở UAT tốn gấp 10 lần sửa ở sprint). Tool này kéo testing về bên trái timeline: spec chạy được từ sprint 1." Hỏi leader: "Hiện tại definition-of-done của sprint bên mình có kiểm thử tự động không?"</div>
+</section>
+
+<!-- 10 COMPARE -->
+<section class="slide">
+  <div class="kicker">So sánh · Thẳng thắn, không chê đối thủ</div>
+  <div class="time">Phút 33–35 · Mục tiêu: "sinh ra cho cỡ công ty mình"</div>
+  <h2>Tại sao không Selenium / Katalon / TestRail?</h2>
+  <table>
+    <tr><th></th><th>Selenium thuần</th><th>Katalon / SaaS</th><th>SiroTest</th></tr>
+    <tr><td>Tester không biết code</td><td>Không làm được</td><td>Làm được</td><td class="hl">Làm được</td></tr>
+    <tr><td>Chi phí khi team lớn lên</td><td>0đ + tốn dev viết</td><td>Tăng theo đầu người</td><td class="hl">0đ, không tăng</td></tr>
+    <tr><td>Dữ liệu dự án</td><td>Ở nhà</td><td>Máy chủ nước ngoài</td><td class="hl">Ở nhà</td></tr>
+    <tr><td>Đặc tả tiếng Việt chạy được</td><td>Không</td><td>Không</td><td class="hl">Có</td></tr>
+    <tr><td>Test có phải code thật?</td><td>Có</td><td>Bị nhốt trong tool</td><td class="hl">Có (Playwright chuẩn)</td></tr>
+  </table>
+  <div class="note"><b>Nói:</b> "Tôi không nói tool khác dở. Tôi chỉ nói: Selenium cần dev viết (mà dev các bạn đang bận), SaaS thì càng đông càng đắt + dữ liệu ra nước ngoài. SiroTest sinh ra cho đúng cái cỡ 20 người này." Không bao giờ chê đối thủ — chỉ đặt bảng cho họ tự kết luận.</div>
+</section>
+
+<!-- 11 OBJECTIONS -->
+<section class="slide">
+  <div class="kicker">Gỡ kháng cự · Nói trước điều họ đang nghĩ</div>
+  <div class="time">Phút 35–37 · Mục tiêu: không còn "nhưng..."</div>
+  <h2>"Nhưng…" — tôi trả lời trước</h2>
+  <table>
+    <tr><th>Họ đang nghĩ</th><th>Trả lời 1 câu</th></tr>
+    <tr><td>Tool sập thì mất hết test?</td><td class="hl">Test lưu JSON có version — mất bản nào restore bản đó 1 click (vừa demo audit xong).</td></tr>
+    <tr><td>Tester em sợ mất việc?</td><td class="hl">Tool thay việc click lặp lại, không thay người quyết định. Tester lên vai "người duyệt".</td></tr>
+    <tr><td>Team chỉ có 1–2 tester?</td><td class="hl">Càng đúng đối tượng: 1 tester + máy = năng suất 3 người.</td></tr>
+    <tr><td>AI gửi code ra ngoài?</td><td class="hl">Mặc định không mạng. Bật LLM thì secret che trước khi gửi; khuyến nghị gateway của công ty.</td></tr>
+    <tr><td>Dùng thử rồi bỏ thì sao?</td><td class="hl">Test xuất ra Playwright chuẩn — bỏ tool vẫn giữ được toàn bộ test. Không có đường cụt.</td></tr>
+  </table>
+  <div class="note"><b>Nói:</b> Đọc to từng dòng "nhưng" — khán giả sẽ cười vì đúng suy nghĩ của họ. Câu cuối ("không có đường cụt") là đòn gỡ rủi ro mạnh nhất: thử mà bỏ cũng không mất gì.</div>
+</section>
+
+<!-- 12 PILOT -->
+<section class="slide">
+  <div class="kicker">Đề xuất · Rủi ro bằng 0</div>
+  <div class="time">Phút 37–38 · Mục tiêu: chốt hành động, không chốt cảm xúc</div>
+  <h2>Thí điểm 2 tuần — cam kết viết ra giấy</h2>
+  <div class="grid2">
+    <div class="card"><h3>Tuần 1 — Chúng tôi làm</h3><p>Cài lên máy công ty (30 phút). Cùng tester record 5 luồng thật nhất — nên lấy 3 từ dự án bảo trì + 2 từ dự án mới để chứng minh cả hai.</p></div>
+    <div class="card"><h3>Tuần 2 — Các bạn làm</h3><p>Team tự chạy regression bằng tool. Chúng tôi hỗ trợ online khi cần.</p></div>
+  </div>
+  <div class="pledge"><b>Điều kiện thành công (ký xác nhận trước khi bắt đầu):</b> regression của release kế tiếp dưới <b>1/3 thời gian</b> hiện tại. Không đạt → dừng, không mất gì, test đã record vẫn giữ được (Playwright chuẩn).</div>
+  <div class="note"><b>CHỐT (câu quan trọng nhất buổi):</b> Đừng hỏi "anh/chị thấy sao?" Hỏi: <b>"Nếu bắt đầu thứ Hai tới, mình chọn 5 luồng nào và cử bạn tester nào?"</b> — ép chọn cụ thể. Im lặng sau câu hỏi, ai nói trước người đó thua. Ghi tên + ngày vào giấy ngay tại chỗ.</div>
+</section>
+
+<!-- 13 CLOSE -->
+<section class="slide"><div class="cover">
+  <div class="logo">SIROTEST</div>
+  <div class="time">Phút 38 · 1 câu duy nhất</div>
+  <h1>Thứ Hai tới,<br>5 luồng test đầu tiên?</h1>
+  <p class="sub">Regression dưới 1/3 thời gian — hoặc không mất gì.</p>
+  <div><span class="cta">Chốt tên tester + ngày bắt đầu →</span></div>
+  <div class="note"><b>Kết (20 giây):</b> Cảm ơn. Nhắc lại đúng 1 câu trên. Xin contact người phụ trách pilot. Đứng dậy đúng giờ — tôn trọng giờ của họ là điểm cộng cuối cùng. SAU BUỔI (24h): gửi email cảm ơn + tóm tắt 1 trang (5 luồng đã chọn + ngày bắt đầu + điều kiện 1/3) + file deck này. Không gửi thêm tài liệu nặng.</div>
+</div></section>
+
+</div>
+<div id="hud">Mũi tên <kbd>←</kbd><kbd>→</kbd> chuyển slide · <kbd>N</kbd> lời thoại (đọc ở màn hình mình) · <kbd>F</kbd> toàn màn hình · Slide <span id="num">1/14</span></div>
+<script>
+  const slides = [...document.querySelectorAll('.slide')];
+  let i = 0;
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('active', k === i));
+    document.getElementById('num').textContent = (i + 1) + '/' + slides.length;
+    window.scrollTo(0, 0);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') show(i + 1);
+    else if (e.key === 'ArrowLeft') show(i - 1);
+    else if (e.key.toLowerCase() === 'n') document.body.classList.toggle('shownotes');
+    else if (e.key.toLowerCase() === 'f') {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+  });
+  show(0);
+</script>
+</body>
+</html>

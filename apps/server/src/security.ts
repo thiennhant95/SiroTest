@@ -296,14 +296,17 @@ export function sanitizeExportFilename(id: string): string {
 
 /** Strip absolute server paths (cwd/tmpdir/storage) from client-facing text. */
 export function stripServerPaths(text: string, extraRoots: string[] = []): string {
-  let out = text;
+  // Playwright errors carry terminal color codes (e.g. `[2mexpect([22m`) —
+  // strip them first so UIs never render raw ANSI escapes.
+  // eslint-disable-next-line no-control-regex
+  let out = text.replace(/\[[0-9;]*m/g, '').replace(/\[([0-9]{1,2})m/g, '');
   const roots = [process.cwd(), ...extraRoots].filter(Boolean);
   for (const root of roots) {
     if (root && out.includes(root)) out = out.split(root).join('[server]');
   }
   // Residual unix/windows absolute path shapes that may come from tool stacks.
   out = out.replace(/\/tmp\/pw-studio-runs\/[^\s'"]*/g, '[workdir]');
-  out = out.replace(/[A-Za-z]:\\[^\s'"]* (?:\\[^\s'"]*)*/g, (m) => (m.includes('node_modules') ? m : '[server-path]'));
+  out = out.replace(/[A-Za-z]:\\[^\s'"]+/g, (m) => (m.includes('node_modules') ? m : '[server-path]'));
   return out;
 }
 

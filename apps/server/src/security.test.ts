@@ -160,6 +160,18 @@ describe('redaction + filenames + server paths + limits', () => {
     const out = stripServerPaths(`failed at ${process.cwd()}/dist/x.js`);
     assert.ok(!out.includes(process.cwd()));
   });
+  it('strips spaceless Windows temp paths (run.spec call logs)', () => {
+    const out = stripServerPaths(
+      'at C:\\Users\\ASUS\\AppData\\Local\\Temp\\pw-studio-runs\\abc123\\run.spec.ts:14:24',
+    );
+    assert.ok(!out.includes('C:\\Users'), `leaked: ${out}`);
+    assert.ok(!out.includes('pw-studio-runs'), `leaked: ${out}`);
+  });
+  it('strips Playwright ANSI color escapes from error text', () => {
+    const out = stripServerPaths('Error: \x1b[2mexpect(\x1b[22m\x1b[31mlocator\x1b[39m failed');
+    assert.equal(out, 'Error: expect(locator failed');
+    assert.ok(!/\[2m/.test(out));
+  });
   it('size-limit constants are sane', () => {
     assert.equal(JSON_BODY_LIMIT_BYTES, 1024 * 1024);
     assert.ok(DEFINITION_JSON_MAX_BYTES <= JSON_BODY_LIMIT_BYTES / 2);

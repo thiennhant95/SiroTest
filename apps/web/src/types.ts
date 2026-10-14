@@ -15,6 +15,8 @@ export interface StepResult {
   status: RunStatus | "skipped";
   durationMs: number;
   error?: string;
+  /** DB column name (RunStep.errorMessage) — API rows and WS events carry this, not `error`. */
+  errorMessage?: string | null;
   /** raw stack — only shown to Developer role, redacted server-side. */
   rawError?: string;
   screenshotUrl?: string;

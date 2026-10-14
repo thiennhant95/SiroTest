@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, traceViewerUrl } from "../api/client";
 import { aiApi, type ExplainResponse } from "../api/ai";
-import { ApiError, api as studioApi, apiBase, authHeaders, isNotFoundError } from "../lib/api";
+import { ApiError, api as studioApi, apiBase, authHeaders, isNotFoundError, parseDefinition } from "../lib/api";
 import { BugReportDialog } from "../components/BugReportDialog";
 import { RunTour, restartRunTour } from "../components/GuidedTour";
 import { useRunChannel } from "../hooks/useRunChannel";
@@ -250,7 +250,10 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
       .getTest(run.testId)
       .then((t) => {
         if (!alive) return;
-        const raw = t.definitionJson as { steps?: BuilderStep[] } | null;
+        // GET /tests/:id returns definitionJson as a JSON STRING — parse it
+        // (a direct cast yields an empty map and every failed step wrongly
+        // reports "no longer in the current definition").
+        const raw = parseDefinition(t.definitionJson) as { steps?: BuilderStep[] } | null;
         const steps = Array.isArray(raw?.steps) ? raw!.steps! : [];
         setDefSteps(new Map(steps.map((s) => [s.id, s])));
         if (typeof t.name === "string" && t.name) setTestName(t.name);
@@ -467,6 +470,11 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
               className={`step step-${s.status}`}
               open={s.status === "failed"}
             >
+              {/* API rows carry `errorMessage`, WS/mocks carry `error` — read both (a failed step must never render "This step passed"). */}
+              {(() => {
+                const stepError = s.error ?? s.errorMessage ?? null;
+                return (
+                  <>
               <summary>
                 <span className="step-name">{s.name}</span>
                 <span className="step-meta">
@@ -491,10 +499,10 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
                   def={s.stepId ? defSteps.get(s.stepId) : undefined}
                   testId={run.testId}
                 />
-                {s.error ? (
+                {stepError ? (
                   <>
                     <p>
-                      <strong>Short error:</strong> {shortError(s.error)}
+                      <strong>Short error:</strong> {shortError(stepError)}
                     </p>
                     <p>
                       <strong>Locator:</strong>{" "}
@@ -525,7 +533,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
                           {showRaw ? "Hide technical details" : "Show technical details (raw)"}
                         </button>
                         {showRaw ? (
-                          <pre className="raw">{s.rawError ?? s.error}</pre>
+                          <pre className="raw">{s.rawError ?? stepError}</pre>
                         ) : null}
                       </>
                     ) : (
@@ -552,6 +560,9 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
                   <p className="muted">This step passed ({formatDuration(s.durationMs)}).</p>
                 )}
               </div>
+                  </>
+                );
+              })()}
             </details>
           ))}
         </ol>
