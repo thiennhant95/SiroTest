@@ -176,7 +176,7 @@ export function Dialog({
             ✕
           </button>
         </div>
-        <div className="overflow-y-auto p-4">{children}</div>
+        <div className="max-h-[calc(85vh-60px)] overflow-y-auto p-4">{children}</div>
       </div>
     </div>
   );

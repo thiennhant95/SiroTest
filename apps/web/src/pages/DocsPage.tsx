@@ -45,7 +45,18 @@ Click a step to edit it in the **Inspector** (right panel). Steps autosave — w
 ## 6. Run it
 Press **▶ Run** → pick environment + browser → **Start run**. The run page streams every step live (\`WS: connected\`). Green means passed; open **Evidence** below for screenshots.
 
-> Tip: tick **Observe closely** on important runs to keep trace/video even on passes.`,
+> Tip: tick **Observe closely** on important runs to keep trace/video even on passes.
+
+## Worked example — company login (demo-print)
+| # | Step | Value |
+|---|---|---|
+| 1 | Go to page | \`https://demo-print.vietvang.net/login\` |
+| 2 | Fill | textbox "Email Đăng Nhập" ← \`ci.smoke.company@in3m.local\` |
+| 3 | Fill (sensitive) | textbox "Mật Khẩu" ← \`{{CA_PASS}}\` |
+| 4 | Click | button "Login" |
+| 5 | Assert page title | \`Công ty | Dashboard\` |
+
+Expected: 5/5 green in ~8s. If step 5 fails, open the step — Short error + Locator render inline. Most login failures are a wrong password (the app reloads an empty form), not a bad locator — check the screenshot before touching locators.`,
   },
   {
     id: "concepts",
@@ -75,7 +86,10 @@ Each step stores a **primary** locator plus ranked **alternatives**. The runner 
 | 6 | Stable CSS | \`input[name="email"]\` |
 | 7 | XPath fallback | scoped XPath |
 
-A locator matching **0** elements cannot be saved as healthy; **2+** matches raise a strict-mode warning — narrow it (exact text, scoped XPath, CSS by name).`,
+A locator matching **0** elements cannot be saved as healthy; **2+** matches raise a strict-mode warning — narrow it (exact text, scoped XPath, CSS by name).
+
+## Example — the \`***CA_PASS***\` incident
+A tester copied a masked display value (\`***CA_PASS***\`) into a password fill. The fill step **passed** (Playwright filled exactly what it was told), login was rejected, the app reloaded an empty form. Lesson encoded in the compiler: a \`sensitive\` fill whose value is not a \`{{VARIABLE}}\` reference fails compilation — the machine refuses to run what it cannot keep secret.`,
   },
   {
     id: "locators",
@@ -96,7 +110,15 @@ A locator matching **0** elements cannot be saved as healthy; **2+** matches rai
 | Toast/assertion disappears | assert on something stable instead (URL, button still present) — never assert on auto-dismissing toasts as the primary check |
 
 ## Test locator button
-In the Inspector, **Test locator** reports 0/1/N matches live against a recorder session or the test page. Red (0) blocks saving as healthy.`,
+In the Inspector, **Test locator** reports 0/1/N matches live against a recorder session or the test page. Red (0) blocks saving as healthy.
+
+## Real cases from the pilot
+| Symptom | What it was | Fix |
+|---|---|---|
+| \`getByRole('link', { name: '…' })\` resolved to **4** elements | A nav link text repeated in footer/sidebar | Use the link for navigation via \`goto\`, or scope to CSS \`#col-… a\` |
+| Click "QUẢN LÝ HÓA ĐƠN" hung 60s then failed | Not logged in (bad password) → menu never rendered | Fix the login, not the click — check prior steps first |
+| \`tr:has-text("vv…@…")\` + delete link | Row-scoped action without knowing the numeric id | CSS \`tr:has-text("email") a[href*="/delete/"]\` isolates one row |
+| Edit link opens a **new tab** (\`target=_blank\`) | Runner stays on the original page | Navigate directly: \`goto /admin/user/edit/{id}\` |`,
   },
   {
     id: "run-modes",
@@ -117,7 +139,14 @@ Run the same test at Desktop 1440×900 down to Mobile 375×667. Combine with \`s
 ## Heal with alternatives
 On locator failure, tries stored alternatives and files a reviewable **Healing proposal**. The step still fails — nothing is auto-applied. Review in **Tests → Healing**, Approve rewrites the primary (old primary demoted to alternatives).
 
-> Warning: Debug runs stay \`running\` until you close the Inspector or press **Cancel**. Never schedule headed/debug runs.`,
+> Warning: Debug runs stay \`running\` until you close the Inspector or press **Cancel**. Never schedule headed/debug runs.
+
+## When to use which — pilot examples
+- **Default**: nightly suite runs, CI.
+- **Headed**: first run of a new test, or a live customer demo (they trust what they see).
+- **Observe closely**: the "false-pass fill" case — the fill step reported pass while the form visibly cleared. The 6-second video proved it (value present at second 3, gone at second 6); the trace showed \`fill("***…")\` followed by a login POST that 302-redirected back to \`/login\`. Without artifacts this would have been an argument; with them it was a diagnosis.
+- **Debug**: strict-mode 4-matches failure — try the narrower locator live on the real page before editing the test.
+- **Heal with alternatives**: dev restyled the UI overnight — run once to collect "alternative X would have matched" evidence, then approve in Healing. Nothing applies itself, ever.`,
   },
   {
     id: "evidence",
@@ -139,7 +168,10 @@ Limits: 50 MB per artifact, 100 screenshots per run, 14–30 day retention.
 npx playwright show-trace trace.zip
 \`\`\`
 
-…or drag the file into https://trace.playwright.dev. The trace shows every action, DOM snapshot, network call and console line — it is the single best debugging artifact for a red run.`,
+…or drag the file into https://trace.playwright.dev. The trace shows every action, DOM snapshot, network call and console line — it is the single best debugging artifact for a red run.
+
+## Reading a trace — worked mini-example
+Open the trace of a failed login run and check three things in order: (1) the **Actions** lane — did each \`fill\` carry the expected value? (2) the **Network** lane — did the login POST return 302 back to \`/login\` (rejected) or 200 forward (accepted)? (3) a **DOM snapshot** right after submit — is the form empty with a red validation line, or did it navigate away? In our pilot this exact sequence proved "wrong password, not a bad locator" in two minutes.`,
   },
   {
     id: "suites",
@@ -162,7 +194,10 @@ Trigger a suite or a single test on cron:
 0 9 * * 1-5    # weekdays 09:00
 \`\`\`
 
-Create them in **Schedules** (suite or test + environment + cron). Keep the switch **disabled** until the target is side-effect free, and never schedule headed/debug runs.`,
+Create them in **Schedules** (suite or test + environment + cron). Keep the switch **disabled** until the target is side-effect free, and never schedule headed/debug runs.
+
+## Worked example — "DP - Vòng đời người dùng"
+Five tests in order: SuperAdmin login → create user → edit user → login as the new user → open orders. Tests 2–3 carry \`writes\` tags, so the Run dialog shows the amber side-effect warning ("may create real data") — it warns, never blocks. Each member runs in its own fresh browser context, so no logout steps are needed between the admin and the new-user sessions. Re-running from scratch needs a fresh email: this app soft-deletes users and reserves the address forever, so the suite documents its test account (\`NEW_USER_EMAIL\`) instead of pretending to be repeatable.`,
   },
   {
     id: "schedule-alerts",
@@ -274,7 +309,21 @@ Kịch bản: Đăng nhập thành công
 - \`Bối cảnh:\` (Background) steps are prepended to the scenario.
 - First scenario only — later \`Kịch bản:\` blocks go to **Warnings**, not steps.
 - Unrecognized lines go to **Unparsed lines** (red). The parser never invents steps — fix the line or add the step by hand.
-- Tags (\`@smoke\`) show as badges for later filtering, never written into the test.`,
+- Tags (\`@smoke\`) show as badges for later filtering, never written into the test.
+
+## Worked example — login + filter, with the two classic traps
+\`\`\`
+Kịch bản: Đăng nhập công ty và lọc hóa đơn cần xử lý
+  Cho rằng mở trang https://demo-print.vietvang.net/login
+  Khi nhập "Email Đăng Nhập" là "ci.smoke.company@in3m.local"
+  Và nhập "Mật Khẩu" là "THAY_BANG_CA_PASS"
+  Và bấm nút "Login"
+  Và mở trang https://demo-print.vietvang.net/orders-new?page=1
+  Và bấm nút "Tìm Kiếm"
+  Thì kiểm tra "Hóa Đơn Cần Xử Lý" hiển thị
+\`\`\`
+
+After Insert, two mandatory fixes: (1) replace the \`THAY_BANG_CA_PASS\` placeholder with \`{{CA_PASS}}\` — never paste a real password into Gherkin text; (2) a \`Và mở trang…\` line that lands in **Unparsed** (red) should be deleted from the block and re-added by hand as Go to page — the parser is most reliable with \`mở trang\` in the \`Cho rằng\` line. If the final \`Thì\` fails, open the real page: after filtering it may show "Không có dữ liệu" instead of your expected text — update the expectation, Test locator to 1 match, re-run.`,
   },
   {
     id: "stability",
@@ -313,6 +362,24 @@ Project secret values are redacted before anything reaches an LLM. Free tiers ma
 > ✅ **Recommended for teams: self-hosted gateway.** Point \`AI_BASE_URL\` at your own OpenAI-compatible gateway (with \`AI_API_KEY\` + \`AI_MODEL\`, e.g. \`gemini-2.5-flash\`) — prompts stay inside your infrastructure, no third-party logging, and the keyless-tier warning does not apply. Studio-side secret redaction still runs as defense in depth.`,
   },
   {
+    id: "ai-features",
+    group: "Reference",
+    title: "AI features (the 6 touchpoints)",
+    body: `Every AI answer carries an engine badge. \`rules\` = deterministic local engine (always present). \`llm\` = the model really answered (falls back to rules on any failure — never fabricated).
+
+| # | Where | What the AI does | Example |
+|---|---|---|---|
+| 1 | Run page → **Explain with AI** | Explains one failed run in Vietnamese (cause + fix) | A step-timeout on a register rerun: verify against the screenshot before trusting it (see below) |
+| 2 | AI Assistant → **Compose** | Turns a description into draft steps | "đăng nhập công ty rồi mở Hóa Đơn Cần Xử Lý" → 4 steps, 0 unparsed |
+| 3 | AI Assistant → **Explain** | Full version of #1 for deep follow-up questions | "Why did step 6 time out?" after the one-click summary |
+| 4 | AI Assistant → **Clean up recording** | Tidies a raw recording (dedupes, renames) — **rules engine, not LLM** | 8 recorded steps → 8 kept, 3 renamed/merged; do not demo this as "AI" |
+| 5 | Suggest → **Assist with AI** | Extra assertion proposals beyond the rules (\`llm\`-tagged, schema-validated) | 6 suggestions on an orders test, 1 from the model — review before Insert |
+| 6 | Gherkin → **Name with AI** | Names the scenario only (\`scenarioNameSource: 'llm'\`); steps always come from rules | "Đăng nhập và mở hóa đơn công ty" instead of the raw first line |
+
+## Reading an explanation honestly
+The explainer sees the **error text** plus run context (test name, which prior steps passed) — not the screenshot. A timeout assert after 5 green fills + submit usually means the app never navigated (validation/duplicate data), not a slow network — the prompt now says so and caps confidence at \`medium\` without page-state evidence. Rule for testers: read the explanation in 10 seconds, then corroborate with the run screenshot/video. A \`high\` confidence on a generic timeout is a smell, not a verdict.`,
+  },
+  {
     id: "bug-reports",
     group: "Running",
     title: "Bug reports (Jira / Backlog / Slack / Lark)",
@@ -329,7 +396,10 @@ Open any finished run → **🐞 Report bug**. You get a Markdown report (summar
 | Slack | incoming webhook URL |
 | Lark | custom bot webhook URL |
 
-Filing is always explicit — nothing auto-files. Every delivery is audit-logged.`,
+Filing is always explicit — nothing auto-files. Every delivery is audit-logged.
+
+## Worked example — Backlog
+Create the integration once per project (**Settings → Integrations → Backlog**): \`space\` = your \`https://….backlog.com\`, \`projectId\` = the **numeric** project id (resolve it via \`GET /api/v2/projects/{KEY}\`), \`issueTypeId\` = the numeric Bug type id, \`priorityId\` = e.g. Normal — some Backlog projects **require** it and reject without (HTTP 400 \`priorityId is required\`), plus the \`apiKey\` secret (encrypted, never returned). Then open any red run → **Report bug** → optional custom summary + screenshots → file. We verified this end-to-end with a \`[TEST]\`-prefixed issue before handing the button to testers.`,
   },
   {
     id: "troubleshooting",
@@ -356,7 +426,20 @@ Events are informational; the page refetches authoritative DB state on reconnect
 Was a duplicate \`Content-Type\` header bug in the web client — fixed. If you see it again, report the exact request from DevTools Network.
 
 ## Order blocked: unpaid orders warning
-Staging guard: the account cannot place new orders while old ones are unpaid. Cancel them (account → Orders → Hủy, or admin) before re-running purchase tests — each purchase run places one real staging order.`,
+Staging guard: the account cannot place new orders while old ones are unpaid. Cancel them (account → Orders → Hủy, or admin) before re-running purchase tests — each purchase run places one real staging order.
+
+## Assert fails right after submit — think validation first, locator second
+If fills + submit all pass but the landing assertion times out, the app probably never navigated: open the screenshot and look for a red validation line. Real pilot cases: re-registering with a used email/phone ("đã được sử dụng" — register enforces unique email **and** phone), and logging in with a wrong password (the app reloads an empty form). No wait or locator tweak fixes these — fresh data does.
+
+## Deleted data that is not really gone
+Some apps soft-delete: the row vanishes from the list but the unique key stays reserved (our demo-print users keep their email forever — no trash UI, no force delete). Design suites around it: one permanent test account per flow, documented in variables, not create/delete cycles.
+
+## Login then goto immediately after click
+A \`goto\` fired right after the Login click can abort the in-flight login POST — the next page loads logged-out and everything downstream fails mysteriously. Pattern: always assert the landing (title or heading) after login before navigating further.
+
+## Popup tabs and JS confirms
+- Link with \`target=_blank\` (e.g. an Edit link): the runner stays on the original page — \`goto\` the edit URL directly instead of clicking.
+- SweetAlert-style confirms are DOM, not native dialogs: click the delete link, then click \`.swal2-confirm\`. (Native \`confirm()\` would use the \`handleDialog\` step instead.)`,
   },
   {
     id: "roles",

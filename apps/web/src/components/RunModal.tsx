@@ -262,10 +262,10 @@ export function RunModal({ testId, suiteId, envs, envId, datasets = [], projectI
             </div>
           </Advanced>
         ) : null}
-        <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
+        <div className="sticky bottom-0 flex justify-end gap-2 border-t border-slate-200 bg-white pt-3">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
           <Button type="button" onClick={() => void start()} disabled={busy || !environmentId}>
-            {busy ? 'Starting…' : 'Start run'}
+            {busy ? 'Starting…' : suiteId ? 'Start suite run' : 'Start run'}
           </Button>
         </div>
       </div>
