@@ -103,4 +103,23 @@ describe("explainFailure provider wiring", () => {
     expect(p).toMatch(/1000/);
     expect(p).toMatch(/E1/);
   });
+
+  it("prompt carries run context when provided", () => {
+    const p = buildExplainPrompt({
+      errorSummary: "TimeoutError: Step timeout of 15000ms exceeded.",
+      stepType: "assertVisible",
+      stepName: "Vao mypage",
+      testName: "om01-dang-ky",
+      priorSummary: "5/5 prior steps passed before failed step s-assert",
+    });
+    expect(p).toMatch(/om01-dang-ky/);
+    expect(p).toMatch(/5\/5 prior steps passed/);
+  });
+
+  it("prompt teaches assert-after-submit validation hypothesis + confidence cap", () => {
+    const p = buildExplainPrompt({ errorSummary: "timeout", stepType: "assertVisible" });
+    expect(p).toMatch(/NEVER NAVIGATED/);
+    expect(p).toMatch(/validation/);
+    expect(p).toMatch(/most 'medium'/);
+  });
 });

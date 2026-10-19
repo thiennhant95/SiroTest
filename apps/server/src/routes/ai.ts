@@ -176,6 +176,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     let locator = body.locator as unknown;
     let timeoutMs = body.timeoutMs;
     let secrets: string[] = [];
+    let testName: string | undefined;
+    let priorSummary: string | undefined;
 
     if (body.runId !== undefined) {
       const run = await db().run.findUnique({ where: { id: body.runId }, include: { steps: true } });
@@ -189,6 +191,32 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         ?? undefined;
       if (!errorSummary) {
         throw new ApiError('VALIDATION_ERROR', 'Run has no failure to explain (no failed step, no errorSummary)', 400);
+      }
+      // Run context for the analyst: which prior steps passed, plus the
+      // definition's type/name/timeout/locator for the failed step. This is
+      // what separates "app never navigated" from "page was slow".
+      try {
+        const ordered = run.steps;
+        const idx = failed ? ordered.findIndex((s) => s.id === failed.id) : -1;
+        const priors = idx > 0 ? ordered.slice(0, idx) : [];
+        if (priors.length > 0) {
+          const passed = priors.filter((s) => s.status === 'passed').length;
+          priorSummary = `${passed}/${priors.length} prior steps passed before failed step ${failed?.stepId ?? '?'}`;
+        }
+        const t = await db().test.findUnique({ where: { id: run.testId }, select: { name: true, definitionJson: true } });
+        if (t) {
+          testName = t.name;
+          const def = JSON.parse(t.definitionJson) as { steps?: Array<{ id?: string; type?: string; name?: string; timeoutMs?: number; target?: unknown }> };
+          const ds = def.steps?.find((s) => s.id === failed?.stepId);
+          if (ds) {
+            if (stepType === undefined && typeof ds.type === 'string') stepType = ds.type;
+            if (stepName === undefined && typeof ds.name === 'string') stepName = ds.name;
+            if (timeoutMs === undefined && typeof ds.timeoutMs === 'number') timeoutMs = ds.timeoutMs;
+            if (locator === undefined && ds.target !== undefined) locator = ds.target as unknown;
+          }
+        }
+      } catch {
+        /* run-context enrichment is best-effort — the error text alone still explains */
       }
       // Step type/name are not stored on RunStep; leave caller overrides intact.
       const projectSecrets = await loadProjectSecrets(run.projectId, run.environmentId ?? undefined);
@@ -216,6 +244,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         ...(stepName !== undefined ? { stepName } : {}),
         ...(locator !== undefined ? { locator } : {}),
         ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+        ...(testName !== undefined ? { testName } : {}),
+        ...(priorSummary !== undefined ? { priorSummary } : {}),
       },
       getExplainProvider(),
     );

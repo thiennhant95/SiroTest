@@ -29,6 +29,14 @@ export interface FailureInput {
   locator?: unknown;
   timeoutMs?: number;
   stepName?: string;
+  /** Test name (metadata only — helps ground the summary, never a secret). */
+  testName?: string;
+  /**
+   * One-line run context, e.g. "5/5 prior steps passed (goto, fill, fill, fill, click)
+   * before failed step s-assert". Lets the analyst tell "app never navigated"
+   * apart from "page was slow".
+   */
+  priorSummary?: string;
 }
 
 export interface FailureExplanation {
@@ -197,6 +205,21 @@ export function buildExplainPrompt(input: FailureInput): string {
     "Rules: P0 executes the primary locator only (never auto-heal); suggest the",
     "in-app locator tester, checking stored alternatives, adjusting the step-level",
     "timeout, adding waitForElement before assertions, and opening the trace/screenshot.",
+    "Diagnosis rules (apply before the generic rules above):",
+    "1. If the failed step is an assert/wait AND priorSummary shows the action",
+    "steps before it all passed (fills, clicks, submits), the app most likely",
+    "NEVER NAVIGATED: suspect a rejected submit (validation error, duplicate or",
+    "reserved data, wrong-page stuck) — NOT network slowness. Lead with that",
+    "hypothesis and tell the user to open the run screenshot and look for a",
+    "validation message. Do not lead with waits/timeouts in this case.",
+    "2. For assert steps failing with timeout (no strict-mode violation in the",
+    "error), the locator usually resolved fine on the WRONG page — deprioritize",
+    "locator-alternative advice; prioritize wrong-page/validation checks.",
+    "3. Confidence: without page-state evidence (screenshot/trace content) use at",
+    "most 'medium'. Use 'high' only when the error text alone proves the cause",
+    "(strict-mode match counts, DNS/TLS errors).",
+    `testName: ${input.testName ?? "(unknown)"}`,
+    `priorSteps: ${input.priorSummary ?? "(unknown)"}`,
     `stepType: ${input.stepType ?? "(unknown)"}`,
     `stepName: ${input.stepName ?? "(unknown)"}`,
     `timeoutMs: ${input.timeoutMs ?? "(unknown)"}`,
