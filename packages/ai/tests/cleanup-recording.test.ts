@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { testStepSchema } from "@playwright-studio/test-model";
-import { businessName, cleanupRecording, resetCleanupCounter } from "../src/cleanup-recording";
+import { applyLlmRenames, buildCleanupRenamePrompt, businessName, cleanupRecording, resetCleanupCounter } from "../src/cleanup-recording";
 
 function label(value: string) {
   return { primary: { strategy: "label", value } };
@@ -89,5 +89,61 @@ describe("cleanupRecording", () => {
     expect(businessName({ type: "assertTitle" })).toBe("Kiểm tra tiêu đề");
     expect(businessName({ type: "waitForTimeout", milliseconds: 100 })).toBe("Chờ 100ms");
     expect(businessName({ type: "press", key: "Enter" })).toBe("Nhấn phím Enter");
+  });
+});
+
+describe("applyLlmRenames (LLM naming allowlist)", () => {
+  const steps = () => ([
+    { id: "s1", type: "goto", enabled: true, url: "https://x/login", name: "Old" },
+    { id: "s2", type: "fill", enabled: true, target: label("Password"), value: "hunter2", sensitive: true, name: "Old2" },
+  ]);
+
+  it("applies valid renames and records reviewable changes", () => {
+    const s = steps();
+    const { applied, changes } = applyLlmRenames(s, { renames: [{ id: "s1", name: "Mở trang đăng nhập" }] });
+    expect(applied).toBe(1);
+    expect(s[0].name).toBe("Mở trang đăng nhập");
+    expect(changes).toHaveLength(1);
+    expect(changes[0].kind).toBe("rename");
+  });
+
+  it("ignores unknown ids, blanks, long and multiline names", () => {
+    const s = steps();
+    const { applied, changes } = applyLlmRenames(s, {
+      renames: [
+        { id: "nope", name: "X" },
+        { id: "s1", name: "   " },
+        { id: "s1", name: "y".repeat(121) },
+        { id: "s1", name: "a\nb" },
+        { id: "s1" },
+        "garbage",
+      ],
+    });
+    expect(applied).toBe(0);
+    expect(changes).toHaveLength(0);
+    expect(s[0].name).toBe("Old");
+  });
+
+  it("never touches type/target/value/url", () => {
+    const s = steps();
+    applyLlmRenames(s, { renames: [{ id: "s2", name: "Mật khẩu" }] });
+    expect(s[1].type).toBe("fill");
+    expect(s[1].value).toBe("hunter2");
+    expect(s[1].target).toEqual(label("Password"));
+  });
+
+  it("rejects non-object payloads without throwing", () => {
+    for (const p of [null, undefined, [], "x", { renames: "x" }, {}]) {
+      expect(applyLlmRenames(steps(), p)).toEqual({ applied: 0, changes: [] });
+    }
+  });
+
+  it("rename prompt carries no fill values (no secret leak by construction)", () => {
+    const p = buildCleanupRenamePrompt([
+      { id: "s2", type: "fill", target: label("Password"), value: "hunter2", sensitive: true },
+    ]);
+    expect(p).not.toMatch(/hunter2/);
+    expect(p).toMatch(/s2/);
+    expect(p).toMatch(/renames/);
   });
 });

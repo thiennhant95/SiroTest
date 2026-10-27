@@ -1,6 +1,6 @@
 {
   "name": "@vietvang/playwright-compiler",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "P0 compiler: TestDefinition JSON -> deterministic Playwright TypeScript (@playwright/test).",
   "type": "commonjs",
   "main": "dist/src/index.js",

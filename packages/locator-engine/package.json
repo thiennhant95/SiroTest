@@ -1,6 +1,6 @@
 {
   "name": "@playwright-vv/locator-engine",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "P0 locator engine: candidate generation, scoring, Playwright expression mapping. Executes primary only; alternatives are stored evidence (no self-heal in P0).",
   "private": true,
   "main": "dist/src/index.js",

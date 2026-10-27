@@ -2,6 +2,30 @@
 
 Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 
+## [0.2.0] — 2026-10-27 (release: full AI touchpoints + rebrand + pilot hardening)
+
+### Verified — P0 release gate GREEN (2026-10-27)
+- No known data-loss bug (versioning/restore + recorder draft-preservation suites green, no open reports)
+- Compiler covers every P0 step in both compilers, same order
+- Core E2E 6/6 on Chromium + QC smoke 1/1 (`pnpm test:qc`)
+- Secret redaction green (`test:security` 35/35, incl. ANSI + Win-path stripping)
+- Interrupted runner/recorder recovery green (cancel-kill-child + browser-death/interruption suites)
+- Full evidence: `pnpm typecheck` clean, `test:unit` 140/140 + 26/26, `test:security` 35/35, `test:server-unit` 69/69, `test:integration` 185/185, `test:e2e` 6/6, `test:qc` 1/1, `@vv/ai` 64/64
+- Gate notes: mid-gate run exposed a missing machine browser build (`chromium_headless_shell-1243`) — reinstalled, reran green; `e2e/playwright.config.ts` now ignores `qc-smoke.spec.ts` (it belongs to the QC harness — running it under P0 only produced a 6-minute timeout)
+
+### Added
+- AI cleanup naming (LLM): `/ai/cleanup` keeps deterministic structure (merge/drop) and adds opt-in LLM Vietnamese business naming — prompt carries `{id, type, label}` only (never fill values/secrets), reply allowlisted to renames (unknown ids, blank/long/multiline ignored; type/target/value untouched); `engine: 'llm'` only when ≥1 rename applied, else honest `rules`
+- AI explain run-context: `/ai/explain {runId}` now passes test name, prior-steps summary ("5/5 passed before…") and resolves the failed step's type/name/timeout/locator from the stored definition; prompt teaches the assert-after-submit validation hypothesis and caps confidence at `medium` without page-state evidence (verified: duplicate-registration timeout now diagnosed as validation, not network)
+- AI providers doc + "AI features (the 6 touchpoints)" section in `/docs` with live-verified engine badges
+
+### Fixed
+- Run suite dialog: footer (Cancel/Start) clipped off-screen on tall content — dialog body scrolls (`max-h`), footer sticky, suite mode labeled "Start suite run"
+- `e2e/playwright.config.ts`: ignore `qc-smoke.spec.ts` (QC harness owns it)
+
+### Changed
+- UI rebrand to VietVang Test Web (title, topbar, login) + bug-report footer text (temporary pilot branding)
+- `/docs` enriched with pilot-grounded examples (locator cookbook cases, trace reading, Gherkin traps, Backlog config incl. required `priorityId`, troubleshooting: validation-first, soft-delete reservation, login-goto race, popup tabs, SweetAlert confirms)
+
 ## [0.1.0] — 2026-10-13 (release: P0 GREEN + P2 audit/AI batch)
 
 ### Verified — P0 release gate GREEN on `86fca3f` (2026-10-13, re-verified)

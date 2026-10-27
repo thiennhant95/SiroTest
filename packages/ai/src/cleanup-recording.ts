@@ -261,3 +261,93 @@ export function cleanupRecording(input: Loose[]): CleanupResult {
   }
   return { steps, changes };
 }
+
+// ------------------------------------------------- Opt-in LLM naming ---
+// The structural pass above is always deterministic. When an LLM is
+// configured, the caller may ask it to (re)name steps for business
+// readability. The model sees ONLY {id, type, label} per step — never fill
+// values, bodies, headers or secrets — and its reply may ONLY rename:
+// unknown ids, missing/blank/long/multiline names are ignored, and
+// type/target/value/url are never touched. Anything unparseable falls back
+// to the rules result (engine then reports 'rules').
+
+export interface LlmRename {
+  id: string;
+  name: string;
+}
+
+const MAX_LLM_NAME = 120;
+
+/** Minimal structural view a rename pass needs (no index signature required). */
+export interface RenameableStep {
+  id?: unknown;
+  type?: unknown;
+  name?: unknown;
+  url?: unknown;
+  target?: unknown;
+  value?: unknown;
+  sensitive?: unknown;
+}
+
+/** Minimal per-step view for the rename prompt (no values, no secrets). */
+function renameView(s: RenameableStep): { id: string; type: string; label: string } {
+  const loose = s as Loose;
+  return {
+    id: stepId(loose),
+    type: String(s.type ?? "?"),
+    label: s.type === "goto" ? String(s.url ?? "") : primaryLabel(loose),
+  };
+}
+
+/** Prompt template for the LLM naming pass (input must already be redacted). */
+export function buildCleanupRenamePrompt<S extends RenameableStep>(steps: S[]): string {
+  const view = steps.map(renameView).slice(0, 200);
+  return [
+    "You name Playwright Studio test steps in concise Vietnamese (max 120 chars,",
+    "plain text, one line, no quotes). Reply with ONE JSON object only:",
+    '{"renames": [{"id": "<step id>", "name": "<business name>"}]}.',
+    "Rules: rename ONLY — never change type/target/value/url, never invent steps,",
+    "skip ids you are unsure about (missing renames keep their current name).",
+    `steps: ${JSON.stringify(view).slice(0, 12000)}`,
+  ].join("\n");
+}
+
+/**
+ * Apply an LLM rename payload onto steps IN PLACE. Returns how many renames
+ * were applied plus reviewable `rename` changes. Strict allowlist: existing
+ * id, 1..120 chars, single line — everything else is ignored (never throws).
+ */
+export function applyLlmRenames<S extends RenameableStep>(
+  steps: S[],
+  payload: unknown,
+): { applied: number; changes: CleanupChange[] } {
+  const changes: CleanupChange[] = [];
+  if (!payload || typeof payload !== "object") return { applied: 0, changes };
+  const list = (payload as { renames?: unknown }).renames;
+  if (!Array.isArray(list)) return { applied: 0, changes };
+  const byId = new Map<string, Loose>();
+  for (const s of steps) {
+    const loose = s as Loose;
+    const id = stepId(loose);
+    if (id !== "?" && !byId.has(id)) byId.set(id, loose);
+  }
+  let applied = 0;
+  for (const r of list.slice(0, 200)) {
+    if (!r || typeof r !== "object") continue;
+    const { id, name } = r as { id?: unknown; name?: unknown };
+    if (typeof id !== "string" || typeof name !== "string") continue;
+    const target = byId.get(id);
+    if (!target) continue;
+    const clean = name.trim();
+    if (clean.length === 0 || clean.length > MAX_LLM_NAME || /[\r\n]/.test(clean)) continue;
+    if (target.name === clean) continue;
+    target.name = clean;
+    applied += 1;
+    changes.push({
+      kind: "rename",
+      description: `Đặt tên step ${id} (${String(target.type)}): "${clean}" (AI).`,
+      stepIds: [id],
+    });
+  }
+  return { applied, changes };
+}
