@@ -1,6 +1,6 @@
 {
   "name": "@playwright-studio/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Studio CI CLI — triggers runs/suites over the server HTTP API (never forks the engine).",

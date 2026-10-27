@@ -36,6 +36,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
+  applyLlmRenames,
+  buildCleanupRenamePrompt,
   cleanupRecording,
   explainFailure,
   gherkinViToSteps,
@@ -275,8 +277,25 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     } else {
       throw new ApiError('VALIDATION_ERROR', 'Either testId or steps is required', 400);
     }
-    // Always rule-based + deterministic; preview only (never persisted here).
+    // Rules first (deterministic structure); then opt-in LLM business naming.
+    // The rename prompt carries {id, type, label} only — never fill values,
+    // bodies or secrets. Preview only (never persisted here).
     const { steps, changes } = cleanupRecording(rawSteps);
+    try {
+      const provider = getAIProvider();
+      if (provider.engine === 'llm') {
+        const raw = await provider.complete(buildCleanupRenamePrompt(steps), {
+          systemPrompt: 'Reply with a single JSON object. No markdown, no prose.',
+          jsonMode: true,
+          maxTokens: 1200,
+        });
+        const fenced = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        const { applied, changes: renamed } = applyLlmRenames(steps, JSON.parse(fenced));
+        if (applied > 0) return { engine: 'llm' as const, steps, changes: [...changes, ...renamed] };
+      }
+    } catch {
+      /* LLM naming is cosmetic — any failure falls back to the rules result */
+    }
     return { engine: 'rules' as const, steps, changes };
   });
 }

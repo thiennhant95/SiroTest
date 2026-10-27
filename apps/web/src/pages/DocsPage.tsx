@@ -343,7 +343,7 @@ Scores the stored definition: stable primaries 30, backup locators 15, no hardco
     group: "Reference",
     title: "AI providers (rules vs LLM)",
     body: `## Default: rules (deterministic, offline)
-Explain, compose, cleanup and Gherkin all run local rule engines — every response carries \`engine: 'rules'\`. No key, no network, no surprises.
+Explain, compose and Gherkin run local rule engines — every response carries \`engine: 'rules'\`. Cleanup runs rules for structure with opt-in LLM business naming (see "AI features" below). No key, no network, no surprises.
 
 ## Opt-in LLM (keyless available)
 Set \`AI_PROVIDER=kilo\` or \`AI_PROVIDER=uncloseai\` (no key, anonymous free tier) or a classic \`AI_API_KEY\` endpoint. Comma lists try in order: \`AI_PROVIDER=kilo,uncloseai\`. LLM failures fall back to rules; \`engine: 'llm'\` only when the model really answered.
@@ -372,7 +372,7 @@ Project secret values are redacted before anything reaches an LLM. Free tiers ma
 | 1 | Run page → **Explain with AI** | Explains one failed run in Vietnamese (cause + fix) | A step-timeout on a register rerun: verify against the screenshot before trusting it (see below) |
 | 2 | AI Assistant → **Compose** | Turns a description into draft steps | "đăng nhập công ty rồi mở Hóa Đơn Cần Xử Lý" → 4 steps, 0 unparsed |
 | 3 | AI Assistant → **Explain** | Full version of #1 for deep follow-up questions | "Why did step 6 time out?" after the one-click summary |
-| 4 | AI Assistant → **Clean up recording** | Tidies a raw recording (dedupes, renames) — **rules engine, not LLM** | 8 recorded steps → 8 kept, 3 renamed/merged; do not demo this as "AI" |
+| 4 | AI Assistant → **Clean up recording** | Rules tidy the structure (merge/drop), LLM renames steps in Vietnamese (\`engine: llm\` when it renames ≥1 step) | 8 recorded steps → merged + AI-named ("Truy cập trang đăng nhập"…) |
 | 5 | Suggest → **Assist with AI** | Extra assertion proposals beyond the rules (\`llm\`-tagged, schema-validated) | 6 suggestions on an orders test, 1 from the model — review before Insert |
 | 6 | Gherkin → **Name with AI** | Names the scenario only (\`scenarioNameSource: 'llm'\`); steps always come from rules | "Đăng nhập và mở hóa đơn công ty" instead of the raw first line |
 

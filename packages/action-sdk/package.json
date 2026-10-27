@@ -1,6 +1,6 @@
 {
   "name": "@playwright-studio/action-sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "P2 Studio plugin/action SDK: StudioPlugin contract, manifest validation and trusted-directory loader.",
   "type": "commonjs",
   "main": "dist/src/index.js",

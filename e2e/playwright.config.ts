@@ -12,6 +12,9 @@ const API_PORT = Number(process.env.API_PORT ?? 3101);
 
 export default defineConfig({
   testDir: '.',
+  // qc-smoke.spec.ts belongs to the QC harness (e2e/qc.config.ts: own ports,
+  // servers and flags) — running it here only produces a 6-minute timeout.
+  testIgnore: '**/qc-smoke.spec.ts',
   timeout: 120_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
