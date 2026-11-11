@@ -180,3 +180,25 @@ Run thử → xanh là xong onboarding.
   Cloudflare Tunnel + Access (SSO Google/MS công ty) — tool không đổi gì,
   chỉ thay đường vào.
 - Giữ file này cập nhật theo: mỗi lần đổi cách vào, sửa mục 2 + 9.
+
+## 11. Bài học dựng hub thật (ghi lại để lần sau khỏi vấp)
+
+1. **Node/pnpm/Browsers:** hub Windows trắng cần `winget install OpenJS.NodeJS.20`,
+   `corepack prepare pnpm@9.0.0`, `pnpm install`, `npx playwright install chromium`.
+   Repo clone tag release (`git clone --branch v0.2.0 …`).
+2. **Prisma client:** nếu server báo `@prisma/client did not initialize yet`,
+   chạy `npx prisma generate` tại root rồi restart (postinstall đôi khi chỉ để
+   lại stub).
+3. **Copy DB phải đủ trio:** SQLite chạy WAL — copy cả `.db` + `.db-shm` +
+   `.db-wal`, và chỉ copy khi server nguồn đã dừng (không thì bản copy thiếu
+   transaction, server đích crash lặng lẽ). Backup cũng vậy.
+4. **Đừng chạy server bằng tiến trình nền thường qua SSH:** session đóng là
+   process chết theo mà không để lại log. Dùng Scheduled Task
+   (`schtasks /create /tn SiroTestHub … /sc onlogon` + `schtasks /run`) —
+   sống qua đóng SSH lẫn reboot (khi user logon).
+5. **Tailscale login không làm được qua SSH BatchMode:** chạy `tailscale up`,
+   lấy URL `https://login.tailscale.com/a/…` đưa admin mở browser xác thực
+   (hoặc dùng auth key), rồi kiểm tra `tailscale ip -4`.
+6. **`pnpm build` của server fail là bình thường:** nó strict hơn typecheck;
+   server chạy bằng tsx source nên không cần dist của server (chỉ cần dist
+   của các package `packages/*`, `pnpm build` lo phần đó, trừ server).

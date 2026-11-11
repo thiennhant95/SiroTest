@@ -21,7 +21,7 @@ $log = Join-Path $env:TEMP 'opencode'
 New-Item -ItemType Directory -Path $log -Force | Out-Null
 
 $env:PORT = '3001'
-$env:DATABASE_URL = 'file:C:/SiroTest/apps/server/app.db'
+$env:DATABASE_URL = if ($env:VV_DATABASE_URL) { $env:VV_DATABASE_URL } else { 'file:' + ((Join-Path $root 'apps\server\app.db') -replace '\\','/') }
 $env:SECRET_ENCRYPTION_KEY = if ($env:SECRET_ENCRYPTION_KEY) { $env:SECRET_ENCRYPTION_KEY } else { throw 'SECRET_ENCRYPTION_KEY missing — run the one-time setx first (see header)' }
 $env:MAX_CONCURRENT_RUNS = '2'
 $env:ALLOW_PRIVATE_TARGETS = '1'
