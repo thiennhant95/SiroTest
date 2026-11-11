@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VietVang Test Web — Low-code E2E testing your testers will actually use</title>
+<meta name="description" content="Record once, run forever. Vietnamese Gherkin, AI failure explanations, audit trail, Playwright export. Self-hosted.">
+<style>
+  :root { --indigo:#4f46e5; --slate:#0f172a; --mut:#64748b; --bg:#f8fafc; --card:#fff; --green:#16a34a; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:"Segoe UI",system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif; background:var(--bg); color:var(--slate); line-height:1.65; }
+  .wrap { max-width:1020px; margin:0 auto; padding:0 22px; }
+  header.top { position:sticky; top:0; background:rgba(255,255,255,.92); backdrop-filter:blur(8px); border-bottom:1px solid #e2e8f0; z-index:10; }
+  header.top .wrap { display:flex; align-items:center; justify-content:space-between; padding-top:12px; padding-bottom:12px; }
+  .logo { font-weight:800; color:var(--indigo); letter-spacing:1px; }
+  .lang button { border:1px solid #cbd5e1; background:#fff; border-radius:8px; padding:6px 12px; margin-left:6px; cursor:pointer; font-weight:700; font-size:13px; }
+  .lang button.on { background:var(--indigo); color:#fff; border-color:var(--indigo); }
+  .hero { text-align:center; padding:64px 22px 40px; }
+  .hero h1 { font-size:40px; line-height:1.2; margin-bottom:14px; }
+  .hero p { font-size:18px; color:var(--mut); max-width:720px; margin:0 auto 22px; }
+  .cta { display:inline-block; background:var(--indigo); color:#fff; font-weight:700; padding:13px 32px; border-radius:10px; text-decoration:none; margin:4px 6px; }
+  .cta.ghost { background:#fff; color:var(--indigo); border:2px solid var(--indigo); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; margin:26px 0; }
+  .card { background:var(--card); border:1px solid #e2e8f0; border-radius:12px; padding:18px; }
+  .card h3 { font-size:17px; margin-bottom:6px; }
+  .card p { font-size:14.5px; color:var(--mut); }
+  h2.sec { font-size:28px; margin:44px 0 6px; text-align:center; }
+  p.center { text-align:center; color:var(--mut); max-width:760px; margin:0 auto; }
+  table { width:100%; border-collapse:collapse; margin:20px 0; font-size:15px; background:#fff; border-radius:12px; overflow:hidden; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid #e2e8f0; }
+  th { background:#eef2ff; color:var(--indigo); font-size:13px; text-transform:uppercase; }
+  td.hl { font-weight:700; color:var(--green); }
+  footer { text-align:center; color:var(--mut); font-size:13px; padding:36px 20px; }
+  [data-lang] { display:none; } [data-lang].show { display:block; }
+  span[data-lang].show { display:inline; }
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="logo">VIETVANG TEST WEB</div>
+  <div class="lang">
+    <button data-setlang="en">EN</button><button data-setlang="vi" class="on">VI</button><button data-setlang="ja">JA</button>
+  </div>
+</div></header>
+
+<div class="wrap">
+<section class="hero">
+  <h1 data-lang="en" class="show">Record once. Run forever.</h1>
+  <h1 data-lang="vi">Record một lần. Chạy mãi mãi.</h1>
+  <h1 data-lang="ja">一度記録すれば、何度でも実行。</h1>
+  <p data-lang="en" class="show">Low-code E2E testing your testers will actually use: Vietnamese Gherkin specs that execute, AI failure explanations, full audit trail, Playwright-standard export. Self-hosted — your data never leaves the company.</p>
+  <p data-lang="vi">Kiểm thử E2E low-code mà tester thật sự dùng: đặc tả Gherkin tiếng Việt chạy được, AI giải thích lỗi, nhật ký kiểm toán đầy đủ, xuất chuẩn Playwright. Tự host — dữ liệu không ra khỏi công ty.</p>
+  <p data-lang="ja">テスターが本当に使うローコードE2Eテスト：実行可能なベトナム語Gherkin仕様書、AIによる失敗解説、完全な監査証跡、Playwright標準エクスポート。自社ホスト — データは社外に出ません。</p>
+  <div>
+    <a class="cta" href="https://github.com/thiennhant95/SiroTest" data-lang="en" style="display:inline-block">Get it free</a>
+    <a class="cta" href="https://github.com/thiennhant95/SiroTest" data-lang="vi" style="display:inline-block">Dùng miễn phí</a>
+    <a class="cta" href="https://github.com/thiennhant95/SiroTest" data-lang="ja" style="display:inline-block">無料で使う</a>
+    <a class="cta ghost" href="https://github.com/thiennhant95/SiroTest" data-lang="en" style="display:inline-block">Star on GitHub</a>
+    <a class="cta ghost" href="https://github.com/thiennhant95/SiroTest" data-lang="vi" style="display:inline-block">Xem GitHub</a>
+    <a class="cta ghost" href="https://github.com/thiennhant95/SiroTest" data-lang="ja" style="display:inline-block">GitHubを見る</a>
+  </div>
+</section>
+
+<h2 class="sec" data-lang="en" class="show">Why teams switch</h2>
+<h2 class="sec" data-lang="vi">Vì sao team chuyển qua</h2>
+<h2 class="sec" data-lang="ja">選ばれる理由</h2>
+<div class="grid">
+  <div class="card"><h3>🎥 Record, don't code</h3>
+    <p data-lang="en" class="show">Click through the real browser; steps appear with ranked locators. Testers author, developers review real code.</p>
+    <p data-lang="vi">Thao tác trên trình duyệt thật, steps tự hiện kèm locator. Tester viết, dev review code thật.</p>
+    <p data-lang="ja">実ブラウザを操作するだけでステップを自動生成。テスターが作成し、開発者がレビュー。</p></div>
+  <div class="card"><h3>🇻🇳 Specs that execute</h3>
+    <p data-lang="en" class="show">Paste Vietnamese <span style="font-family:monospace">Cho rằng/Khi/Thì</span> scenarios — they parse into runnable steps. No more "spec says one thing, tests another".</p>
+    <p data-lang="vi">Dán kịch bản <span style="font-family:monospace">Cho rằng/Khi/Thì</span> thành steps chạy được. Hết cảnh "spec một đằng, test một nẻo".</p>
+    <p data-lang="ja">ベトナム語の仕様書を実行可能なテストに変換。「仕様とテストの乖離」とは無縁に。</p></div>
+  <div class="card"><h3>🤖 AI that admits limits</h3>
+    <p data-lang="en" class="show">Failure explanations, step drafting, smart naming — every answer badged <span style="font-family:monospace">rules</span> or <span style="font-family:monospace">llm</span>. Bring your own key or gateway.</p>
+    <p data-lang="vi">Giải thích lỗi, sinh steps, đặt tên — câu nào cũng gắn nhãn <span style="font-family:monospace">rules</span>/<span style="font-family:monospace">llm</span>. Dùng key/gateway của công ty.</p>
+    <p data-lang="ja">失敗解説・ステップ生成・命名支援 — 回答には必ず出所を表示。自社のキーやゲートウェイを利用可能。</p></div>
+  <div class="card"><h3>🧾 Audit everything</h3>
+    <p data-lang="en" class="show">Who created, edited, ran or approved what, when — undeletable. Even project deletion leaves a trace.</p>
+    <p data-lang="vi">Ai tạo/sửa/chạy/duyệt cái gì lúc nào — không xóa được. Xóa cả project vẫn còn dấu vết.</p>
+    <p data-lang="ja">誰が・いつ・何を作成/編集/実行/承認したかを完全記録。削除も証跡が残ります。</p></div>
+  <div class="card"><h3>📦 No lock-in, ever</h3>
+    <p data-lang="en" class="show">One click exports standard Playwright specs + JUnit. Leave the tool, keep every test.</p>
+    <p data-lang="vi">1 click xuất Playwright chuẩn + JUnit. Bỏ tool vẫn giữ toàn bộ test.</p>
+    <p data-lang="ja">ワンクリックでPlaywright標準形式にエクスポート。ツールをやめてもテストは残ります。</p></div>
+  <div class="card"><h3>🏠 Self-hosted</h3>
+    <p data-lang="en" class="show">One server on your network, SQLite single-file backup, no per-seat fees. Remote teammates join over Tailscale.</p>
+    <p data-lang="vi">1 máy chủ trong công ty, backup 1 file, không phí theo đầu người. Người ở xa vào qua Tailscale.</p>
+    <p data-lang="ja">社内サーバー1台で運用、バックアップは単一ファイル、人数課金なし。リモート参加も対応。</p></div>
+</div>
+
+<h2 class="sec" data-lang="en" class="show">Honest comparison</h2>
+<h2 class="sec" data-lang="vi">So sánh thẳng thắn</h2>
+<h2 class="sec" data-lang="ja">正直な比較</h2>
+<table>
+<tr><th></th><th>Selenium</th><th>Katalon / SaaS</th><th>VietVang Test Web</th></tr>
+<tr><td data-lang="en" class="show">Non-coders can test</td><td data-lang="vi">Tester không biết code</td><td data-lang="ja">非エンジニアのテスト</td><td>No</td><td>Yes</td><td class="hl">Yes</td></tr>
+<tr><td data-lang="en" class="show">Cost as team grows</td><td data-lang="vi">Chi phí khi team lớn</td><td data-lang="ja">拡大時のコスト</td><td>Dev time</td><td>Per-seat $$$</td><td class="hl">Flat</td></tr>
+<tr><td data-lang="en" class="show">Your data</td><td data-lang="vi">Dữ liệu</td><td data-lang="ja">データ</td><td>In-house</td><td>Foreign cloud</td><td class="hl">In-house</td></tr>
+<tr><td data-lang="en" class="show">Tests are real code?</td><td data-lang="vi">Test có phải code thật?</td><td data-lang="ja">実コード化</td><td>Yes</td><td>Locked in</td><td class="hl">Yes (Playwright)</td></tr>
+</table>
+
+<h2 class="sec" data-lang="en" class="show">Free now, Pro later</h2>
+<h2 class="sec" data-lang="vi">Free trước, Pro sau</h2>
+<h2 class="sec" data-lang="ja">まず無料、Proは後から</h2>
+<p class="center" data-lang="en" class="show">The free version does real work: record, suites, Gherkin, audit, export. Pro adds SSO, compliance exports, parallelism and SLA support when your team outgrows it.</p>
+<p class="center" data-lang="vi">Bản free làm việc thật: record, suites, Gherkin, audit, export. Pro thêm SSO, báo cáo compliance, song song và hỗ trợ SLA khi team lớn lên.</p>
+<p class="center" data-lang="ja">無料版で実務対応：記録・スイート・Gherkin・監査・出力。Pro版はSSO・コンプライアンス出力・並列実行・SLAサポートを追加。</p>
+<p class="center" style="margin-top:18px"><a class="cta" href="https://github.com/thiennhant95/SiroTest" data-lang="en" style="display:inline-block">Start a 2-week pilot</a><a class="cta" href="https://github.com/thiennhant95/SiroTest" data-lang="vi" style="display:inline-block">Pilot 2 tuần</a><a class="cta" href="https://github.com/thiennhant95/SiroTest" data-lang="ja" style="display:inline-block">2週間のパイロット</a></p>
+</div>
+<footer>VietVang Test Web · MIT-licensed core · <a href="https://github.com/thiennhant95/SiroTest">GitHub</a></footer>
+<script>
+(function () {
+  var btns = document.querySelectorAll('[data-setlang]');
+  function set(l) {
+    document.documentElement.lang = l;
+    document.querySelectorAll('[data-lang]').forEach(function (el) {
+      el.classList.toggle('show', el.getAttribute('data-lang') === l);
+    });
+    btns.forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-setlang') === l); });
+    try { localStorage.setItem('vv-lang', l); } catch (e) {}
+  }
+  btns.forEach(function (b) { b.addEventListener('click', function () { set(b.getAttribute('data-setlang')); }); });
+  var saved = null;
+  try { saved = localStorage.getItem('vv-lang'); } catch (e) {}
+  set(saved === 'en' || saved === 'ja' ? saved : 'vi');
+})();
+</script>
+</body>
+</html>
