@@ -17,3 +17,6 @@ playwright-report/
 **/storage/files/
 
 docs/github-ideas.md
+
+*.log
+.local/
