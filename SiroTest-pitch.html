@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SiroTest — Thuyết trình chốt pilot (cty phần mềm 20 người)</title>
+<title>VietVang Test Web — Thuyết trình chốt pilot (cty phần mềm 20 người)</title>
 <style>
   :root { --indigo:#4f46e5; --slate:#0f172a; --muted:#64748b; --bg:#f1f5f9; --card:#ffffff; --green:#16a34a; --amber:#d97706; --red:#dc2626; }
   * { box-sizing:border-box; margin:0; padding:0; }
@@ -51,7 +51,7 @@
 
 <!-- 1 HOOK -->
 <section class="slide active"><div class="cover">
-  <div class="logo">SIROTEST</div>
+  <div class="logo">VIETVANG TEST WEB</div>
   <div class="time">Phút 0–2 · Mục tiêu: cả phòng gật đầu</div>
   <h1>Release gần nhất,<br>ai là người thức khuya nhất công ty?</h1>
   <p class="sub">Nếu câu trả lời là tester — buổi hôm nay dành cho người đó.<br>Nếu là dev fix bug khách báo — càng dành cho người đó.</p>
@@ -82,7 +82,7 @@
   </div>
   <ul>
     <li><b>Và cái tốn nhất không đo được:</b> dev giỏi phải đi fix bug cũ thay vì làm tính năng mới — dự án chậm, người giỏi chán.</li>
-    <li><b>SiroTest đổi lại:</b> record 1 lần → chạy lại vô hạn lần, mỗi lần ~20 phút, bấm 1 nút, chạy đêm cũng được.</li>
+    <li><b>VietVang Test Web đổi lại:</b> record 1 lần → chạy lại vô hạn lần, mỗi lần ~20 phút, bấm 1 nút, chạy đêm cũng được.</li>
   </ul>
   <div class="note"><b>Nói với MANAGER:</b> "Anh/chị cho tôi số: 1 release regression mấy ngày, 1 năm mấy release? Tôi nhân ngay tại đây." — Viết phép tính ra. "Tiền này không mua được gì cả, nó chỉ mua sự 'hi vọng là không sập'." Dừng 3 giây. Rồi qua demo.</div>
 </section>
@@ -96,11 +96,11 @@
     <li><b>Phút 1–2:</b> tester thao tác đăng nhập trên trình duyệt thật — steps tự hiện, không gõ code.</li>
     <li><b>Phút 3:</b> bấm <b>"Check 3×"</b> — máy chạy 3 lần, đóng dấu <b>Ổn định 3/3</b>.</li>
     <li><b>Phút 4–5:</b> cố tình sửa sai 1 chữ → fail → bấm <b>"Giải thích bằng AI"</b>, đọc kết quả tiếng Việt.</li>
-    <li><b>Phút 6:</b> xuất code <span class="mono">.spec.ts</span> + file JUnit — <b>chứng minh dev vẫn sở hữu test.</b></li>
+    <li><b>Phút 6:</b> xuất code <span class="mono">.spec.ts</span> + file JUnit — <b>chứng minh dev vẫn sở hữu test</b> — rồi run đỏ mẫu, bấm <b>Report bug</b> bắn thẳng issue sang Backlog.</li>
     <li><b>Phút 7:</b> mở nhật ký audit — mọi click vừa rồi đều có dấu vết ai làm.</li>
   </ul>
   <div class="warn">Mất mạng? Dùng app mẫu dựng sẵn trong tool. Máy demo sập? Có video quay sẵn phương án C — nhưng chỉ dùng khi bất đắc dĩ.</div>
-  <div class="note"><b>CHIẾN THUẬT QUAN TRỌNG NHẤT:</b> (1) Đưa chuột cho TESTER bấm record — người bấm sẽ thành champion bênh tool sau này. (2) Khi xuất code, quay sang DEV: "Em review giúp anh đoạn code này có phải Playwright chuẩn không?" — để dev tự xác nhận trước cả phòng = chốt hạ kháng cự. (3) Khi AI giải thích xong, hỏi cả phòng: "Lần cuối các bạn phải đọc stack trace mờ mắt là khi nào?"</div>
+  <div class="note"><b>CHIẾN THUẬT QUAN TRỌNG NHẤT:</b> (1) Đưa chuột cho TESTER bấm record — người bấm sẽ thành champion bênh tool sau này. (2) Khi xuất code, quay sang DEV: "Em review giúp anh đoạn code này có phải Playwright chuẩn không?" — để dev tự xác nhận trước cả phòng = chốt hạ kháng cự. (3) Khi AI giải thích xong, hỏi cả phòng: "Lần cuối các bạn phải đọc stack trace mờ mắt là khi nào?" (4) Nếu dev hỏi "tool test thì ai test tool?": gate v0.2.0 — integration 185/185, E2E 6/6, QC 1/1, secret redaction 35/35.</div>
 </section>
 
 <!-- 5 TESTER -->
@@ -146,7 +146,7 @@
     <li><b>Đặc tả = test thực thi:</b> hết cảnh "spec một đằng, test một nẻo" — khách đổi yêu cầu, sửa spec là có test mới.</li>
     <li>Mang đi chào hàng được: <b>"Đặc tả của chúng tôi chạy được thành test tự động"</b> — ít cty nhỏ nào nói được câu này.</li>
   </ul>
-  <div class="note"><b>Nói với BRSE + manager:</b> Đây là đòn bẩy kinh doanh, không chỉ là tool test. Dự án outsource nào cũng hỏi "bên anh đảm bảo chất lượng thế nào?" — giờ có câu trả lời khác biệt.</div>
+  <div class="note"><b>Nói với BRSE + manager:</b> Đây là đòn bẩy kinh doanh, không chỉ là tool test. Dự án outsource nào cũng hỏi "bên anh đảm bảo chất lượng thế nào?" — giờ có câu trả lời khác biệt. Thêm: BRSE đi công tác/ở nhà khách vẫn viết spec qua Tailscale, chạy trên máy công ty — không cần máy khỏe, không cần cùng mạng văn phòng.</div>
 </section>
 
 <!-- 8 LEADER -->
@@ -159,6 +159,7 @@
     <li><b>Bắt test "lúc pass lúc fail" (flaky):</b> máy tự đánh dấu test không đáng tin — khỏi cảnh "em chạy lại thì nó pass mà".</li>
     <li><b>Chuẩn "xong" rõ ràng:</b> test chưa có dấu Ổn định thì chưa được merge vào bộ regression — leader khỏi phải tin lời hứa.</li>
     <li><b>Lịch sử đầy đủ:</b> test nào hỏng từ khi nào, ai sửa, vì sao — truy vết trong 1 phút thay vì họp 1 tiếng.</li>
+    <li><b>Run đỏ → issue Backlog 1 click:</b> kèm video lúc gãy, dev nhận sửa trong phút — khỏi 3 vòng chat "lỗi ở đâu em?".</li>
   </ul>
   <div class="note"><b>Nói với leader:</b> "Anh/chị đang quản lý bằng niềm tin. Tool này cho anh/chị quản lý bằng bằng chứng." Hỏi: "Hiện tại trước release anh/chị dựa vào gì để gật đầu?"</div>
 </section>
@@ -170,7 +171,7 @@
   <h2><span class="who w-mgr">Manager</span><br>Rẻ, an toàn, dữ liệu ở nhà</h2>
   <ul>
     <li><b>0đ license theo đầu người:</b> tự host trên máy công ty (Windows, không cần Docker) — team tăng từ 20 lên 40 người cũng không tăng tiền.</li>
-    <li><b>Dữ liệu không ra khỏi công ty:</b> AI mặc định chạy локаль không mạng; bật LLM thì secret bị che trước khi gửi — dự án bảo mật cao vẫn dùng được.</li>
+    <li><b>Dữ liệu không ra khỏi công ty:</b> AI mặc định chạy offline không mạng; bật LLM thì qua gateway của công ty (đang chạy ổn định), secret bị che trước khi gửi — dự án bảo mật cao vẫn dùng được.</li>
     <li><b>Kiểm toán đầy đủ:</b> ai tạo/sửa/xóa/duyệt cái gì lúc nào — kể cả xóa cả project cũng còn dấu vết. Đáp ứng yêu cầu compliance của khách lớn.</li>
     <li><b>Mật khẩu mã hóa AES-256:</b> không bao giờ lọt vào code, log hay báo cáo gửi khách.</li>
   </ul>
@@ -213,14 +214,15 @@
   <div class="time">Phút 33–35 · Mục tiêu: "sinh ra cho cỡ công ty mình"</div>
   <h2>Tại sao không Selenium / Katalon / TestRail?</h2>
   <table>
-    <tr><th></th><th>Selenium thuần</th><th>Katalon / SaaS</th><th>SiroTest</th></tr>
+    <tr><th></th><th>Selenium thuần</th><th>Katalon / SaaS</th><th>VietVang Test Web</th></tr>
     <tr><td>Tester không biết code</td><td>Không làm được</td><td>Làm được</td><td class="hl">Làm được</td></tr>
     <tr><td>Chi phí khi team lớn lên</td><td>0đ + tốn dev viết</td><td>Tăng theo đầu người</td><td class="hl">0đ, không tăng</td></tr>
+    <tr><td>Chạy CI/CD tự động</td><td>Cần dev setup</td><td>Bản free giới hạn, runtime tính phí</td><td class="hl">Free (JUnit + CLI)</td></tr>
     <tr><td>Dữ liệu dự án</td><td>Ở nhà</td><td>Máy chủ nước ngoài</td><td class="hl">Ở nhà</td></tr>
     <tr><td>Đặc tả tiếng Việt chạy được</td><td>Không</td><td>Không</td><td class="hl">Có</td></tr>
     <tr><td>Test có phải code thật?</td><td>Có</td><td>Bị nhốt trong tool</td><td class="hl">Có (Playwright chuẩn)</td></tr>
   </table>
-  <div class="note"><b>Nói:</b> "Tôi không nói tool khác dở. Tôi chỉ nói: Selenium cần dev viết (mà dev các bạn đang bận), SaaS thì càng đông càng đắt + dữ liệu ra nước ngoài. SiroTest sinh ra cho đúng cái cỡ 20 người này." Không bao giờ chê đối thủ — chỉ đặt bảng cho họ tự kết luận.</div>
+  <div class="note"><b>Nói:</b> "Tôi không nói tool khác dở. Tôi chỉ nói: Selenium cần dev viết (mà dev các bạn đang bận), SaaS thì càng đông càng đắt + dữ liệu ra nước ngoài. VietVang Test Web sinh ra cho đúng cái cỡ 20 người này." Không bao giờ chê đối thủ — chỉ đặt bảng cho họ tự kết luận.</div>
 </section>
 
 <!-- 11 OBJECTIONS -->
@@ -245,7 +247,7 @@
   <div class="time">Phút 37–38 · Mục tiêu: chốt hành động, không chốt cảm xúc</div>
   <h2>Thí điểm 2 tuần — cam kết viết ra giấy</h2>
   <div class="grid2">
-    <div class="card"><h3>Tuần 1 — Chúng tôi làm</h3><p>Cài lên máy công ty (30 phút). Cùng tester record 5 luồng thật nhất — nên lấy 3 từ dự án bảo trì + 2 từ dự án mới để chứng minh cả hai.</p></div>
+    <div class="card"><h3>Tuần 1 — Chúng tôi làm</h3><p>Cài lên máy công ty (30 phút, BRSE ở xa vào qua Tailscale thêm 15 phút). Cùng tester record 5 luồng thật nhất — nên lấy 3 từ dự án bảo trì + 2 từ dự án mới để chứng minh cả hai.</p></div>
     <div class="card"><h3>Tuần 2 — Các bạn làm</h3><p>Team tự chạy regression bằng tool. Chúng tôi hỗ trợ online khi cần.</p></div>
   </div>
   <div class="pledge"><b>Điều kiện thành công (ký xác nhận trước khi bắt đầu):</b> regression của release kế tiếp dưới <b>1/3 thời gian</b> hiện tại. Không đạt → dừng, không mất gì, test đã record vẫn giữ được (Playwright chuẩn).</div>
@@ -254,7 +256,7 @@
 
 <!-- 13 CLOSE -->
 <section class="slide"><div class="cover">
-  <div class="logo">SIROTEST</div>
+  <div class="logo">VIETVANG TEST WEB</div>
   <div class="time">Phút 38 · 1 câu duy nhất</div>
   <h1>Thứ Hai tới,<br>5 luồng test đầu tiên?</h1>
   <p class="sub">Regression dưới 1/3 thời gian — hoặc không mất gì.</p>
