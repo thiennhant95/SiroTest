@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { nanoid } from 'nanoid';
 import { Prisma } from '@prisma/client';
-import type { ReusableAction } from '@vietvang/playwright-compiler';
+import type { ReusableAction } from '@playwright-studio/playwright-compiler';
 import { db } from '../db.js';
 import { requireAuth, requireProjectAccess } from '../auth.js';
 import { requireWriteAccessToProject } from '../rbac.js';

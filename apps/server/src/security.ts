@@ -1,5 +1,5 @@
 /**
- * P0 server security helpers (11-security/security.md).
+ * P0 server security helpers (spec/11-security/security.md).
  *
  * Centralises the controls the audit requires:
  *  1. Secret encryption at rest (AES-256-GCM, key from env).
@@ -152,7 +152,7 @@ export function checkAllowedHttpUrl(raw: string | undefined | null): UrlCheck {
   if (host.startsWith('[') && host.endsWith(']')) host = host.slice(1, -1);
   if (host.includes(':')) {
     // Any IPv6 literal (loopback ::1, mapped ::ffff:127.0.0.1, link-local
-    // fe80::/10, …) is blocked in P0 — self-host targets use IPv4/DNS.
+    // fe80::/10, â€¦) is blocked in P0 â€” self-host targets use IPv4/DNS.
     return { ok: false, reason: 'IPv6 literal targets are blocked (SSRF protection)' };
   }
   if (
@@ -175,11 +175,11 @@ export function checkAllowedHttpUrl(raw: string | undefined | null): UrlCheck {
  * Every storable step type (P0 + P1 `callAction` + P1 wave-2 files/tabs/
  * dialogs/API). Anything else (incl. customCode) is rejected. `callAction`
  * is valid in TEST definitions; it is still rejected inside ACTION bodies
- * (nested calls would break total inlining) — see routes/actions.ts.
+ * (nested calls would break total inlining) â€” see routes/actions.ts.
  *
  * Built from `P0_STEP_TYPES` + `P1_STEP_TYPES` in
  * packages/test-model/src/types.ts (mirrored here so this package keeps no
- * runtime dependency on test-model — keep the two lists in sync).
+ * runtime dependency on test-model â€” keep the two lists in sync).
  */
 const P0_STEP_TYPES: readonly string[] = [
   'goto', 'reload', 'goBack', 'goForward',
@@ -215,7 +215,7 @@ export const SUPPORTED_STEP_TYPES: ReadonlySet<string> = new Set([
 /**
  * Plugin step types (`plugin:<name>`) are allowlisted by PATTERN (exact set is
  * registry-dependent). Unknown plugin steps still fail at compile/run time
- * with PLUGIN_NOT_FOUND — never silently skipped.
+ * with PLUGIN_NOT_FOUND â€” never silently skipped.
  */
 export function isSupportedStepType(type: unknown): boolean {
   if (typeof type !== 'string') return false;
@@ -269,7 +269,7 @@ export function validateDefinitionForStore(def: unknown): DefinitionIssue[] {
     }
     const type = rec['type'];
     if (typeof type !== 'string' || !isSupportedStepType(type)) {
-      // P0: arbitrary custom code (customCode/eval/…) is disabled for ALL roles.
+      // P0: arbitrary custom code (customCode/eval/â€¦) is disabled for ALL roles.
       issues.push({ code: 'STEP_TYPE_UNSUPPORTED', message: `${where}.type '${String(type)}' is not allowed (custom code is disabled in P0)` });
     }
     for (const k of ['code', 'script', 'eval', 'customCode']) {
@@ -296,7 +296,7 @@ export function sanitizeExportFilename(id: string): string {
 
 /** Strip absolute server paths (cwd/tmpdir/storage) from client-facing text. */
 export function stripServerPaths(text: string, extraRoots: string[] = []): string {
-  // Playwright errors carry terminal color codes (e.g. `[2mexpect([22m`) —
+  // Playwright errors carry terminal color codes (e.g. `[2mexpect([22m`) â€”
   // strip them first so UIs never render raw ANSI escapes.
   // eslint-disable-next-line no-control-regex
   let out = text.replace(/\[[0-9;]*m/g, '').replace(/\[([0-9]{1,2})m/g, '');

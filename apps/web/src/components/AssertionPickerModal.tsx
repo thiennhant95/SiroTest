@@ -1,5 +1,5 @@
 /**
- * AssertionPickerModal — flow B (01-product/user-flows.md):
+ * AssertionPickerModal â€” flow B (spec/01-product/user-flows.md):
  * Add assertion -> select element -> propose Visible/Hidden/Text
  * equals+contains/Value/Enabled-Disabled/Checked -> enter expected ->
  * insert at the chosen position (before/after anchor step).
@@ -122,7 +122,7 @@ export function AssertionPickerModal(props: {
           )}
           <div className="flex flex-wrap gap-1.5">
             <Button type="button" size="sm" variant="outline" onClick={() => void enableAssertionPick()} disabled={picking}>
-              {picking ? "Assertion pick ON — click an element…" : "Pick from page"}
+              {picking ? "Assertion pick ON â€” click an elementâ€¦" : "Pick from page"}
             </Button>
             {FIXTURE_TARGETS.map((t) => (
               <Button

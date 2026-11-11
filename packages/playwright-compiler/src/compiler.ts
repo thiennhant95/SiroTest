@@ -2,7 +2,7 @@
  * P0 compiler: validated `TestDefinition` -> deterministic TypeScript
  * using upstream `@playwright/test`.
  *
- * Guarantees (per 06-compiler/playwright-compiler.md):
+ * Guarantees (per spec/06-compiler/playwright-compiler.md):
  * - Pure/deterministic for same definition + compiler version.
  * - All generated strings escaped safely (single-quoted literals).
  * - Secret values never inlined (variables compile to `process.env.*`).
@@ -30,7 +30,7 @@ export { DATASET_SECRET_NOTE };
 /** Bump together with package.json version; part of the determinism contract. */
 export const COMPILER_VERSION = '0.1.0';
 
-/** P1 — one named table of rows for data-driven runs (embedded, capped). */
+/** P1 â€” one named table of rows for data-driven runs (embedded, capped). */
 export interface DataSet {
   id: string;
   name: string;
@@ -52,7 +52,7 @@ export interface TestDefinition {
   timeoutMs?: number;
   tags?: string[];
   variables?: Record<string, string>;
-  /** P1 — embedded data tables; a run selects one via compile options. */
+  /** P1 â€” embedded data tables; a run selects one via compile options. */
   datasets?: DataSet[];
   steps: TestStep[];
 }
@@ -88,7 +88,7 @@ export class UnsupportedStepError extends Error {
 // ------------------------------------------------- P1 reusable actions ---
 
 /**
- * P1 — a named parameter of a reusable action.
+ * P1 â€” a named parameter of a reusable action.
  * Mirrors `ActionParameter` in packages/test-model (kept local so this
  * package has no runtime dependency on test-model).
  */
@@ -97,12 +97,12 @@ export interface ActionParameter {
   description?: string;
   /** Used when the caller omits the argument. */
   default?: string;
-  /** Secret params must be passed as `{{VARIABLE}}` refs — never literals. */
+  /** Secret params must be passed as `{{VARIABLE}}` refs â€” never literals. */
   secret?: boolean;
 }
 
 /**
- * P1 — reusable business action (project-scoped, stored in `actions` table).
+ * P1 â€” reusable business action (project-scoped, stored in `actions` table).
  * Body steps are P0 steps only: nested `callAction` is rejected at compile
  * time with an explicit error (keeps inlining total and readable).
  */
@@ -127,7 +127,7 @@ function lookupAction(actions: ActionsContext | undefined, actionId: string): Re
     : undefined;
 }
 
-/** Every step type the P0 compiler accepts (03-test-model/step-catalog.md). */
+/** Every step type the P0 compiler accepts (spec/03-test-model/step-catalog.md). */
 export const SUPPORTED_STEP_TYPES: readonly string[] = [
   'goto',
   'reload',
@@ -179,7 +179,7 @@ export const FILE_PATHS_ENV = 'VV_FILE_PATHS';
 export const FILE_PATHS_ENV_ALIAS = 'FILE_PATHS';
 
 /**
- * P2 — visual regression + plugin steps (additive; P0 output stays
+ * P2 â€” visual regression + plugin steps (additive; P0 output stays
  * byte-identical when no P2 step is present).
  *
  * - `visualCheck` screenshots an element (or the viewport) into the run
@@ -209,7 +209,7 @@ function asRecord(step: TestStep): Record<string, unknown> {
 
 /**
  * Step timeout also governs expect() polling (test.step timeout alone does
- * not — expect defaults to 5s). Mirror of the runner compiler helper.
+ * not â€” expect defaults to 5s). Mirror of the runner compiler helper.
  */
 function expectTimeout(step: TestStep): string {
   const ms = asRecord(step)['timeoutMs'];
@@ -396,7 +396,7 @@ export function defaultStepName(step: TestStep): string {
  * missing/invalid fields.
  *
  * P1 wave-2 semantics (shapes: packages/test-model/src/types.ts):
- * - `pageVar` is the current tab handle (`page` by default; `page2`, …
+ * - `pageVar` is the current tab handle (`page` by default; `page2`, â€¦
  *   after `newTab`). P0 output is byte-identical (default `page`).
  * - `upload` resolves the file path at run time from `VV_FILE_PATHS`
  *   (alias `FILE_PATHS`): JSON map fileId -> absolute path injected by the
@@ -406,12 +406,12 @@ export function defaultStepName(step: TestStep): string {
  *   `page.evaluate(fetch)` so browser cookies/auth apply, then
  *   `node:fs/promises.writeFile` in Node. Decision documented in
  *   `compileTest` and mirrored by apps/runner.
- * - `newTab` needs `newPageVar` (deterministic `page2`, … allocated by
+ * - `newTab` needs `newPageVar` (deterministic `page2`, â€¦ allocated by
  *   `compileTest`); standalone calls without it fail explicitly.
  * - `closeTab` closes `pageVar`; the last-tab guard lives in `compileTest`.
  * - `handleDialog` registers a one-time `once('dialog')` handler for the
  *   NEXT dialog; it must precede the triggering step (no static next-step
- *   check — any step can trigger via JS).
+ *   check â€” any step can trigger via JS).
  * - `apiRequest` uses the `request` fixture; `expectedStatus` throws
  *   explicitly on mismatch; `saveAs` stores `await resp.text()` into
  *   `process.env[saveAs]` for later `{{VAR}}` steps in the same process.
@@ -440,8 +440,8 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
       return [`await ${locatorToExpression(requiredTarget(step), scope)}.dblclick();`];
     case 'fill': {
       const value = requiredString(step, 'value');
-      // Security (11-security/security.md): a sensitive literal must be a
-      // {{VARIABLE}} reference resolved at run time — never inlined into code.
+      // Security (spec/11-security/security.md): a sensitive literal must be a
+      // {{VARIABLE}} reference resolved at run time â€” never inlined into code.
       if ((step as Record<string, unknown>)['sensitive'] === true && !hasVariable(value)) {
         throw new InvalidDefinitionError(
           `Step "${step.id}" (fill): sensitive fill value must be a {{VARIABLE}} reference so the secret is resolved at run time, never inlined`,
@@ -647,7 +647,7 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
     case 'newTab': {
       if (!newPageVar) {
         throw new InvalidDefinitionError(
-          `Step "${step.id}" (newTab) requires a deterministic page name — compile via compileTest() so tabs are named page/page2/... explicitly`,
+          `Step "${step.id}" (newTab) requires a deterministic page name â€” compile via compileTest() so tabs are named page/page2/... explicitly`,
         );
       }
       const url = optionalString(step, 'url');
@@ -686,7 +686,7 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
       throw new UnsupportedStepError(
         step.id,
         step.type,
-        `Step "${step.id}" (callAction) can only be compiled with an actions context — pass { actions } to compileTest() so the callee body can be inlined explicitly`,
+        `Step "${step.id}" (callAction) can only be compiled with an actions context â€” pass { actions } to compileTest() so the callee body can be inlined explicitly`,
       );
     default:
       throw new UnsupportedStepError(step.id, step.type);
@@ -695,7 +695,7 @@ export function compileStepBody(step: TestStep, pageVar = 'page', newPageVar?: s
 
 /**
  * Deterministic artifact filename for a visual baseline name.
- * Mirror of `sanitizeVisualFileName` in apps/runner (keep the two in sync —
+ * Mirror of `sanitizeVisualFileName` in apps/runner (keep the two in sync â€”
  * the runner's stub tests assert identical outputs for the same inputs).
  */
 export function sanitizeVisualFileName(name: string): string {
@@ -749,7 +749,7 @@ function compileVisualCheckBody(step: TestStep, pageVar: string): string[] {
 /**
  * P2 plugin step: call the registered helper with validated string params.
  * Param VALUES support the same `{{VARIABLE}}` / `{{row.*}}` interpolation
- * as every other step (compiled to `process.env.*` / `row[...]` lookups —
+ * as every other step (compiled to `process.env.*` / `row[...]` lookups â€”
  * secrets are never inlined). Unknown plugin types fail here only when the
  * registry snapshot is passed via `CompileOptions.plugins`; otherwise the
  * workdir helper throws `PLUGIN_NOT_FOUND` at run time (never silent).
@@ -996,7 +996,7 @@ function validateDefinition(def: TestDefinition): void {
  * deterministic iteration loop over `VV_DATASET_ROWS` (JSON rows injected by
  * the runner at run time). Without `datasetId` the output is byte-identical
  * to the P0 compiler. `{{row.NAME}}` references compile to a runtime row
- * lookup and REQUIRE a selected dataset — otherwise compilation fails
+ * lookup and REQUIRE a selected dataset â€” otherwise compilation fails
  * explicitly instead of emitting a spec that would crash on `row`.
  */
 export interface CompileOptions {
@@ -1004,22 +1004,22 @@ export interface CompileOptions {
   /**
    * P1 reusable-action lookup (actionId -> ReusableAction). When omitted
    * (P0 path), any `callAction` step fails compilation with an explicit
-   * UnsupportedStepError — never silently skipped. Same definition +
-   * same actions + same compiler version ⇒ byte-identical output.
+   * UnsupportedStepError â€” never silently skipped. Same definition +
+   * same actions + same compiler version â‡’ byte-identical output.
    */
   actions?: ActionsContext;
   /**
    * P2 plugin registry snapshot (step type -> compile info). When provided,
    * a `plugin:*` step whose type is absent fails compilation here with
    * `PLUGIN_NOT_FOUND`; when omitted, the check moves to run time (the
-   * workdir helper throws the same explicit error — never silently skipped).
+   * workdir helper throws the same explicit error â€” never silently skipped).
    */
   plugins?: Record<string, PluginCompileInfo>;
 }
 
 /**
  * Minimal per-type compile info for a registered plugin step (structural
- * mirror of the SDK `PluginStepSchema` — kept local so this package has no
+ * mirror of the SDK `PluginStepSchema` â€” kept local so this package has no
  * runtime dependency on `@playwright-studio/action-sdk`).
  */
 export interface PluginCompileInfo {
@@ -1075,7 +1075,7 @@ const ACTION_PARAM_PATTERN = /\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
 
 /**
  * Resolve caller arguments against the callee parameter list:
- * caller value → param default → explicit failure when a required
+ * caller value â†’ param default â†’ explicit failure when a required
  * argument is missing. Secret params (and secret defaults) must be
  * `{{VARIABLE}}` references so plaintext never reaches generated code.
  */
@@ -1111,7 +1111,7 @@ function resolveActionArguments(caller: TestStep, action: ReusableAction): Recor
     } else if (param.default !== undefined) {
       if (param.secret === true && !hasVariable(param.default)) {
         throw new InvalidDefinitionError(
-          `Step "${caller.id}" (callAction): secret parameter "${param.name}" of action "${action.name}" has a plaintext default — defaults for secret params must be {{VARIABLE}} references`,
+          `Step "${caller.id}" (callAction): secret parameter "${param.name}" of action "${action.name}" has a plaintext default â€” defaults for secret params must be {{VARIABLE}} references`,
         );
       }
       resolved[param.name] = param.default;
@@ -1136,7 +1136,7 @@ function substituteParamsInString(value: string, args: Record<string, string>): 
 /**
  * Deep-clone a body step while interpolating `{{param}}` placeholders with
  * resolved argument values. Placeholders that are NOT action params are
- * left intact — they compile to normal `process.env.*` / `row[...]` lookups.
+ * left intact â€” they compile to normal `process.env.*` / `row[...]` lookups.
  */
 function interpolateActionStep(step: TestStep, args: Record<string, string>): TestStep {
   const clone = JSON.parse(JSON.stringify(step)) as TestStep;
@@ -1156,13 +1156,13 @@ function interpolateActionStep(step: TestStep, args: Record<string, string>): Te
 /**
  * Emit a `callAction` step: resolve the callee, resolve arguments, and
  * inline the interpolated body steps inside
- * `test.step('<caller name or action name>', ...)` — readable and
+ * `test.step('<caller name or action name>', ...)` â€” readable and
  * deterministic. Each body step keeps its own name/timeoutMs/
  * continueOnFailure; the caller step contributes the outer title/timeout/
  * continueOnFailure.
  *
  * P1 wave-2: body steps compile against the caller's current `pageVar`
- * (multi-tab state never crosses the action boundary — `newTab`/`closeTab`
+ * (multi-tab state never crosses the action boundary â€” `newTab`/`closeTab`
  * inside an action body fail explicitly).
  */
 function emitCallActionBlock(
@@ -1185,14 +1185,14 @@ function emitCallActionBlock(
       throw new UnsupportedStepError(
         caller.id,
         'callAction',
-        `Step "${caller.id}" (callAction) cannot inline action "${action.name}" (${action.id}): nested callAction (body step "${bodyStep.id}") is rejected — action bodies must be P0 steps`,
+        `Step "${caller.id}" (callAction) cannot inline action "${action.name}" (${action.id}): nested callAction (body step "${bodyStep.id}") is rejected â€” action bodies must be P0 steps`,
       );
     }
     if (bodyStep.type === 'newTab' || bodyStep.type === 'closeTab') {
       throw new UnsupportedStepError(
         caller.id,
         'callAction',
-        `Step "${caller.id}" (callAction) cannot inline action "${action.name}" (${action.id}): body step "${bodyStep.id}" (${bodyStep.type}) manages tabs — multi-tab state never crosses the action boundary`,
+        `Step "${caller.id}" (callAction) cannot inline action "${action.name}" (${action.id}): body step "${bodyStep.id}" (${bodyStep.type}) manages tabs â€” multi-tab state never crosses the action boundary`,
       );
     }
     if (index > 0) inner.push('');
@@ -1241,7 +1241,7 @@ function assertPluginStep(step: TestStep, plugins?: Record<string, PluginCompile
     throw new UnsupportedStepError(
       step.id,
       step.type,
-      `PLUGIN_NOT_FOUND: step "${step.id}" references unregistered plugin step "${step.type}" — install the plugin (PLUGINS_DIR) and enable it (ALLOW_PLUGINS=1, Developer/Admin review)`,
+      `PLUGIN_NOT_FOUND: step "${step.id}" references unregistered plugin step "${step.type}" â€” install the plugin (PLUGINS_DIR) and enable it (ALLOW_PLUGINS=1, Developer/Admin review)`,
     );
   }
   const schema = info.schema;
@@ -1289,7 +1289,7 @@ export function compileTest(def: TestDefinition, opts?: CompileOptions): string 
   const fixtures = ['page', ...(needsContext ? ['context'] : []), ...(needsRequest ? ['request'] : [])].join(', ');
 
   const out: string[] = [];
-  out.push(`// Generated by @vietvang/playwright-compiler v${COMPILER_VERSION} - do not edit.`);
+  out.push(`// Generated by @playwright-studio/playwright-compiler v${COMPILER_VERSION} - do not edit.`);
   out.push(`// Test: ${def.id} | schema: ${def.schemaVersion}`);
   out.push(`import { test, expect } from '@playwright/test';`);
   out.push('');
@@ -1312,7 +1312,7 @@ export function compileTest(def: TestDefinition, opts?: CompileOptions): string 
   // Extra indentation level inside the dataset loop (0 for P0 output).
   const pad = dataset ? '  ' : '';
   if (dataset) {
-    out.push(`  // Data-driven: dataset ${stringLiteral(dataset.name)} (${dataset.id}) — rows come from VV_DATASET_ROWS.`);
+    out.push(`  // Data-driven: dataset ${stringLiteral(dataset.name)} (${dataset.id}) â€” rows come from VV_DATASET_ROWS.`);
     out.push(`  // ${DATASET_SECRET_NOTE}`);
     out.push(`  const VV_ROWS: Array<Record<string, string>> = JSON.parse(process.env.VV_DATASET_ROWS ?? '[]');`);
     out.push(`  for (let _vvIteration = 0; _vvIteration < (VV_ROWS.length ? VV_ROWS.length : 1); _vvIteration++) {`);
@@ -1320,9 +1320,9 @@ export function compileTest(def: TestDefinition, opts?: CompileOptions): string 
   }
 
   // P1 wave-2 tab tracking: deterministic stack, `page` first, then
-  // `page2`, `page3`, … Disabled steps emit a comment and never touch the
+  // `page2`, `page3`, â€¦ Disabled steps emit a comment and never touch the
   // stack (they do not execute). `closeTab` on the last tab fails
-  // explicitly — closing it would leave the test with no page.
+  // explicitly â€” closing it would leave the test with no page.
   const pageStack: string[] = ['page'];
   let pageCounter = 1;
 
@@ -1350,7 +1350,7 @@ export function compileTest(def: TestDefinition, opts?: CompileOptions): string 
     if (step.type === 'closeTab') {
       if (pageStack.length <= 1) {
         throw new InvalidDefinitionError(
-          `Step "${step.id}" (closeTab): cannot close the last remaining tab — at least one page must stay open`,
+          `Step "${step.id}" (closeTab): cannot close the last remaining tab â€” at least one page must stay open`,
         );
       }
       out.push(
@@ -1373,7 +1373,7 @@ export function compileTest(def: TestDefinition, opts?: CompileOptions): string 
           step.id,
           'callAction',
           typeof actionId === 'string' && actionId.length > 0
-            ? `Step "${step.id}" (callAction) references unknown action "${actionId}" — pass it via compileTest(def, { actions })`
+            ? `Step "${step.id}" (callAction) references unknown action "${actionId}" â€” pass it via compileTest(def, { actions })`
             : `Step "${step.id}" (callAction) is missing required field "actionId"`,
         );
       }
@@ -1418,7 +1418,7 @@ export function resolveDataset(def: TestDefinition, datasetId?: string): DataSet
   const found = datasets.find((d) => d.id === datasetId);
   if (!found) {
     throw new InvalidDefinitionError(
-      `Unknown datasetId "${datasetId}" (test has ${datasets.length} dataset(s)) — select an existing dataset or run without one`,
+      `Unknown datasetId "${datasetId}" (test has ${datasets.length} dataset(s)) â€” select an existing dataset or run without one`,
     );
   }
   return found;
@@ -1431,7 +1431,7 @@ export function resolveDataset(def: TestDefinition, datasetId?: string): DataSet
  *
  * P1 wave-2 adds `body`/`headers` (apiRequest) and `promptText`
  * (handleDialog); `url` already covers goto/newTab/download/apiRequest.
- * P2 adds `params` (plugin steps — record of strings).
+ * P2 adds `params` (plugin steps â€” record of strings).
  */
 const INTERPOLATED_FIELDS = ['url', 'value', 'key', 'expected', 'pattern', 'body', 'headers', 'promptText', 'params'] as const;
 
@@ -1493,7 +1493,7 @@ function assertNoRowReferences(def: TestDefinition, actions?: ActionsContext): v
     }
     if (hits.length > 0) {
       throw new InvalidDefinitionError(
-        `Step "${step.id}" uses ${hits[0]} but no dataset is selected — pass { datasetId } to compileTest or remove the {{row.*}} reference`,
+        `Step "${step.id}" uses ${hits[0]} but no dataset is selected â€” pass { datasetId } to compileTest or remove the {{row.*}} reference`,
       );
     }
   }

@@ -1,7 +1,7 @@
 /**
- * Integration: compiler parity — the canonical package compiler and the
+ * Integration: compiler parity â€” the canonical package compiler and the
  * runner's execution-dialect compiler must cover the SAME steps in the SAME
- * order (06-compiler + 07-runner). Known dialect differences are documented,
+ * order (spec/06-compiler + 07-runner). Known dialect differences are documented,
  * not asserted away:
  * - package emits `test.step('<name>')`; runner emits `test.step('[<id>] <name>')`
  *   so the reporter can recover step ids.
@@ -17,7 +17,7 @@ import { minimalStepFor } from './helpers.js';
 import { P0_STEP_TYPES, P1_STEP_TYPES, P2_STEP_TYPES } from '../../packages/test-model/src/types.js';
 
 // P1 callAction compiles only with a callee registry (both compilers fail
-// explicitly without one — verified below). One shared P0-body action.
+// explicitly without one â€” verified below). One shared P0-body action.
 const PARITY_ACTIONS = new Map([
   ['act_parity', {
     schemaVersion: '1.0', id: 'act_parity', projectId: 'project_parity', name: 'Parity action',
@@ -45,8 +45,8 @@ function defWith(types: string[]) {
     name: 'Parity check',
     browser: 'chromium' as const,
     // Unique human names: the package compiler titles steps by name (no ids),
-    // the runner dialect prefixes [id] — both must preserve definition order.
-    // Ids are sanitized (plugin types contain `:`) — P0 ids are unaffected.
+    // the runner dialect prefixes [id] â€” both must preserve definition order.
+    // Ids are sanitized (plugin types contain `:`) â€” P0 ids are unaffected.
     steps: types.map((t) => ({ ...minimalStepFor(t), id: `s_${t.replace(/[^A-Za-z0-9_]/g, '_')}`, name: `parity-name-${t}`, enabled: true })),
   };
 }
@@ -68,7 +68,7 @@ describe('compiler parity (package vs runner dialect)', () => {
       }
     }
     // Full-catalog order preservation: markers appear in definition order.
-    // Package titles use step names, runner titles use [id] — check each in
+    // Package titles use step names, runner titles use [id] â€” check each in
     // its own dialect.
     const full = defWith([...P0_STEP_TYPES]);
     const pkg = compileTest(full as never);
@@ -90,7 +90,7 @@ describe('compiler parity (package vs runner dialect)', () => {
   it('covers every P1/P2/plugin step in both compilers, same order', async () => {
     const { transpileModule, ModuleKind, ScriptTarget } = await import('typescript');
     // closeTab is only valid with an open second tab (both compilers reject
-    // closing the last tab) — compile it in a [newTab, closeTab] context.
+    // closing the last tab) â€” compile it in a [newTab, closeTab] context.
     const defFor = (type: string) =>
       type === 'closeTab'
         ? { ...defWith([]), steps: [minimalStepFor('newTab'), minimalStepFor('closeTab')].map((s, i) => ({ ...s, id: `s_ctx${i}`, name: `parity-ctx${i}`, enabled: true })) }

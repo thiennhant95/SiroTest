@@ -6,7 +6,7 @@ import {
   type ReusableAction,
   type TestDefinition,
   type TestStep,
-} from '@vietvang/playwright-compiler';
+} from '@playwright-studio/playwright-compiler';
 import { requireAuth, requireProjectAccess } from '../auth.js';
 import { ApiError } from '../errors.js';
 import { db } from '../db.js';

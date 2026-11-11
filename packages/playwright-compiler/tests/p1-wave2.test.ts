@@ -1,5 +1,5 @@
 /**
- * P1 wave-2 step-engine tests for @vietvang/playwright-compiler (node:test).
+ * P1 wave-2 step-engine tests for @playwright-studio/playwright-compiler (node:test).
  * Covers: upload / download (target + url-only) / newTab+closeTab page
  * tracking / handleDialog / apiRequest, plus explicit-failure edges
  * (closeTab on last tab, download with neither target nor url, apiRequest

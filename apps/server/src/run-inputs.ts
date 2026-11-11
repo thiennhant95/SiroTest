@@ -1,4 +1,4 @@
-import type { ReusableAction } from '@vietvang/playwright-compiler';
+import type { ReusableAction } from '@playwright-studio/playwright-compiler';
 import { loadProjectActions } from './actions.js';
 import { db } from './db.js';
 import { ApiError } from './errors.js';

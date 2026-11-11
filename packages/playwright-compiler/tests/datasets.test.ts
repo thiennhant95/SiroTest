@@ -1,5 +1,5 @@
 /**
- * P1 data-driven tests for @vietvang/playwright-compiler (node:test).
+ * P1 data-driven tests for @playwright-studio/playwright-compiler (node:test).
  * Covers: `{{row.NAME}}` interpolation, dataset loop emission, P0
  * byte-identical output without a dataset, explicit failure for row refs
  * without a dataset / unknown datasetId, and the plaintext-rows secret hint.

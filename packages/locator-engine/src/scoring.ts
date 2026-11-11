@@ -1,7 +1,7 @@
 /**
- * Candidate scoring (05-locator/locator-engine.md).
+ * Candidate scoring (spec/05-locator/locator-engine.md).
  *
- * Priority (not absolute — uniqueness can override it):
+ * Priority (not absolute â€” uniqueness can override it):
  *   Role+name > Label > Placeholder > TestId > Text (stable)
  *     > CSS (stable) > XPath (fallback)
  *
@@ -22,7 +22,7 @@ export const PRIORITY_ORDER = [
   'xpath',
 ] as const;
 
-/** All scoring numbers in one place — quoted in reports/PRs, asserted in tests. */
+/** All scoring numbers in one place â€” quoted in reports/PRs, asserted in tests. */
 export const SCORING_RULES = {
   base: {
     roleWithName: 100,

@@ -14,7 +14,7 @@
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "test:unit": "pnpm --filter @playwright-studio/test-model test && pnpm --filter @vietvang/playwright-compiler test && pnpm --filter @playwright-vv/locator-engine test",
+    "test:unit": "pnpm --filter @playwright-studio/test-model test && pnpm --filter @playwright-studio/playwright-compiler test && pnpm --filter @playwright-vv/locator-engine test",
     "test:security": "npx tsx --test apps/server/src/security.test.ts apps/runner/src/runner-security.test.ts",
     "test:integration": "npx tsx --test --test-concurrency=1 tests/integration/recorder.test.ts tests/integration/compiler-p0.test.ts tests/integration/compiler-parity.test.ts tests/integration/run-lifecycle.test.ts tests/integration/api-crud-versioning.test.ts tests/integration/datasets.test.ts tests/integration/suites.test.ts tests/integration/actions-p1.test.ts tests/integration/p1-wave2-api.test.ts tests/integration/p1-wave2-wiring.test.ts tests/integration/recorder-browser.test.ts tests/integration/rbac.test.ts tests/integration/schedule-notify.test.ts tests/integration/webhook.test.ts tests/integration/gherkin.test.ts tests/integration/stability.test.ts tests/integration/p2-healing.test.ts tests/integration/p2-ops.test.ts tests/integration/visual-run.test.ts tests/integration/visual-baselines.test.ts",
     "test:integration:p0": "npx tsx --test --test-concurrency=1 tests/integration/recorder.test.ts tests/integration/compiler-p0.test.ts tests/integration/compiler-parity.test.ts tests/integration/run-lifecycle.test.ts tests/integration/api-crud-versioning.test.ts",

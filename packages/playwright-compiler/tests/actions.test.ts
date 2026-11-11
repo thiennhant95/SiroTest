@@ -1,5 +1,5 @@
 /**
- * P1 reusable-actions tests for @vietvang/playwright-compiler (node:test).
+ * P1 reusable-actions tests for @playwright-studio/playwright-compiler (node:test).
  * Covers: callAction inlining (+ defaults), missing-arg / unknown-action /
  * nested-callAction explicit failures, secret-param redaction rules, and
  * the P0 byte-identical guarantee (no actions -> compile as before).

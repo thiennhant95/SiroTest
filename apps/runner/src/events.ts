@@ -1,6 +1,6 @@
 /**
- * Step 6/8 — Run/step event streaming over WebSocket.
- * Event names follow 08-api/websocket-events.md. Events are informational;
+ * Step 6/8 â€” Run/step event streaming over WebSocket.
+ * Event names follow spec/08-api/websocket-events.md. Events are informational;
  * the database state remains authoritative. Every payload carries runId.
  */
 
@@ -27,11 +27,11 @@ export interface RunEvent {
   durationMs?: number;
   error?: string;
   /**
-   * P2 — healing evidence for `step.healed` (see healing.ts HealEvidence).
+   * P2 â€” healing evidence for `step.healed` (see healing.ts HealEvidence).
    * The name is a first-class union member; like all WS events it is
    * informational only (DB authoritative). Proposal persistence travels in
    * the `runTest()` return value for the server to store as reviewable
-   * `HealingProposal` rows — never silently applied.
+   * `HealingProposal` rows â€” never silently applied.
    */
   evidence?: unknown;
 }
@@ -50,7 +50,7 @@ export function fanout(publishers: EventPublisher[]): EventPublisher {
       try {
         p(event);
       } catch {
-        // ignore sink errors — events are informational
+        // ignore sink errors â€” events are informational
       }
     }
   };

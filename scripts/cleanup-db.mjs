@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * cleanup-db.mjs — database retention companion to cleanup-artifacts.mjs
- * (07-runner/artifacts-reporting.md).
+ * cleanup-db.mjs â€” database retention companion to cleanup-artifacts.mjs
+ * (spec/07-runner/artifacts-reporting.md).
  *
  * Deletes terminal Run rows (passed/failed/cancelled) finished longer ago
  * than ARTIFACT_RETENTION_DAYS (default 30), plus their RunStep + Artifact
- * rows (deleted explicitly — never relies on FK cascades alone). Active
+ * rows (deleted explicitly â€” never relies on FK cascades alone). Active
  * runs (queued/running) are NEVER touched. Run this BEFORE/AFTER
  * cleanup-artifacts.mjs with the same retention so DB and disk agree.
  *

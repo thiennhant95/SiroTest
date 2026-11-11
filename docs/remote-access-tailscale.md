@@ -98,7 +98,7 @@ tab **Sign up** → email + mật khẩu → vào được nhưng **chưa thấy
 **Bước 7 — IT cấp quyền (tạm thời bằng script).** PowerShell tại thư mục tool:
 
 ```powershell
-$env:DATABASE_URL='file:D:/VietVang/Project/playwright-vv/apps/server/pilot-mizoguchi.db'
+$env:DATABASE_URL='file:C:/SiroTest/hub/apps/server/app.db'
 node scripts/add-member.mjs brse@congty.com editor
 ```
 

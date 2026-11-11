@@ -1,5 +1,5 @@
 /**
- * P2 step-engine tests for @vietvang/playwright-compiler (node:test).
+ * P2 step-engine tests for @playwright-studio/playwright-compiler (node:test).
  * Covers: visualCheck emit (viewport + element target, threshold default /
  * validation, deterministic filenames) and plugin:* emit (params shape,
  * {{VAR}}/{{row}} interpolation, registry fail-fast incl. secret literals),

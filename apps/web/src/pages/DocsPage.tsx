@@ -50,7 +50,7 @@ Press **▶ Run** → pick environment + browser → **Start run**. The run page
 ## Worked example — company login (demo-print)
 | # | Step | Value |
 |---|---|---|
-| 1 | Go to page | \`https://demo-print.vietvang.net/login\` |
+| 1 | Go to page | \`https://demo.example.com/login\` |
 | 2 | Fill | textbox "Email Đăng Nhập" ← \`ci.smoke.company@in3m.local\` |
 | 3 | Fill (sensitive) | textbox "Mật Khẩu" ← \`{{CA_PASS}}\` |
 | 4 | Click | button "Login" |
@@ -314,11 +314,11 @@ Kịch bản: Đăng nhập thành công
 ## Worked example — login + filter, with the two classic traps
 \`\`\`
 Kịch bản: Đăng nhập công ty và lọc hóa đơn cần xử lý
-  Cho rằng mở trang https://demo-print.vietvang.net/login
+  Cho rằng mở trang https://demo.example.com/login
   Khi nhập "Email Đăng Nhập" là "ci.smoke.company@in3m.local"
   Và nhập "Mật Khẩu" là "THAY_BANG_CA_PASS"
   Và bấm nút "Login"
-  Và mở trang https://demo-print.vietvang.net/orders-new?page=1
+  Và mở trang https://demo.example.com/orders-new?page=1
   Và bấm nút "Tìm Kiếm"
   Thì kiểm tra "Hóa Đơn Cần Xử Lý" hiển thị
 \`\`\`

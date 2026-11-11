@@ -1,4 +1,4 @@
-# VietVang Test Web (SiroTest)
+# SiroTest
 
 [![CI](https://github.com/thiennhant95/SiroTest/actions/workflows/ci.yml/badge.svg)](https://github.com/thiennhant95/SiroTest/actions/workflows/ci.yml)
 ![version](https://img.shields.io/badge/version-0.2.0-blue)

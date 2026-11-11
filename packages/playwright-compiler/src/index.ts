@@ -1,5 +1,5 @@
 /**
- * Public entry point of `@vietvang/playwright-compiler` (P0).
+ * Public entry point of `@playwright-studio/playwright-compiler` (P0).
  */
 export { COMPILER_VERSION, MAX_DATASET_ROWS, SUPPORTED_STEP_TYPES, P1_WAVE2_STEP_TYPES, P2_STEP_TYPES, PLUGIN_TYPE_PATTERN, FILE_PATHS_ENV, FILE_PATHS_ENV_ALIAS, BASELINES_ENV, UPDATE_BASELINES_ENV, VISUAL_DEFAULT_THRESHOLD } from './compiler';
 export type {

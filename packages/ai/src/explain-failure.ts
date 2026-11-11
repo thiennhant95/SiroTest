@@ -1,16 +1,16 @@
 /**
- * explain-failure.ts — P2 "AI: failure explanation" (rule path + LLM prompt).
+ * explain-failure.ts â€” P2 "AI: failure explanation" (rule path + LLM prompt).
  *
  * Rule engine classifies a failure into one of
  * `locator-not-found | timeout | assert-mismatch | navigation | unknown`
  * and returns likely causes + concrete fixes aligned with user flow C
- * (01-product/user-flows.md: concise error + locator + elapsed timeout +
+ * (spec/01-product/user-flows.md: concise error + locator + elapsed timeout +
  * screenshot, Open Trace, Edit locator).
  *
  * With an LLM key, {@link explainFailure} sends a redacted summary through
  * {@link buildExplainPrompt} and coerces the reply into the same schema;
  * any parse failure falls back to the rule engine (engine then reports
- * `'rules'` honestly — never a fabricated LLM answer).
+ * `'rules'` honestly â€” never a fabricated LLM answer).
  */
 import type { AIProvider } from "./provider.js";
 
@@ -29,7 +29,7 @@ export interface FailureInput {
   locator?: unknown;
   timeoutMs?: number;
   stepName?: string;
-  /** Test name (metadata only — helps ground the summary, never a secret). */
+  /** Test name (metadata only â€” helps ground the summary, never a secret). */
   testName?: string;
   /**
    * One-line run context, e.g. "5/5 prior steps passed (goto, fill, fill, fill, click)
@@ -59,19 +59,19 @@ function hasAlternatives(locator: unknown): boolean {
 function locatorHint(input: FailureInput): string[] {
   if (input.locator === undefined) return [];
   return hasAlternatives(input.locator)
-    ? ["Step này đã lưu sẵn locator dự phòng (alternatives) — vào Edit locator để thử từng candidate. (P0 không tự đổi locator khi chạy.)"]
-    : ["Step này chưa có locator dự phòng — ghi lại bằng Record/pick-mode để lưu thêm candidates cho lần sửa sau."];
+    ? ["Step nÃ y Ä‘Ã£ lÆ°u sáºµn locator dá»± phÃ²ng (alternatives) â€” vÃ o Edit locator Ä‘á»ƒ thá»­ tá»«ng candidate. (P0 khÃ´ng tá»± Ä‘á»•i locator khi cháº¡y.)"]
+    : ["Step nÃ y chÆ°a cÃ³ locator dá»± phÃ²ng â€” ghi láº¡i báº±ng Record/pick-mode Ä‘á»ƒ lÆ°u thÃªm candidates cho láº§n sá»­a sau."];
 }
 
 function timeoutHint(input: FailureInput): string[] {
   if (input.timeoutMs === undefined) return [];
   return [
-    `Timeout hiệu lực là ${input.timeoutMs}ms — cân nhắc tăng timeout ở cấp step (ưu tiên) thay vì chờ cứng waitForTimeout.`,
+    `Timeout hiá»‡u lá»±c lÃ  ${input.timeoutMs}ms â€” cÃ¢n nháº¯c tÄƒng timeout á»Ÿ cáº¥p step (Æ°u tiÃªn) thay vÃ¬ chá» cá»©ng waitForTimeout.`,
   ];
 }
 
 function traceHint(): string {
-  return "Mở screenshot/trace của run để xem trang ở trạng thái nào khi step thất bại (sai trang? loading chưa xong? popup che?).";
+  return "Má»Ÿ screenshot/trace cá»§a run Ä‘á»ƒ xem trang á»Ÿ tráº¡ng thÃ¡i nÃ o khi step tháº¥t báº¡i (sai trang? loading chÆ°a xong? popup che?).";
 }
 
 /** Pure deterministic classifier. Never throws on odd input. */
@@ -98,25 +98,25 @@ export function explainFailureRule(input: FailureInput): FailureExplanation {
     return {
       category: "locator-not-found",
       summary: multi
-        ? `Locator khớp NHIỀU element (strict-mode violation) — Playwright từ chối thao tác vì không xác định duy nhất.`
-        : `Không tìm thấy element cho locator của step "${input.stepName ?? input.stepType ?? "?"}" trong thời gian chờ.`,
+        ? `Locator khá»›p NHIá»€U element (strict-mode violation) â€” Playwright tá»« chá»‘i thao tÃ¡c vÃ¬ khÃ´ng xÃ¡c Ä‘á»‹nh duy nháº¥t.`
+        : `KhÃ´ng tÃ¬m tháº¥y element cho locator cá»§a step "${input.stepName ?? input.stepType ?? "?"}" trong thá»i gian chá».`,
       likelyCauses: multi
         ? [
-            "Locator quá chung (ví dụ text trùng ở nhiều nút).",
-            "UI render thêm element trùng sau lần ghi test.",
+            "Locator quÃ¡ chung (vÃ­ dá»¥ text trÃ¹ng á»Ÿ nhiá»u nÃºt).",
+            "UI render thÃªm element trÃ¹ng sau láº§n ghi test.",
           ]
         : [
-            "Element nằm trong iframe/popup/tab khác.",
-            "Trang chưa điều hướng tới đúng URL hoặc dữ liệu chưa load.",
-            "Accessible name/label của element đã đổi (i18n, copy mới).",
+            "Element náº±m trong iframe/popup/tab khÃ¡c.",
+            "Trang chÆ°a Ä‘iá»u hÆ°á»›ng tá»›i Ä‘Ãºng URL hoáº·c dá»¯ liá»‡u chÆ°a load.",
+            "Accessible name/label cá»§a element Ä‘Ã£ Ä‘á»•i (i18n, copy má»›i).",
           ],
       suggestedFixes: multi
         ? [
-            "Dùng Test locator trong Builder để đếm match, rồi thu hẹp (thêm role/name chính xác hoặc chuyển sang testId/label).",
+            "DÃ¹ng Test locator trong Builder Ä‘á»ƒ Ä‘áº¿m match, rá»“i thu háº¹p (thÃªm role/name chÃ­nh xÃ¡c hoáº·c chuyá»ƒn sang testId/label).",
             ...locatorHint(input),
           ]
         : [
-            "Dùng Test locator để kiểm tra match count (0 = sai locator; N>1 = thiếu duy nhất).",
+            "DÃ¹ng Test locator Ä‘á»ƒ kiá»ƒm tra match count (0 = sai locator; N>1 = thiáº¿u duy nháº¥t).",
             ...timeoutHint(input),
             ...locatorHint(input),
             traceHint(),
@@ -127,16 +127,16 @@ export function explainFailureRule(input: FailureInput): FailureExplanation {
   if (assertMarkers.test(err) || (isAssertStep && /fail/i.test(err))) {
     return {
       category: "assert-mismatch",
-      summary: `Assertion thất bại ở step "${input.stepName ?? input.stepType ?? "?"}" — trang render được nhưng giá trị/thấy-không-thấy không khớp kỳ vọng.`,
+      summary: `Assertion tháº¥t báº¡i á»Ÿ step "${input.stepName ?? input.stepType ?? "?"}" â€” trang render Ä‘Æ°á»£c nhÆ°ng giÃ¡ trá»‹/tháº¥y-khÃ´ng-tháº¥y khÃ´ng khá»›p ká»³ vá»ng.`,
       likelyCauses: [
-        "Dữ liệu kỳ vọng (expected) đã cũ so với UI hiện tại.",
-        "Trang chưa load xong khi assertion chạy (thiếu chờ điều kiện).",
-        "Locator trỏ đúng element nhưng sai thuộc tính so sánh (text vs value).",
+        "Dá»¯ liá»‡u ká»³ vá»ng (expected) Ä‘Ã£ cÅ© so vá»›i UI hiá»‡n táº¡i.",
+        "Trang chÆ°a load xong khi assertion cháº¡y (thiáº¿u chá» Ä‘iá»u kiá»‡n).",
+        "Locator trá» Ä‘Ãºng element nhÆ°ng sai thuá»™c tÃ­nh so sÃ¡nh (text vs value).",
       ],
       suggestedFixes: [
         traceHint(),
-        "So sánh expected với text/value thực tế trong trace rồi cập nhật step kỳ vọng.",
-        "Chèn waitForElement (visible) ngay trước assertion thay vì chờ cứng.",
+        "So sÃ¡nh expected vá»›i text/value thá»±c táº¿ trong trace rá»“i cáº­p nháº­t step ká»³ vá»ng.",
+        "ChÃ¨n waitForElement (visible) ngay trÆ°á»›c assertion thay vÃ¬ chá» cá»©ng.",
         ...locatorHint(input),
       ],
       confidence: assertMarkers.test(err) ? "high" : "medium",
@@ -145,15 +145,15 @@ export function explainFailureRule(input: FailureInput): FailureExplanation {
   if (timeoutMarkers.test(e)) {
     return {
       category: "timeout",
-      summary: `Step "${input.stepName ?? input.stepType ?? "?"}" hết thời gian chờ — thao tác không hoàn tất trong giới hạn cho phép.`,
+      summary: `Step "${input.stepName ?? input.stepType ?? "?"}" háº¿t thá»i gian chá» â€” thao tÃ¡c khÃ´ng hoÃ n táº¥t trong giá»›i háº¡n cho phÃ©p.`,
       likelyCauses: [
-        "Mạng/trang chậm hơn timeout hiện tại.",
-        "Element/locator không bao giờ thỏa điều kiện chờ (sai state: visible vs attached).",
-        "Điều hướng trước đó chưa xong nên step chạy trên trang cũ.",
+        "Máº¡ng/trang cháº­m hÆ¡n timeout hiá»‡n táº¡i.",
+        "Element/locator khÃ´ng bao giá» thá»a Ä‘iá»u kiá»‡n chá» (sai state: visible vs attached).",
+        "Äiá»u hÆ°á»›ng trÆ°á»›c Ä‘Ã³ chÆ°a xong nÃªn step cháº¡y trÃªn trang cÅ©.",
       ],
       suggestedFixes: [
         ...timeoutHint(input),
-        "Với waitForElement, kiểm tra lại `state` (attached/visible/hidden) có đúng ý đồ không.",
+        "Vá»›i waitForElement, kiá»ƒm tra láº¡i `state` (attached/visible/hidden) cÃ³ Ä‘Ãºng Ã½ Ä‘á»“ khÃ´ng.",
         traceHint(),
         ...locatorHint(input),
       ],
@@ -163,27 +163,27 @@ export function explainFailureRule(input: FailureInput): FailureExplanation {
   if (navigationMarkers.test(e)) {
     return {
       category: "navigation",
-      summary: `Lỗi điều hướng/tải trang ở step "${input.stepName ?? input.stepType ?? "?"}" — trình duyệt không tới được URL mục tiêu.`,
+      summary: `Lá»—i Ä‘iá»u hÆ°á»›ng/táº£i trang á»Ÿ step "${input.stepName ?? input.stepType ?? "?"}" â€” trÃ¬nh duyá»‡t khÃ´ng tá»›i Ä‘Æ°á»£c URL má»¥c tiÃªu.`,
       likelyCauses: [
-        "URL sai, môi trường (environment baseUrl) sai, hoặc server đích sập.",
-        "Chứng chỉ TLS/DNS/mạng bị chặn (đặc biệt với target nội bộ).",
-        "Redirect chuỗi quá dài hoặc bị chặn bởi SSRF guard.",
+        "URL sai, mÃ´i trÆ°á»ng (environment baseUrl) sai, hoáº·c server Ä‘Ã­ch sáº­p.",
+        "Chá»©ng chá»‰ TLS/DNS/máº¡ng bá»‹ cháº·n (Ä‘áº·c biá»‡t vá»›i target ná»™i bá»™).",
+        "Redirect chuá»—i quÃ¡ dÃ i hoáº·c bá»‹ cháº·n bá»Ÿi SSRF guard.",
       ],
       suggestedFixes: [
-        "Mở URL bằng tay / kiểm tra baseUrl của environment đang chạy.",
-        "Xem trace để biết dừng ở bước redirect nào.",
-        "Nếu target nội bộ, xác nhận ALLOW_PRIVATE_TARGETS chỉ bật ở môi trường local.",
+        "Má»Ÿ URL báº±ng tay / kiá»ƒm tra baseUrl cá»§a environment Ä‘ang cháº¡y.",
+        "Xem trace Ä‘á»ƒ biáº¿t dá»«ng á»Ÿ bÆ°á»›c redirect nÃ o.",
+        "Náº¿u target ná»™i bá»™, xÃ¡c nháº­n ALLOW_PRIVATE_TARGETS chá»‰ báº­t á»Ÿ mÃ´i trÆ°á»ng local.",
       ],
       confidence: "medium",
     };
   }
   return {
     category: "unknown",
-    summary: `Chưa phân loại được lỗi ở step "${input.stepName ?? input.stepType ?? "?"}" — cần xem log đầy đủ và trace để kết luận.`,
-    likelyCauses: ["Lỗi hạ tầng (browser crash, worker bị kill) hoặc lỗi chưa có mẫu nhận diện."],
+    summary: `ChÆ°a phÃ¢n loáº¡i Ä‘Æ°á»£c lá»—i á»Ÿ step "${input.stepName ?? input.stepType ?? "?"}" â€” cáº§n xem log Ä‘áº§y Ä‘á»§ vÃ  trace Ä‘á»ƒ káº¿t luáº­n.`,
+    likelyCauses: ["Lá»—i háº¡ táº§ng (browser crash, worker bá»‹ kill) hoáº·c lá»—i chÆ°a cÃ³ máº«u nháº­n diá»‡n."],
     suggestedFixes: [
       traceHint(),
-      "Chạy lại test để loại trừ flaky; nếu lặp lại, copy toàn bộ errorMessage + timeout hiệu lực cho developer.",
+      "Cháº¡y láº¡i test Ä‘á»ƒ loáº¡i trá»« flaky; náº¿u láº·p láº¡i, copy toÃ n bá»™ errorMessage + timeout hiá»‡u lá»±c cho developer.",
     ],
     confidence: "low",
   };
@@ -209,11 +209,11 @@ export function buildExplainPrompt(input: FailureInput): string {
     "1. If the failed step is an assert/wait AND priorSummary shows the action",
     "steps before it all passed (fills, clicks, submits), the app most likely",
     "NEVER NAVIGATED: suspect a rejected submit (validation error, duplicate or",
-    "reserved data, wrong-page stuck) — NOT network slowness. Lead with that",
+    "reserved data, wrong-page stuck) â€” NOT network slowness. Lead with that",
     "hypothesis and tell the user to open the run screenshot and look for a",
     "validation message. Do not lead with waits/timeouts in this case.",
     "2. For assert steps failing with timeout (no strict-mode violation in the",
-    "error), the locator usually resolved fine on the WRONG page — deprioritize",
+    "error), the locator usually resolved fine on the WRONG page â€” deprioritize",
     "locator-alternative advice; prioritize wrong-page/validation checks.",
     "3. Confidence: without page-state evidence (screenshot/trace content) use at",
     "most 'medium'. Use 'high' only when the error text alone proves the cause",
@@ -251,7 +251,7 @@ function coerceExplanation(json: string): FailureExplanation | null {
 
 /**
  * Explain via LLM when the provider is `llm`, else via rules.
- * LLM JSON-parse failure → honest fallback to rules (`engine: 'rules'`).
+ * LLM JSON-parse failure â†’ honest fallback to rules (`engine: 'rules'`).
  */
 export async function explainFailure(
   input: FailureInput,

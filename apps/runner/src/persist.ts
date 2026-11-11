@@ -1,6 +1,6 @@
 /**
- * Step 7/8 — Persist status/duration/error/artifact metadata.
- * Shapes mirror 09-database/schema.md tables: runs, run_steps, artifacts.
+ * Step 7/8 â€” Persist status/duration/error/artifact metadata.
+ * Shapes mirror spec/09-database/schema.md tables: runs, run_steps, artifacts.
  * P0 ships an in-memory store; the Prisma/SQLite implementation uses the
  * same interface (table/column names kept PostgreSQL-compatible).
  */

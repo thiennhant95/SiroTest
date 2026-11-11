@@ -6,7 +6,7 @@
  * project membership (403 on everything but their own projects). Until the
  * proper invite endpoint lands, IT runs this per BRSE after they Sign up:
  *
- *   $env:DATABASE_URL='file:D:/VietVang/Project/playwright-vv/apps/server/pilot-mizoguchi.db'
+ *   $env:DATABASE_URL='file:C:/SiroTest/hub/apps/server/app.db'
  *   node scripts/add-member.mjs brse@company.com editor
  *   node scripts/add-member.mjs brse2@company.com viewer [projectId]
  *

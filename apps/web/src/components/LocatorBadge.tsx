@@ -1,5 +1,5 @@
 /**
- * LocatorBadge (10-ui-ux/visual-builder.md "Locator UX"):
+ * LocatorBadge (spec/10-ui-ux/visual-builder.md "Locator UX"):
  * readable target summary first (`Button "Login"`), exact Playwright
  * expression only inside Advanced (via engine toExpression).
  */
@@ -68,7 +68,7 @@ export function LocatorBadge(props: {
           </code>
           {alternatives && alternatives.length > 0 && (
             <div style={{ marginTop: 4, color: "#475569" }}>
-              <div>Alternatives (stored evidence — P0 never auto-switches):</div>
+              <div>Alternatives (stored evidence â€” P0 never auto-switches):</div>
               <ul style={{ margin: "4px 0", paddingLeft: 18 }}>
                 {alternatives.map((alt, i) => (
                   <li key={i}>

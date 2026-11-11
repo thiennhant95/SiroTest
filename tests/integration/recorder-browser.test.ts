@@ -1,5 +1,5 @@
 /**
- * Integration: live-browser recorder (04-recorder + 05-locator, real Chromium).
+ * Integration: live-browser recorder (spec/04-recorder + 05-locator, real Chromium).
  *
  * Drives the fixture login app through a launched recorder browser (the
  * bridge captures DOM events like a human would) and asserts the drafts
@@ -83,7 +83,7 @@ async function startLiveSession(): Promise<{ sessionId: string; browser: Recorde
         try {
           manager.markInterrupted(session.sessionId, reason);
         } catch {
-          // Session already stopped — fine.
+          // Session already stopped â€” fine.
         }
       },
     },
@@ -121,7 +121,7 @@ describe('live recorder captures a clean login flow', () => {
 
       const fills = stopped.draftSteps.filter((s) => s.type === 'fill');
       assert.ok(fills.length >= 1, 'typing collapses into fill steps');
-      // Priority order puts role+name above label — either primary is correct
+      // Priority order puts role+name above label â€” either primary is correct
       // as long as it references the Email field (alternatives keep the rest).
       const mentionsEmail = (loc: unknown): boolean => {
         const l = loc as { primary?: Record<string, unknown>; alternatives?: Record<string, unknown>[] } | undefined;

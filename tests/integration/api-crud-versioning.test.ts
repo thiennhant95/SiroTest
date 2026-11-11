@@ -1,6 +1,6 @@
 /**
  * Integration: API CRUD + versioning + run lifecycle + compiler + redaction.
- * Strategy: 12-testing/test-strategy.md (Integration: API CRUD/versioning).
+ * Strategy: spec/12-testing/test-strategy.md (Integration: API CRUD/versioning).
  * Runs against a real Fastify app + isolated SQLite file (never dev.db).
  *
  * Run: npx tsx --test tests/integration/api-crud-versioning.test.ts
@@ -207,7 +207,7 @@ describe('runs lifecycle (API half)', () => {
     const detail = await injectJson(app, 'GET', `/api/v1/runs/${run.id}`);
     assert.equal(detail.statusCode, 200);
 
-    // Wait until the worker really owns the run — cancelling a `running` run
+    // Wait until the worker really owns the run â€” cancelling a `running` run
     // exercises the real tree-kill path (cancelRun), not the queued fallback.
     let status = '';
     for (let i = 0; i < 100; i++) {
@@ -265,7 +265,7 @@ describe('compiler endpoints', () => {
     assert.match(code, /getByLabel\('Email'\)/);
     assert.match(code, /getByRole\('button', \{ name: 'Login' \}\)/);
     // Server preview compiler emits bracket lookups; the full compiler emits
-    // `process.env.NAME!` — both are runtime lookups, never inlined secrets.
+    // `process.env.NAME!` â€” both are runtime lookups, never inlined secrets.
     assert.match(code, /process\.env(\.ADMIN_PASSWORD|\['ADMIN_PASSWORD'\])/);
     assert.match(code, /toBeVisible/);
 

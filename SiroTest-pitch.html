@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VietVang Test Web — Thuyết trình chốt pilot (cty phần mềm 20 người)</title>
+<title>SiroTest — Thuyết trình chốt pilot (cty phần mềm 20 người)</title>
 <style>
   :root { --indigo:#4f46e5; --slate:#0f172a; --muted:#64748b; --bg:#f1f5f9; --card:#ffffff; --green:#16a34a; --amber:#d97706; --red:#dc2626; }
   * { box-sizing:border-box; margin:0; padding:0; }
@@ -51,7 +51,7 @@
 
 <!-- 1 HOOK -->
 <section class="slide active"><div class="cover">
-  <div class="logo">VIETVANG TEST WEB</div>
+  <div class="logo">SIROTEST</div>
   <div class="time">Phút 0–2 · Mục tiêu: cả phòng gật đầu</div>
   <h1>Release gần nhất,<br>ai là người thức khuya nhất công ty?</h1>
   <p class="sub">Nếu câu trả lời là tester — buổi hôm nay dành cho người đó.<br>Nếu là dev fix bug khách báo — càng dành cho người đó.</p>
@@ -82,7 +82,7 @@
   </div>
   <ul>
     <li><b>Và cái tốn nhất không đo được:</b> dev giỏi phải đi fix bug cũ thay vì làm tính năng mới — dự án chậm, người giỏi chán.</li>
-    <li><b>VietVang Test Web đổi lại:</b> record 1 lần → chạy lại vô hạn lần, mỗi lần ~20 phút, bấm 1 nút, chạy đêm cũng được.</li>
+    <li><b>SiroTest đổi lại:</b> record 1 lần → chạy lại vô hạn lần, mỗi lần ~20 phút, bấm 1 nút, chạy đêm cũng được.</li>
   </ul>
   <div class="note"><b>Nói với MANAGER:</b> "Anh/chị cho tôi số: 1 release regression mấy ngày, 1 năm mấy release? Tôi nhân ngay tại đây." — Viết phép tính ra. "Tiền này không mua được gì cả, nó chỉ mua sự 'hi vọng là không sập'." Dừng 3 giây. Rồi qua demo.</div>
 </section>
@@ -214,7 +214,7 @@
   <div class="time">Phút 33–35 · Mục tiêu: "sinh ra cho cỡ công ty mình"</div>
   <h2>Tại sao không Selenium / Katalon / TestRail?</h2>
   <table>
-    <tr><th></th><th>Selenium thuần</th><th>Katalon / SaaS</th><th>VietVang Test Web</th></tr>
+    <tr><th></th><th>Selenium thuần</th><th>Katalon / SaaS</th><th>SiroTest</th></tr>
     <tr><td>Tester không biết code</td><td>Không làm được</td><td>Làm được</td><td class="hl">Làm được</td></tr>
     <tr><td>Chi phí khi team lớn lên</td><td>0đ + tốn dev viết</td><td>Tăng theo đầu người</td><td class="hl">0đ, không tăng</td></tr>
     <tr><td>Chạy CI/CD tự động</td><td>Cần dev setup</td><td>Bản free giới hạn, runtime tính phí</td><td class="hl">Free (JUnit + CLI)</td></tr>
@@ -222,7 +222,7 @@
     <tr><td>Đặc tả tiếng Việt chạy được</td><td>Không</td><td>Không</td><td class="hl">Có</td></tr>
     <tr><td>Test có phải code thật?</td><td>Có</td><td>Bị nhốt trong tool</td><td class="hl">Có (Playwright chuẩn)</td></tr>
   </table>
-  <div class="note"><b>Nói:</b> "Tôi không nói tool khác dở. Tôi chỉ nói: Selenium cần dev viết (mà dev các bạn đang bận), SaaS thì càng đông càng đắt + dữ liệu ra nước ngoài. VietVang Test Web sinh ra cho đúng cái cỡ 20 người này." Không bao giờ chê đối thủ — chỉ đặt bảng cho họ tự kết luận.</div>
+  <div class="note"><b>Nói:</b> "Tôi không nói tool khác dở. Tôi chỉ nói: Selenium cần dev viết (mà dev các bạn đang bận), SaaS thì càng đông càng đắt + dữ liệu ra nước ngoài. SiroTest sinh ra cho đúng cái cỡ 20 người này." Không bao giờ chê đối thủ — chỉ đặt bảng cho họ tự kết luận.</div>
 </section>
 
 <!-- 11 OBJECTIONS -->
@@ -256,7 +256,7 @@
 
 <!-- 13 CLOSE -->
 <section class="slide"><div class="cover">
-  <div class="logo">VIETVANG TEST WEB</div>
+  <div class="logo">SIROTEST</div>
   <div class="time">Phút 38 · 1 câu duy nhất</div>
   <h1>Thứ Hai tới,<br>5 luồng test đầu tiên?</h1>
   <p class="sub">Regression dưới 1/3 thời gian — hoặc không mất gì.</p>

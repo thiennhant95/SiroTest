@@ -2,12 +2,12 @@
  * Server-side wiring for `@playwright-studio/runner` (P0).
  *
  * - `PrismaRunStore`: the runner's `RunStore` interface backed by the
- *   server's Prisma/SQLite tables (09-database/schema.md). The DB stays the
+ *   server's Prisma/SQLite tables (spec/09-database/schema.md). The DB stays the
  *   source of truth; WS events are informational only.
- * - `runQueue`: single `RunQueue(2)` gate (P0 default 1–2 concurrent runs).
+ * - `runQueue`: single `RunQueue(2)` gate (P0 default 1â€“2 concurrent runs).
  * - `workerPublish`: runner `EventPublisher` fanned out to WS via the
  *   `ws/events.ts` builders (`runEvent`), scoped by `runId`.
- * - `resolveRunVariables`: project → environment variable resolution with
+ * - `resolveRunVariables`: project â†’ environment variable resolution with
  *   at-rest decryption (`security.ts`); secrets stay out of code/logs/events.
  * - `recoverIncompleteRunsOnBoot`: crash-recovery entry point for server boot.
  */
@@ -66,7 +66,7 @@ type DbRun = {
   errorSummary: string | null;
 };
 
-/** Prisma row → runner `RunRecord` (Date ↔ epoch-ms at the boundary). */
+/** Prisma row â†’ runner `RunRecord` (Date â†” epoch-ms at the boundary). */
 function toRunRecord(r: DbRun): RunRecord {
   return {
     id: r.id,
@@ -91,7 +91,7 @@ function toRunRecord(r: DbRun): RunRecord {
  * Terminal-state guard: once a run is `passed`/`failed`/`cancelled` (e.g. a
  * user cancel landed first), late `queued`/`running` patches are dropped so a
  * settled run can never be resurrected by an in-flight worker. Cancellation
- * itself (`running` → `cancelled`) and failure settlement always apply.
+ * itself (`running` â†’ `cancelled`) and failure settlement always apply.
  */
 export class PrismaRunStore implements RunStore {
   async createRun(run: RunRecord): Promise<void> {
@@ -295,7 +295,7 @@ export function workerPublish(evt: RunEvent): void {
     ...(status !== undefined ? { status } : {}),
     ...(durationMs !== undefined ? { durationMs } : {}),
     ...(error !== undefined ? { error: stripServerPaths(error) } : {}),
-    // P2 healing evidence rides along informationally (never secrets —
+    // P2 healing evidence rides along informationally (never secrets â€”
     // the runner redacts before emitting, same as error text).
     ...(evidence !== undefined ? { evidence } : {}),
   });
@@ -309,7 +309,7 @@ export function publishRunnerEvent(evt: RunEvent): void {
 export { buildEvent };
 
 /**
- * Resolve DB variables for a run (project → environment override).
+ * Resolve DB variables for a run (project â†’ environment override).
  * Secret cells are decrypted at run time via `security.ts`; plaintext never
  * lands in generated code, logs, WS events or result JSON (runner redacts).
  */

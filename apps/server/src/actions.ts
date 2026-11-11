@@ -1,5 +1,5 @@
 import type { FastifyRequest } from 'fastify';
-import type { ReusableAction } from '@vietvang/playwright-compiler';
+import type { ReusableAction } from '@playwright-studio/playwright-compiler';
 import { ApiError } from './errors.js';
 import { db } from './db.js';
 
