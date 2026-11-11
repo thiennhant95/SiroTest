@@ -39,6 +39,20 @@ Then open **http://127.0.0.1:5173** → Login page → **Dev** tab → `tester-1
 
 Remote teammates (different networks): see [Remote access via Tailscale](./docs/remote-access-tailscale.md) — 15 minutes, no open router ports.
 
+## Configuration
+
+Server reads env (see [.env.example](./.env.example)):
+
+| Variable | Purpose | Example |
+|---|---|---|
+| `PORT` / `DATABASE_URL` | Listen port / SQLite file | `3001` / `file:./data/app.db` |
+| `SECRET_ENCRYPTION_KEY` | Base64 32 bytes — encrypts secret variables at rest (AES-256-GCM) | generated once per host |
+| `AI_BASE_URL` / `AI_API_KEY` / `AI_MODEL` | OpenAI-compatible LLM endpoint (optional; offline rules otherwise) | `https://gateway.internal/v1` |
+| `AI_EXPLAIN_MODEL` | Override model for failure explanation only | reasoning model |
+| `MAX_CONCURRENT_RUNS` | Parallel runs per host (default 1–2) | `2` |
+| `ALLOW_DEV_AUTH` | Dev-mode login — **must be `0` on any networked host** | `0` in production |
+| `ALLOW_PRIVATE_TARGETS` | Allow recorder/runs against private IPs (local E2E only) | unset publicly |
+
 ## Repo layout
 
 | Path | What lives here |
@@ -51,7 +65,7 @@ Remote teammates (different networks): see [Remote access via Tailscale](./docs/
 | `e2e/`, `tests/` | Playwright E2E + integration suites |
 | `prisma/` | SQLite schema (Postgres-compatible, no db-specific types) |
 | `docs/` | Operator + user docs (also published as the demo site) |
-| `00-16/` | Versioned engineering spec — source of truth, see `AGENTS.md` |
+| `spec/` | Versioned engineering spec (`00-16`) — source of truth, see `AGENTS.md` |
 | `scripts/` | Ops helpers (retention cleanup, health check, member onboarding) |
 
 ## Quality gates (must stay green)
@@ -66,7 +80,20 @@ Remote teammates (different networks): see [Remote access via Tailscale](./docs/
 | `pnpm test:e2e` | P0 Chromium flows (6) |
 | `pnpm test:qc` | Tester-eyes UI regression (1) |
 
-Release `v0.2.0` evidence is recorded in [CHANGELOG.md](./CHANGELOG.md).
+Release `v0.2.0` evidence is recorded in [CHANGELOG.md](./CHANGELOG.md):
+typecheck clean · unit 140/140 + 26/26 · security 35/35 · server-unit 69/69 ·
+integration 185/185 · e2e 6/6 · qc 1/1.
+
+## FAQ
+
+- **If the tool dies, do we lose tests?** No — versioned JSON definitions plus
+  standard Playwright exports; restore or walk away with everything.
+- **Does AI send our code outside?** Rules engines run offline by default. LLM
+  mode redacts secrets pre-send and supports your own gateway.
+- **Our testers can't code?** Record on the real browser, write specs in
+  Vietnamese, press Run. Developers review the generated code.
+- **Cost as we grow?** Free: one host, no per-seat fees. Pro later: SSO,
+  compliance exports, parallelism, SLA.
 
 ## Free now, Pro later
 
