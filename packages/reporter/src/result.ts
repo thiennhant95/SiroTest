@@ -1,7 +1,7 @@
 /**
- * result.json schema (07-runner/artifacts-reporting.md).
+ * result.json schema (spec/07-runner/artifacts-reporting.md).
  * Written by the custom reporter to storage/runs/<run-id>/result.json.
- * All secret values are redacted BEFORE writing — never persist plaintext
+ * All secret values are redacted BEFORE writing â€” never persist plaintext
  * secrets in result JSON, filenames or metadata.
  */
 

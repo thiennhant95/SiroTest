@@ -7,12 +7,12 @@ import { db } from './db.js';
  * Real implementation verifies JWT/session via users table; here the
  * contract (401/403 + membership check hook) is what matters.
  *
- * Security (11-security/security.md):
+ * Security (spec/11-security/security.md):
  * - Every REST route uses requireAuth. WS /ws requires ?token=<same credential>.
  * - No cookie auth is used, so there is no cookie-CSRF surface: state-changing
  *   requests must carry an explicit Authorization/x-user-id header or WS token
  *   that a cross-site form/WS handshake cannot mint (see SELFHOST notes in
- *   11-security/security.md). If cookie sessions are introduced later, add
+ *   spec/11-security/security.md). If cookie sessions are introduced later, add
  *   Origin-checked CSRF tokens before enabling them.
  */
 export interface AuthUser {
@@ -30,12 +30,12 @@ declare module 'fastify' {
  * Dev-stub user auto-provisioning (pilot unblocker).
  *
  * P0 auth mints identities from a header without a signup flow, so a fresh
- * tester has no User row — and without it no owner membership can exist,
+ * tester has no User row â€” and without it no owner membership can exist,
  * which makes every project-scoped write 403 for exactly the users the
  * pilot is for. Auto-provision a minimal row on first sight (idempotent
  * upsert; never overwrites an existing row). Real auth (JWT/OIDC) replaces
  * the stub and keeps this as a harmless no-op. Failures never fail the
- * request — downstream membership checks apply as before.
+ * request â€” downstream membership checks apply as before.
  */
 export async function ensureUserRow(userId: string): Promise<void> {
   try {
@@ -48,7 +48,7 @@ export async function ensureUserRow(userId: string): Promise<void> {
       data: { id: userId, email: `${userId}@stub.local`, authRef: 'stub', role: 'tester' },
     });
   } catch {
-    // DB hiccup or lost create race: proceed — membership checks still
+    // DB hiccup or lost create race: proceed â€” membership checks still
     // enforce as before.
   }
 }
@@ -56,7 +56,7 @@ export async function ensureUserRow(userId: string): Promise<void> {
 export async function requireAuth(req: FastifyRequest, _reply: FastifyReply): Promise<void> {
   // 1) Stateful session token (real auth): Bearer <session-token>.
   // Session tokens are 43-char base64url (32 random bytes). Anything shaped
-  // like one MUST verify — a revoked/unknown token is rejected outright and
+  // like one MUST verify â€” a revoked/unknown token is rejected outright and
   // never demoted to a dev identity (otherwise logout would be meaningless).
   const header = req.headers.authorization;
   if (header?.startsWith('Bearer ')) {
@@ -70,7 +70,7 @@ export async function requireAuth(req: FastifyRequest, _reply: FastifyReply): Pr
       throw new ApiError('UNAUTHORIZED', 'Invalid or expired token', 401);
     }
     // Not a session token: legacy dev clients send `Bearer <user-id>`.
-    // Honor that only while dev auth is allowed (otherwise 401 outright —
+    // Honor that only while dev auth is allowed (otherwise 401 outright â€”
     // a Bearer-looking credential is never silently demoted on hard hosts).
     if (!devAuthAllowed()) {
       throw new ApiError('UNAUTHORIZED', 'Invalid or expired token', 401);
@@ -118,7 +118,7 @@ export function devAuthAllowed(): boolean {
 /**
  * Verify a stateful session token (login/register issued). Returns the user
  * with the DB role, or null. Touches lastUsedAt (sliding activity, best
- * effort — a failure there must not fail the request).
+ * effort â€” a failure there must not fail the request).
  */
 export async function verifySessionToken(raw: string): Promise<AuthUser | null> {
   const { createHash } = await import('node:crypto');
@@ -173,7 +173,7 @@ export function requirePrivileged(req: FastifyRequest): AuthUser {
 }
 
 /**
- * Project access (api-spec.md + 11-security/security.md): every write that
+ * Project access (api-spec.md + spec/11-security/security.md): every write that
  * touches a project must prove membership. The project is resolved from
  * `params.projectId`, or from the owning project of a test/run id in
  * `params.id`. Admins bypass; everyone else needs a project_members row

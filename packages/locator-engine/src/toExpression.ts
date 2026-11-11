@@ -1,6 +1,6 @@
 /**
  * Candidate -> Playwright expression string.
- * Mapping follows 06-compiler/playwright-compiler.md:
+ * Mapping follows spec/06-compiler/playwright-compiler.md:
  *   role -> getByRole | label -> getByLabel | placeholder -> getByPlaceholder
  *   testId -> getByTestId | text -> getByText | css/xpath -> locator()
  */
@@ -82,7 +82,7 @@ export function formatResolvedLocator(
   lines.push(
     resolved.verified
       ? `matches: ${resolved.matchCount} (verified in browser)`
-      : `matches: ~${resolved.matchCount} (unverified — assumed unique; run Test Locator)`,
+      : `matches: ~${resolved.matchCount} (unverified â€” assumed unique; run Test Locator)`,
   );
   if (ranked && ranked.length > 1) {
     lines.push(
@@ -96,7 +96,7 @@ export function formatResolvedLocator(
   );
   }
   if (resolved.alternatives.length > 0) {
-    lines.push('alternatives (stored only — P0 never auto-switches):');
+    lines.push('alternatives (stored only â€” P0 never auto-switches):');
     for (const alt of resolved.alternatives) {
       lines.push(`  - ${candidateToExpression(alt)}`);
     }

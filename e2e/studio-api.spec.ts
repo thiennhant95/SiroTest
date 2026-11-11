@@ -1,6 +1,6 @@
 /**
  * E2E (API-driven, no browser needed): the full Studio flow from
- * 12-testing/test-strategy.md —
+ * spec/12-testing/test-strategy.md â€”
  * create project -> create test from the login fixture -> add assertion ->
  * compile -> export -> run -> PASS-path queued -> cancel.
  *
@@ -24,7 +24,7 @@ test.beforeAll(async ({ request }) => {
   }
   test.skip(
     !ok,
-    `Studio API is not reachable at ${API_HEALTH} — skipping E2E gracefully. ` +
+    `Studio API is not reachable at ${API_HEALTH} â€” skipping E2E gracefully. ` +
       `Run via \`npx playwright test -c e2e/playwright.config.ts\` so webServer boots it.`,
   );
 });
@@ -109,7 +109,7 @@ test('studio flow: project -> test -> assertion -> compile -> run -> cancel', as
   expect(exported.status()).toBe(200);
   expect(exported.headers()['content-disposition']).toContain('.spec.ts');
 
-  // 6. Run: accepted (202, queued) then executed by the wired worker —
+  // 6. Run: accepted (202, queued) then executed by the wired worker â€”
   // by the time we fetch, it may be queued/running (usual) or already
   // terminal on a fast host. All are valid lifecycle states.
   const runRes = await api.post(`/tests/${created.id}/runs`, { environmentId: env.id, browser: 'chromium' });

@@ -8,7 +8,7 @@ import { encryptSecret, maskVariableRow } from '../security.js';
 import { writeAudit } from './audit.js';
 
 /**
- * Variables/secrets per project + environment (09-database/schema.md, 11-security/security.md).
+ * Variables/secrets per project + environment (spec/09-database/schema.md, spec/11-security/security.md).
  * Security rule: secret plaintext is NEVER returned by read APIs after creation.
  * List/get/update responses mask secret values as null and expose `hasValue`.
  * Secrets are encrypted at rest (AES-256-GCM) when SECRET_ENCRYPTION_KEY /
@@ -45,7 +45,7 @@ export async function variableRoutes(app: FastifyInstance): Promise<void> {
     }
     // SQLite treats NULLs as distinct, so the @@unique([projectId,
     // environmentId, key]) constraint does NOT stop duplicate shared-scope
-    // keys — check explicitly (also deterministic on Postgres).
+    // keys â€” check explicitly (also deterministic on Postgres).
     const clash = await db().variable.findFirst({
       where: { projectId, environmentId: body.environmentId ?? null, key: body.key },
       select: { id: true },
@@ -65,7 +65,7 @@ export async function variableRoutes(app: FastifyInstance): Promise<void> {
           isSecret: body.isSecret ?? false,
         },
       });
-      // Metadata only (key/scope/secret-flag) — values NEVER enter the trail.
+      // Metadata only (key/scope/secret-flag) â€” values NEVER enter the trail.
       await writeAudit({
         projectId, userId: req.user!.id,
         action: 'variable.create', entityType: 'variable', entityId: created.id,

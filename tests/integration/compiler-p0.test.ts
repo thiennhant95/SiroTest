@@ -1,6 +1,6 @@
 /**
  * Integration: P0 compiler covers EVERY step type; output parses; redaction green.
- * Strategy: 12-testing/test-strategy.md (Release gate P0: compiler coverage for
+ * Strategy: spec/12-testing/test-strategy.md (Release gate P0: compiler coverage for
  * every P0 step; secret redaction tests green) + acceptance (deterministic
  * compile to valid Playwright TS; runnable under upstream @playwright/test).
  *

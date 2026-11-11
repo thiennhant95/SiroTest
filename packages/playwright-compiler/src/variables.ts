@@ -1,7 +1,7 @@
 /**
  * Variable handling for the P0 compiler.
  *
- * Rule (per 06-compiler/playwright-compiler.md):
+ * Rule (per spec/06-compiler/playwright-compiler.md):
  * - `{{NAME}}` references compile to a runtime env lookup (`process.env.NAME`).
  * - Secret values are NEVER inlined into generated code.
  * - Values are resolved at run time and must be redacted from logs by the runner.
@@ -24,12 +24,12 @@ const SINGLE_ROW_PATTERN = /^\{\{\s*row\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}$/;
 /**
  * P1 security note: dataset rows are PLAIN strings embedded in the test
  * definition (visible to anyone who can read the test). Secrets MUST use
- * `{{VARIABLE}}` (resolved at run time, redacted everywhere) — NEVER
+ * `{{VARIABLE}}` (resolved at run time, redacted everywhere) â€” NEVER
  * dataset rows. This constant is embedded as a comment in data-driven
  * output and rendered as a UI hint in the Datasets tab; tests assert it.
  */
 export const DATASET_SECRET_NOTE =
-  'Dataset rows are plaintext — never put secrets in datasets, use {{VARIABLES}} instead.';
+  'Dataset rows are plaintext â€” never put secrets in datasets, use {{VARIABLES}} instead.';
 
 /** A fragment of a string split into literal text vs variable/row reference. */
 export type TemplatePart =
@@ -110,7 +110,7 @@ export function stringLiteral(value: string): string {
  * Compile a URL matcher (assertURL / waitForURL `expected`/`url`/`pattern`)
  * into a TS expression. Tester-friendly glob patterns (`*` = path segment,
  * `**` = anything) become `new RegExp(...)` because Playwright's `toHaveURL`
- * compares plain strings literally — a raw `**` would never match.
+ * compares plain strings literally â€” a raw `**` would never match.
  * Templates (`{{VAR}}`/`{{row.*}}`) pass through to compileValueExpression
  * untouched (glob + variables intentionally do not mix).
  */
@@ -149,11 +149,11 @@ function escapeTemplateText(value: string): string {
  * - whole-string `{{NAME}}` -> `process.env.NAME!` (required at runtime)
  * - whole-string `{{row.NAME}}` -> `(row["NAME"] ?? '')` (iteration context;
  *   only valid inside the dataset loop emitted by `compileTest`, which always
- *   declares `row` — missing columns fall back to `''`, never `undefined`)
- * - mixed text -> `` `prefix${process.env.NAME}…${(row["COL"] ?? '')}suffix` ``
+ *   declares `row` â€” missing columns fall back to `''`, never `undefined`)
+ * - mixed text -> `` `prefix${process.env.NAME}â€¦${(row["COL"] ?? '')}suffix` ``
  *
  * Never reads `process.env` at compile time, so secrets cannot leak into output.
- * Dataset rows are plaintext by design (see DATASET_SECRET_NOTE) — that is why
+ * Dataset rows are plaintext by design (see DATASET_SECRET_NOTE) â€” that is why
  * a `sensitive` fill containing only a `{{row.*}}` reference still fails the
  * compiler's sensitive check (it is not a `{{VARIABLE}}`): secrets must come
  * from variables, never from rows.

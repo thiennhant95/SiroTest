@@ -2,8 +2,8 @@
  * Web-side locator presentation helpers (Day 5-6: Locator picker).
  *
  * Single source of truth for expressions + 0/1/N semantics is
- * packages/locator-engine — imported directly from source so web and
- * engine can never drift (same mapping as 06-compiler/playwright-compiler.md).
+ * packages/locator-engine â€” imported directly from source so web and
+ * engine can never drift (same mapping as spec/06-compiler/playwright-compiler.md).
  */
 import {
   candidateToExpression,
@@ -42,11 +42,11 @@ export function roleLabel(role: string): string {
 }
 
 function truncate(s: string, max = 40): string {
-  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+  return s.length > max ? `${s.slice(0, max - 1)}â€¦` : s;
 }
 
 /**
- * Human-readable target summary for LocatorBadge (10-ui-ux/visual-builder.md):
+ * Human-readable target summary for LocatorBadge (spec/10-ui-ux/visual-builder.md):
  * `Button "Login"` instead of raw JSON. Advanced <details> shows the exact
  * Playwright expression via candidateToExpression (toExpression.ts).
  */

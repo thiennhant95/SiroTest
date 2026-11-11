@@ -1,5 +1,5 @@
 /**
- * Shared helpers for Day 8-10 integration tests (12-testing/test-strategy.md).
+ * Shared helpers for Day 8-10 integration tests (spec/12-testing/test-strategy.md).
  * - Isolated SQLite file: prisma/integration-test.db (never touches dev.db).
  * - Auth: P0 `x-user-id` header; the user row is seeded for FK `createdBy`.
  */
@@ -13,7 +13,7 @@ import type { FastifyInstance } from 'fastify';
 // Integration storage NEVER lands in the repo tree: storageRoot() falls back
 // to `<cwd>/storage`, and these tests run with cwd=repo-root (that stray
 // `storage/` dir with 371 orphan run dirs was test residue). Point at a
-// per-process temp dir instead — unless the caller pinned one explicitly.
+// per-process temp dir instead â€” unless the caller pinned one explicitly.
 if (!process.env.STORAGE_ROOT && !process.env.STORAGE_PATH) {
   process.env.STORAGE_ROOT = mkdtempSync(resolve(tmpdir(), 'vv-int-storage-'));
 }
@@ -134,7 +134,7 @@ export function labelTarget(value: string) {
 }
 
 /**
- * Login flow against the tiny fixture app — mirrors examples/login-test.json
+ * Login flow against the tiny fixture app â€” mirrors examples/login-test.json
  * but with literal (non-secret) values so the stub runner can execute it.
  * Uses the P0-correct {{VAR}} pattern for the sensitive password field.
  */
@@ -162,7 +162,7 @@ export function loginFixtureDefinition(projectId: string, fixtureBaseUrl: string
   };
 }
 
-/** Minimal valid step per P0 type (03-test-model/step-catalog.md), plus P1/P2. */
+/** Minimal valid step per P0 type (spec/03-test-model/step-catalog.md), plus P1/P2. */
 export function minimalStepFor(type: string): Record<string, unknown> {
   const target = labelTarget('Email');
   switch (type) {
@@ -184,8 +184,8 @@ export function minimalStepFor(type: string): Record<string, unknown> {
     case 'screenshot': return { id: 's1', type, enabled: true, name: 'final' };
     case 'reload': case 'goBack': case 'goForward':
       return { id: 's1', type, enabled: true };
-    // P1 (09-database/actions + 06-compiler wave 2). callAction needs an
-    // actions registry at compile time — see parity test's ACTIONS map.
+    // P1 (spec/09-database/actions + 06-compiler wave 2). callAction needs an
+    // actions registry at compile time â€” see parity test's ACTIONS map.
     case 'callAction':
       return { id: 's1', type, enabled: true, actionId: 'act_parity', arguments: { EMAIL: 'a@x.io' } };
     case 'upload': return { id: 's1', type, enabled: true, target, fileId: 'file_parity' };

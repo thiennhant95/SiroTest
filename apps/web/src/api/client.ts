@@ -1,7 +1,7 @@
 import type { RunDetail, TestVersion } from "../types";
 
 /**
- * Minimal REST client for /api/v1 (08-api/api-spec.md).
+ * Minimal REST client for /api/v1 (spec/08-api/api-spec.md).
  * Base URL: VITE_API_URL or same-origin "/api/v1".
  *
  * Security: every request carries the same credential as lib/api.ts
@@ -101,6 +101,6 @@ export const api = {
 };
 
 export function traceViewerUrl(traceUrl: string): string {
-  // Open the ORIGINAL Playwright Trace Viewer — never rebuild it (artifacts-reporting.md).
+  // Open the ORIGINAL Playwright Trace Viewer â€” never rebuild it (artifacts-reporting.md).
   return `https://trace.playwright.dev/?trace=${encodeURIComponent(traceUrl)}`;
 }

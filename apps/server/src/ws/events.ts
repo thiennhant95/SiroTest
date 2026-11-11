@@ -1,4 +1,4 @@
-/** Run + recorder WS payload builders (08-api/websocket-events.md). */
+/** Run + recorder WS payload builders (spec/08-api/websocket-events.md). */
 export type WsSend = (event: string, payload: Record<string, unknown>) => void;
 
 export function runEvent(

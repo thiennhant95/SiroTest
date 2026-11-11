@@ -1,13 +1,13 @@
 /**
- * LocatorTestPanel — "Test locator" UI in the Inspector.
+ * LocatorTestPanel â€” "Test locator" UI in the Inspector.
  * Calls POST /api/v1/tests/:id/locator/test (falls back to
  * POST /api/v1/recorder/:sessionId/locator/test), renders 0/1/N +
  * highlight preview. 0 matches -> error blocking healthy save;
  * N matches -> warning unless the step type permits multiple.
  *
- * Honesty contract (05-locator): when the recorder session has no live
+ * Honesty contract (spec/05-locator): when the recorder session has no live
  * browser attached the server answers 503 RECORDER_NO_LIVE_BROWSER with a
- * null preview and NO match count. That case renders a dedicated notice —
+ * null preview and NO match count. That case renders a dedicated notice â€”
  * never a fabricated 0/1/N result.
  */
 import { useState } from "react";
@@ -66,7 +66,7 @@ export function LocatorTestPanel(props: {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
-      // A failed test invalidates any previous result — never show a stale
+      // A failed test invalidates any previous result â€” never show a stale
       // match count next to the error.
       setResult(null);
       setPreview(null);
@@ -109,18 +109,18 @@ export function LocatorTestPanel(props: {
         }}
       >
         <div style={{ fontWeight: 700 }}>
-          {result.matchCount === 0 && "0 matches — error"}
-          {result.matchCount === 1 && "1 match — unique"}
+          {result.matchCount === 0 && "0 matches â€” error"}
+          {result.matchCount === 1 && "1 match â€” unique"}
           {result.matchCount > 1 &&
             (isMultiAllowed(props.stepType)
-              ? `${result.matchCount} matches — allowed for ${props.stepType}`
-              : `${result.matchCount} matches — warning`)}
+              ? `${result.matchCount} matches â€” allowed for ${props.stepType}`
+              : `${result.matchCount} matches â€” warning`)}
         </div>
         <div>{result.message}</div>
         {result.warning && <div>{result.warning}</div>}
         {result.status === "none" && (
           <div style={{ fontWeight: 600 }}>
-            Step cannot be saved as healthy — refine the locator.
+            Step cannot be saved as healthy â€” refine the locator.
           </div>
         )}
         {preview && (
@@ -143,7 +143,7 @@ export function LocatorTestPanel(props: {
             : "Test locator against the live browser"
         }
       >
-        {phase === "testing" ? "Testing…" : "Test locator"}
+        {phase === "testing" ? "Testingâ€¦" : "Test locator"}
       </button>
       {error && (
         <div
@@ -161,7 +161,7 @@ export function LocatorTestPanel(props: {
           {isNoLiveBrowser ? (
             <>
               <div style={{ fontWeight: 700 }}>
-                No live browser attached — locator not tested
+                No live browser attached â€” locator not tested
               </div>
               <div>
                 This recorder session has no live browser page, so no match

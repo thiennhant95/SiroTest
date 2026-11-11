@@ -1,5 +1,5 @@
 /**
- * Playwright config for Day 8-10 E2E (12-testing/test-strategy.md).
+ * Playwright config for Day 8-10 E2E (spec/12-testing/test-strategy.md).
  * - Chromium only, headed=false (release gate P0: core E2E green on Chromium).
  * - webServer boots the fixture target + the real Studio API (isolated SQLite).
  * - trace/screenshot retained on failure so the intentional-failure spec can
@@ -13,7 +13,7 @@ const API_PORT = Number(process.env.API_PORT ?? 3101);
 export default defineConfig({
   testDir: '.',
   // qc-smoke.spec.ts belongs to the QC harness (e2e/qc.config.ts: own ports,
-  // servers and flags) — running it here only produces a 6-minute timeout.
+  // servers and flags) â€” running it here only produces a 6-minute timeout.
   testIgnore: '**/qc-smoke.spec.ts',
   timeout: 120_000,
   expect: { timeout: 10_000 },

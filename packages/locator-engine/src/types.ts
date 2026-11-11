@@ -1,7 +1,7 @@
 /**
- * Locator Engine P0 — canonical types.
+ * Locator Engine P0 â€” canonical types.
  *
- * `LocatorCandidate` reuses 03-test-model/test-definition.md verbatim so the
+ * `LocatorCandidate` reuses spec/03-test-model/test-definition.md verbatim so the
  * engine output plugs directly into `LocatorSpec { primary, alternatives }`.
  * P0 executes ONLY `primary`; `alternatives` are stored evidence for
  * explicit/auditable P2 healing (never silently switched at runtime).
@@ -19,7 +19,7 @@ export type LocatorCandidate =
 /**
  * Minimal element metadata. The recorder bridge sends this (never trusts raw
  * selector strings from page JS); server-side code may enrich it via
- * Playwright DOM/ARIA evaluation (see 04-recorder/recorder-spec.md).
+ * Playwright DOM/ARIA evaluation (see spec/04-recorder/recorder-spec.md).
  */
 export interface ElementMetadata {
   tagName: string;
@@ -59,7 +59,7 @@ export interface ResolvedLocator {
 export type MatchStatus = 'none' | 'unique' | 'ambiguous';
 
 /**
- * Result of "Test Locator" (05-locator/locator-engine.md): given an active
+ * Result of "Test Locator" (spec/05-locator/locator-engine.md): given an active
  * browser session, a candidate yields 0 / 1 / N matches. A step cannot be
  * saved as healthy on 0; N shows a warning unless multi-match is allowed.
  */

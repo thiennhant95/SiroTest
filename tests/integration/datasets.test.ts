@@ -1,6 +1,6 @@
 /**
- * Integration: P1 CSV/JSON/table data sets — data-driven runs.
- * Strategy: 12-testing/test-strategy.md (Integration: API CRUD + run
+ * Integration: P1 CSV/JSON/table data sets â€” data-driven runs.
+ * Strategy: spec/12-testing/test-strategy.md (Integration: API CRUD + run
  * lifecycle with stubbed Playwright, no browser required).
  *
  * Covers:
@@ -84,7 +84,7 @@ async function makeEnv(projectId: string): Promise<string> {
   return ((await injectJson(app, 'POST', `/api/v1/projects/${projectId}/environments`, { name: 'ds-env' })).json() as { id: string }).id;
 }
 
-describe('dataset import (CSV/JSON → embedded definition.datasets)', () => {
+describe('dataset import (CSV/JSON â†’ embedded definition.datasets)', () => {
   it('imports quirky CSV (quotes/commas/newlines) into rows', async () => {
     const { testId } = await makeDefinitionTest('ds-csv-proj');
     const res = await injectJson(app, 'POST', `/api/v1/tests/${testId}/datasets/import`, {
@@ -120,7 +120,7 @@ describe('dataset import (CSV/JSON → embedded definition.datasets)', () => {
     const cases: Array<[unknown, number]> = [
       [{ format: 'csv', content: 'A,B\n1,2\n' }, 201], // default name ok
       [{ format: 'csv', name: 'dup', content: 'A,B\n1,2\n' }, 201],
-      [{ format: 'csv', name: 'dup', content: 'A,B\n3,4\n' }, 201], // same columns → append
+      [{ format: 'csv', name: 'dup', content: 'A,B\n3,4\n' }, 201], // same columns â†’ append
       [{ format: 'csv', name: 'dup', content: 'A,C\n5,6\n' }, 400], // column mismatch
       [{ format: 'csv', content: 'A,Has Space\n1,2\n' }, 400], // bad column
       [{ format: 'csv', content: 'A,A\n1,2\n' }, 400], // duplicates

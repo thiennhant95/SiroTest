@@ -1,5 +1,5 @@
 /**
- * Builder step model (Day 5-6). Mirrors 03-test-model/test-definition.md +
+ * Builder step model (Day 5-6). Mirrors spec/03-test-model/test-definition.md +
  * step-catalog.md; LocatorSpec shape matches packages/locator-engine types
  * (primary executed, alternatives stored evidence only).
  */
@@ -56,7 +56,7 @@ export interface AssertionOption {
   expectedPlaceholder?: string;
 }
 
-/** Flow B proposal set (01-product/user-flows.md) + URL/Title (acceptance min). */
+/** Flow B proposal set (spec/01-product/user-flows.md) + URL/Title (acceptance min). */
 export const ASSERTION_OPTIONS: AssertionOption[] = [
   { type: "assertVisible", label: "Visible", hint: "Element is visible", needsTarget: true, needsExpected: false },
   { type: "assertHidden", label: "Hidden", hint: "Element is hidden", needsTarget: true, needsExpected: false },

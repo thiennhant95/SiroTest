@@ -24,7 +24,7 @@ type Patch = (patch: Partial<BuilderStep>) => void;
 export interface InspectorExtraProps {
   /** Origin for testLocator/setPickMode (e.g. http://localhost:3001). Defaults from lib/api. */
   apiBase?: string;
-  /** Project id — enables the callAction editor (list project actions). */
+  /** Project id â€” enables the callAction editor (list project actions). */
   projectId?: string;
   /** Test id for POST /tests/:id/locator/test (falls back to sessionId). */
   testId?: string;
@@ -35,17 +35,17 @@ export interface InspectorExtraProps {
   onTestResult?: (r: StepTestResult | null) => void;
   /** Opens the parent AssertionPickerModal anchored at this step. */
   onAddAssertion?: () => void;
-  /** Timeout inheritance chain (runner-spec.md): Project → Test → Step. */
+  /** Timeout inheritance chain (runner-spec.md): Project â†’ Test â†’ Step. */
   testTimeoutMs?: number;
   projectTimeoutMs?: number;
 }
 
 /**
  * Inspector: fields change by step type. Locator-bearing steps show a
- * readable summary first ("Button “Login”"), raw strategy/JSON only in
+ * readable summary first ("Button â€œLoginâ€"), raw strategy/JSON only in
  * Advanced. waitForTimeout is labelled "Only if needed".
  *
- * Locator wiring (05-locator): LocatorBadge readable + Test locator
+ * Locator wiring (spec/05-locator): LocatorBadge readable + Test locator
  * (0/1/N via testLocator) + Pick from page (setPickMode + WS
  * recorder.locatorPicked fills primary+alternatives) + Add assertion
  * (parent AssertionPickerModal, before/after anchor).
@@ -69,7 +69,7 @@ export function Inspector({ step, onPatch, apiBase, projectId, testId, sessionId
 
       {blocked ? (
         <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
-          Locator matches 0 elements — this step cannot be saved as healthy. Refine the locator, then Test again.
+          Locator matches 0 elements â€” this step cannot be saved as healthy. Refine the locator, then Test again.
         </p>
       ) : null}
 
@@ -112,14 +112,14 @@ export function Inspector({ step, onPatch, apiBase, projectId, testId, sessionId
 
       {step.type === "waitForTimeout" ? (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          ⏱ <strong>Only if needed</strong> — fixed waits tend to be flaky. Prefer “Wait for
-          element” (visible/attached state) or “Wait for URL”.
+          â± <strong>Only if needed</strong> â€” fixed waits tend to be flaky. Prefer â€œWait for
+          elementâ€ (visible/attached state) or â€œWait for URLâ€.
         </p>
       ) : null}
 
       <Advanced title="Step options">
         <p className="font-mono text-[11px] text-slate-500">
-          type <code>{step.type}</code> · id <code>{step.id}</code>
+          type <code>{step.type}</code> Â· id <code>{step.id}</code>
         </p>
         <Field label="Timeout (ms, empty = default)">
           <Input
@@ -153,7 +153,7 @@ export function Inspector({ step, onPatch, apiBase, projectId, testId, sessionId
 // --------------------------------------------------------------- target ---
 
 /**
- * Timeout inheritance badge (runner-spec.md): Project → Test → Step.
+ * Timeout inheritance badge (runner-spec.md): Project â†’ Test â†’ Step.
  * Mirrors runner `resolveStepTimeout` source so the UI always shows
  * which level the effective timeout came from.
  */
@@ -166,7 +166,7 @@ export function TimeoutSourceBadge({ stepTimeoutMs, testTimeoutMs, projectTimeou
   const label = { step: "Step override", test: "Test override", project: "Project default", default: "30s default" }[source];
   return (
     <p className="mt-1 text-[11px] text-slate-500" title={`Effective timeout ${effective}ms from ${source}`}>
-      Timeout source: <Badge>{label}</Badge> <span className="text-slate-400">· effective {effective}ms</span>
+      Timeout source: <Badge>{label}</Badge> <span className="text-slate-400">Â· effective {effective}ms</span>
     </p>
   );
 }
@@ -225,7 +225,7 @@ function TargetEditor({
         <Badge tone="indigo">{targetSummary(spec)}</Badge>
       </div>
 
-      {/* (1) Readable locator first — e.g. Button "Login". Exact expression lives in Advanced. */}
+      {/* (1) Readable locator first â€” e.g. Button "Login". Exact expression lives in Advanced. */}
       <LocatorBadge primary={enginePrimary} alternatives={engineAlternatives} />
 
       {/* (3) Pick from page: sessionId + setPickMode + WS recorder.locatorPicked fills primary+alternatives. */}
@@ -316,7 +316,7 @@ function TargetEditor({
               const url = e.target.value || undefined;
               setFrame(url || frame.name ? { ...(url ? { url } : {}), ...(frame.name ? { name: frame.name } : {}) } : undefined);
             }}
-            placeholder="iframe src contains…"
+            placeholder="iframe src containsâ€¦"
             aria-label="Iframe URL substring"
           />
           <Input
@@ -376,7 +376,7 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
     case "fill":
       return (
         <>
-          <Field label="Value" hint="Pick variables with { } — secrets must be {{VARIABLES}}">
+          <Field label="Value" hint="Pick variables with { } â€” secrets must be {{VARIABLES}}">
             <VariableInput
               type={(step as { sensitive?: boolean }).sensitive ? "password" : "text"}
               value={str(step.value)}
@@ -391,7 +391,7 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
               checked={!!(step as { sensitive?: boolean }).sensitive}
               onChange={(e) => set("sensitive", e.target.checked || undefined)}
             />
-            Sensitive (password — masked when displayed)
+            Sensitive (password â€” masked when displayed)
           </label>
         </>
       );
@@ -427,7 +427,7 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
           <Field label="Expected URL">
             <VariableInput value={str(step.expected)} onChange={(v) => set("expected", v)} placeholder="**/dashboard" projectId={projectId} ariaLabel="Expected URL" />
           </Field>
-          <Field label="Pattern (instead of expected)" hint="Glob supported: * matches one path segment, ** matches everything. E.g. **/login** — do not mix {{VARIABLES}} with *.">
+          <Field label="Pattern (instead of expected)" hint="Glob supported: * matches one path segment, ** matches everything. E.g. **/login** â€” do not mix {{VARIABLES}} with *.">
             <Input value={str(step.pattern)} onChange={(e) => set("pattern", e.target.value || undefined)} placeholder="**/dashboard" />
           </Field>
         </>
@@ -493,7 +493,7 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
           <Field label="Direct URL (optional)" hint="Enter a URL for direct download, OR use the Target above (click then wait for download).">
             <Input value={url} onChange={(e) => set("url", e.target.value || undefined)} placeholder="https://example.com/report.pdf" />
           </Field>
-          <Field label="Save as (suggested file name)" hint="e.g. report.pdf — saved to the run artifacts.">
+          <Field label="Save as (suggested file name)" hint="e.g. report.pdf â€” saved to the run artifacts.">
             <Input value={str(step.saveAs)} onChange={(e) => set("saveAs", e.target.value || undefined)} placeholder="report.pdf" />
           </Field>
           {!url && !hasTarget ? (
@@ -514,7 +514,7 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
     case "closeTab":
       return (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          ⚠ Close the current tab. Fails with an <strong>explicit error</strong> if this is the last tab —
+          âš  Close the current tab. Fails with an <strong>explicit error</strong> if this is the last tab â€”
           make sure the test opened a new tab first.
         </p>
       );
@@ -552,7 +552,7 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
       }
       return (
         <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
-          Step type <code>{step.type}</code> is not supported in the Inspector — compilation
+          Step type <code>{step.type}</code> is not supported in the Inspector â€” compilation
           fails with an explicit error. Delete this step or pick another type from the palette.
         </p>
       );
@@ -564,7 +564,7 @@ function StepFields({ step, set, projectId }: { step: BuilderStep; set: (k: stri
 /**
  * CallActionFields: pick a project reusable action + fill its arguments.
  * Required params (no default) are marked; secret params render as password
- * inputs. Values support {{VARIABLES}} (secret args MUST be {{VARIABLES}} —
+ * inputs. Values support {{VARIABLES}} (secret args MUST be {{VARIABLES}} â€”
  * the compiler rejects plaintext secrets explicitly).
  */
 function CallActionFields({
@@ -616,9 +616,9 @@ function CallActionFields({
 
   return (
     <div className="space-y-3">
-      <Field label="Reusable action" hint="Business keyword — body steps are inlined at compile time">
+      <Field label="Reusable action" hint="Business keyword â€” body steps are inlined at compile time">
         {actions === null ? (
-          <p className="text-xs text-slate-500">Loading actions…</p>
+          <p className="text-xs text-slate-500">Loading actionsâ€¦</p>
         ) : actions.length > 0 ? (
           <Select
             value={actionId}
@@ -628,7 +628,7 @@ function CallActionFields({
               set("arguments", {});
             }}
           >
-            <option value="">— Select action —</option>
+            <option value="">â€” Select action â€”</option>
             {actions.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name} ({a.parameters.length} param{a.parameters.length === 1 ? "" : "s"}, {a.steps.length} steps)
@@ -647,20 +647,20 @@ function CallActionFields({
       {projectId && projectId !== "demo" ? (
         <p className="text-[11px] text-slate-500">
           <Link to={`/projects/${projectId}/actions`} className="text-indigo-700 hover:underline">
-            Manage actions →
+            Manage actions â†’
           </Link>
         </p>
       ) : null}
       {actionId && actions !== null && !selected ? (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Action <code>{actionId}</code> is not in this project — compilation fails with an
+          Action <code>{actionId}</code> is not in this project â€” compilation fails with an
           explicit error. Select another action above.
         </p>
       ) : null}
       {selected ? (
         <div className="space-y-2 rounded-md border border-slate-200 p-3">
           <p className="text-xs font-semibold text-slate-600">
-            Arguments · {selected.parameters.length === 0 ? "action has no params" : null}
+            Arguments Â· {selected.parameters.length === 0 ? "action has no params" : null}
           </p>
           {selected.parameters.map((p) => (
             <Field
@@ -668,7 +668,7 @@ function CallActionFields({
               label={`Argument ${p.name}`}
               hint={
                 p.secret
-                  ? `Requires {{VARIABLE}} — plaintext is rejected by the compiler. ${p.description ?? ""} ${p.default !== undefined ? `(default: ${p.default})` : ""}`
+                  ? `Requires {{VARIABLE}} â€” plaintext is rejected by the compiler. ${p.description ?? ""} ${p.default !== undefined ? `(default: ${p.default})` : ""}`
                   : `${p.description ?? ""} ${p.default !== undefined ? `(default: ${p.default})` : ""}`
               }
             >
@@ -756,7 +756,7 @@ function UploadFields({ step, set, projectId }: { step: BuilderStep; set: (k: st
       setFiles((prev) => (prev ? [created, ...prev] : [created]));
       set("fileId", created.id);
       setNewName("");
-      toast.push("success", `Uploaded “${created.name}” to the library.`);
+      toast.push("success", `Uploaded â€œ${created.name}â€ to the library.`);
     } catch (e) {
       toast.push("error", e instanceof ApiError ? e.message : "Upload failed");
     } finally {
@@ -772,10 +772,10 @@ function UploadFields({ step, set, projectId }: { step: BuilderStep; set: (k: st
         {unsupported ? (
           <Input value={fileId} onChange={(e) => set("fileId", e.target.value)} placeholder="file id (backend does not support the library yet)" />
         ) : files === null ? (
-          <p className="text-xs text-slate-500">Loading file library…</p>
+          <p className="text-xs text-slate-500">Loading file libraryâ€¦</p>
         ) : files.length > 0 ? (
           <Select value={fileId} onChange={(e) => set("fileId", e.target.value || undefined)}>
-            <option value="">— Select file —</option>
+            <option value="">â€” Select file â€”</option>
             {files.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.name} ({formatBytes(f.sizeBytes)})
@@ -783,21 +783,21 @@ function UploadFields({ step, set, projectId }: { step: BuilderStep; set: (k: st
             ))}
           </Select>
         ) : (
-          <Input value={fileId} onChange={(e) => set("fileId", e.target.value || undefined)} placeholder="file id (library is empty — upload a new one below)" />
+          <Input value={fileId} onChange={(e) => set("fileId", e.target.value || undefined)} placeholder="file id (library is empty â€” upload a new one below)" />
         )}
       </Field>
       {loadError ? <p className="text-xs text-red-600">{loadError}</p> : null}
       {unsupported ? (
-        <p className="text-[11px] text-slate-500">Backend does not support the file library yet (404) — paste a fileId manually; compilation still fails with an explicit error if it is wrong.</p>
+        <p className="text-[11px] text-slate-500">Backend does not support the file library yet (404) â€” paste a fileId manually; compilation still fails with an explicit error if it is wrong.</p>
       ) : null}
       {selected ? (
         <p className="text-[11px] text-slate-500">
-          Selected: <strong>{selected.name}</strong> · {formatBytes(selected.sizeBytes)}
-          {selected.mimeType ? ` · ${selected.mimeType}` : null}
+          Selected: <strong>{selected.name}</strong> Â· {formatBytes(selected.sizeBytes)}
+          {selected.mimeType ? ` Â· ${selected.mimeType}` : null}
         </p>
       ) : fileId ? (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          File <code>{fileId}</code> is not in this project's library — compilation fails with an explicit error.
+          File <code>{fileId}</code> is not in this project's library â€” compilation fails with an explicit error.
         </p>
       ) : null}
       {projectId && projectId !== "demo" && !unsupported ? (
@@ -814,9 +814,9 @@ function UploadFields({ step, set, projectId }: { step: BuilderStep; set: (k: st
             }}
             className="text-xs"
           />
-          {uploading ? <p className="text-xs text-slate-500">Uploading…</p> : null}
+          {uploading ? <p className="text-xs text-slate-500">Uploadingâ€¦</p> : null}
           <p className="text-[11px] text-slate-500">
-            <Link to={`/projects/${projectId}/files`} className="text-indigo-700 hover:underline">Manage files →</Link>
+            <Link to={`/projects/${projectId}/files`} className="text-indigo-700 hover:underline">Manage files â†’</Link>
           </p>
         </div>
       ) : null}
@@ -825,7 +825,7 @@ function UploadFields({ step, set, projectId }: { step: BuilderStep; set: (k: st
 }
 
 function formatBytes(n: number): string {
-  if (!Number.isFinite(n) || n < 0) return "—";
+  if (!Number.isFinite(n) || n < 0) return "â€”";
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
@@ -852,7 +852,7 @@ function ApiRequestFields({ step, set, projectId }: { step: BuilderStep; set: (k
       if (line.trim() === "") continue;
       const idx = line.indexOf(":");
       if (idx < 0) {
-        setHeaderError(`Header line is missing “:” — ${line.trim().slice(0, 40)}`);
+        setHeaderError(`Header line is missing â€œ:â€ â€” ${line.trim().slice(0, 40)}`);
         return;
       }
       const k = line.slice(0, idx).trim();
@@ -886,7 +886,7 @@ function ApiRequestFields({ step, set, projectId }: { step: BuilderStep; set: (k
         <Textarea rows={3} value={headerText} onChange={(e) => onHeaders(e.target.value)} placeholder={"Content-Type: application/json"} />
       </Field>
       {headerError ? <p className="text-xs text-red-600">{headerError}</p> : null}
-      <Field label="Body (optional)" hint="Raw JSON/text — supports {{VARIABLES}}.">
+      <Field label="Body (optional)" hint="Raw JSON/text â€” supports {{VARIABLES}}.">
         <Textarea rows={4} value={str(step.body)} onChange={(e) => set("body", e.target.value || undefined)} placeholder='{"name":"qa"}' />
       </Field>
       <div className="grid grid-cols-2 gap-2">
@@ -918,9 +918,9 @@ function MockRouteFields({ step, set, projectId }: { step: BuilderStep; set: (k:
   return (
     <div className="space-y-3">
       <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-        Intercept browser requests <strong>before</strong> the app sends them — place this step before the goto/click that triggers the request. A different method filter passes through to the real network.
+        Intercept browser requests <strong>before</strong> the app sends them â€” place this step before the goto/click that triggers the request. A different method filter passes through to the real network.
       </p>
-      <Field label="URL pattern (glob)" hint="e.g. {{BASE_URL}}/api/users/* — supports {{VARIABLES}}.">
+      <Field label="URL pattern (glob)" hint="e.g. {{BASE_URL}}/api/users/* â€” supports {{VARIABLES}}.">
         <VariableInput value={str(step.url)} onChange={(v) => set("url", v)} placeholder="**/api/users" projectId={projectId} ariaLabel="URL pattern" />
       </Field>
       <div className="grid grid-cols-2 gap-2">
@@ -951,7 +951,7 @@ function MockRouteFields({ step, set, projectId }: { step: BuilderStep; set: (k:
       <Field label="Content type (optional)">
         <Input value={str(step.contentType)} onChange={(e) => set("contentType", e.target.value || undefined)} placeholder="application/json" />
       </Field>
-      <Field label="Response body (optional)" hint="Raw text — supports {{VARIABLES}}.">
+      <Field label="Response body (optional)" hint="Raw text â€” supports {{VARIABLES}}.">
         <Textarea rows={4} value={str(step.body)} onChange={(e) => set("body", e.target.value || undefined)} placeholder='{"error":"mocked"}' />
       </Field>
     </div>
@@ -1011,8 +1011,8 @@ function AxeCheckFields({ step, set }: { step: BuilderStep; set: (k: string, v: 
 // ------------------------------------------------------- P2 visualCheck ---
 
 /**
- * visualCheck: baseline name (required) + threshold 0–1 (default 0.05).
- * Target is OPTIONAL — empty means whole-viewport comparison (VisualCheckStep).
+ * visualCheck: baseline name (required) + threshold 0â€“1 (default 0.05).
+ * Target is OPTIONAL â€” empty means whole-viewport comparison (VisualCheckStep).
  */
 function VisualCheckFields({ step, set }: { step: BuilderStep; set: (k: string, v: unknown) => void }) {
   const str = (v: unknown) => (typeof v === "string" ? v : "");
@@ -1020,15 +1020,15 @@ function VisualCheckFields({ step, set }: { step: BuilderStep; set: (k: string, 
   const outOfRange = !Number.isFinite(threshold) || threshold < 0 || threshold > 1;
   return (
     <div className="space-y-3">
-      <Field label="Baseline name" hint="Unique name within the test — the first capture run saves this baseline.">
+      <Field label="Baseline name" hint="Unique name within the test â€” the first capture run saves this baseline.">
         <Input value={str(step.name)} placeholder="e.g. hero" onChange={(e) => set("name", e.target.value)} />
       </Field>
       {!str(step.name) ? (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Baseline name is missing — compilation fails with an explicit error (name is required).
+          Baseline name is missing â€” compilation fails with an explicit error (name is required).
         </p>
       ) : null}
-      <Field label="Threshold (0–1)" hint="Allowed pixel difference ratio — default 0.05 (5%).">
+      <Field label="Threshold (0â€“1)" hint="Allowed pixel difference ratio â€” default 0.05 (5%).">
         <Input
           type="number"
           min={0}
@@ -1042,7 +1042,7 @@ function VisualCheckFields({ step, set }: { step: BuilderStep; set: (k: string, 
         <p className="text-xs text-red-600">Threshold must be between 0 and 1.</p>
       ) : null}
       <p className="text-[11px] text-slate-500">
-        The Target above is optional — empty compares the whole page. View/edit baselines on the test's Visual
+        The Target above is optional â€” empty compares the whole page. View/edit baselines on the test's Visual
         regression page.
       </p>
     </div>
@@ -1068,7 +1068,7 @@ interface PluginListResponse {
  * Schema-driven form for `plugin:*` steps (mirrors CallActionFields):
  * required params are badged, secret params render as password inputs and
  * MUST be {{VARIABLES}} (server rejects plaintext at compile/run time).
- * Values live in `step.params`. Unknown plugin → manual JSON fallback.
+ * Values live in `step.params`. Unknown plugin â†’ manual JSON fallback.
  */
 function PluginStepFields({ step, set }: { step: BuilderStep; set: (k: string, v: unknown) => void }) {
   const [meta, setMeta] = useState<{ description?: string; schema?: PluginStepSchema } | null | undefined>(undefined);
@@ -1124,12 +1124,12 @@ function PluginStepFields({ step, set }: { step: BuilderStep; set: (k: string, v
         <p className="text-xs text-slate-600">{meta.description}</p>
       ) : null}
       {meta === undefined ? (
-        <p className="text-xs text-slate-500">Loading plugin metadata…</p>
+        <p className="text-xs text-slate-500">Loading plugin metadataâ€¦</p>
       ) : meta === null || !schema ? (
         <>
           <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             No metadata found for <code>{step.type}</code> (plugin not loaded or
-            ALLOW_PLUGINS is off) — enter params JSON manually. Compile/run fails explicitly
+            ALLOW_PLUGINS is off) â€” enter params JSON manually. Compile/run fails explicitly
             (PLUGIN_NOT_FOUND) if the plugin is missing.
           </p>
           <Field label="Params (JSON)" hint='e.g. {"label":"Password","value":"{{LOGIN_PW}}"}'>
@@ -1164,7 +1164,7 @@ function PluginStepFields({ step, set }: { step: BuilderStep; set: (k: string, v
               <Input
                 type={prop.secret ? "password" : "text"}
                 value={params[name] ?? ""}
-                placeholder={prop.secret ? "{{VARIABLE}} (required — plaintext is rejected)" : (prop.default ?? `Value for ${name}`)}
+                placeholder={prop.secret ? "{{VARIABLE}} (required â€” plaintext is rejected)" : (prop.default ?? `Value for ${name}`)}
                 onChange={(e) => setParam(name, e.target.value)}
               />
             </Field>
@@ -1172,7 +1172,7 @@ function PluginStepFields({ step, set }: { step: BuilderStep; set: (k: string, v
           {Object.keys(params).filter((k) => !(k in properties)).length > 0 ? (
             <p className="text-[11px] text-slate-500">
               Extra params (not in schema):{" "}
-              {Object.keys(params).filter((k) => !(k in properties)).join(", ")} — kept at
+              {Object.keys(params).filter((k) => !(k in properties)).join(", ")} â€” kept at
               compile time; the plugin decides how to handle them.
             </p>
           ) : null}

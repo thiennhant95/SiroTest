@@ -7,7 +7,7 @@
  * Client prefers the tests/:id variant and falls back to the recorder-session
  * variant when the former 404s (P0 server only implements the latter).
  *
- * Honesty contract (05-locator): with no live browser attached to the
+ * Honesty contract (spec/05-locator): with no live browser attached to the
  * recorder session the server answers
  *   503 { code: "RECORDER_NO_LIVE_BROWSER", preview: null }
  * and NEVER fabricates a match count. Non-OK responses throw an Error whose
@@ -142,7 +142,7 @@ export async function setPickMode(opts: {
 }
 
 /* ------------------------------------------------------------------ */
-/* Day 6 — Variables/Environments + Run controls (08-api/api-spec.md)  */
+/* Day 6 â€” Variables/Environments + Run controls (spec/08-api/api-spec.md)  */
 /* Appended alongside the Day 5 locator client above; no conflict.     */
 /* ------------------------------------------------------------------ */
 
@@ -175,7 +175,7 @@ export class ApiError extends Error {
 
 async function day6req<T>(path: string, init?: RequestInit): Promise<T> {
   // Fastify rejects `content-type: application/json` with an empty body
-  // (400) — bodiless POST/DELETE must send '{}' explicitly. Centralized here
+  // (400) â€” bodiless POST/DELETE must send '{}' explicitly. Centralized here
   // so no caller can forget it again.
   const method = (init?.method ?? "GET").toUpperCase();
   const reqBody = init?.body ?? ((method === "POST" || method === "DELETE" || method === "PUT" || method === "PATCH") ? "{}" : undefined);
@@ -183,10 +183,10 @@ async function day6req<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     body: reqBody,
     headers: {
-      // NOTE: no literal "content-type" here — day6Headers() (via
+      // NOTE: no literal "content-type" here â€” day6Headers() (via
       // authHeaders()) already sets "Content-Type". A duplicate key with
       // different casing makes fetch send "a, b", which Fastify rejects
-      // (FST_ERR_CTP_INVALID_MEDIA_TYPE → "Unsupported Media Type").
+      // (FST_ERR_CTP_INVALID_MEDIA_TYPE â†’ "Unsupported Media Type").
       ...day6Headers(),
       ...(init?.headers ?? {}),
     },
@@ -381,7 +381,7 @@ export const api = {
   recorderStop: (sessionId: string) =>
     day6req<unknown>(`/recorder/${sessionId}/stop`, { method: "POST", body: "{}" }),
 
-  /* P1 — Reusable actions/business keywords + parameters. */
+  /* P1 â€” Reusable actions/business keywords + parameters. */
   listActions: (projectId: string) =>
     day6req<ActionRecord[]>(`/projects/${projectId}/actions`),
   createAction: (projectId: string, payload: ActionCreate) =>
@@ -399,7 +399,7 @@ export const api = {
   deleteAction: (actionId: string) =>
     day6req<void>(`/actions/${actionId}`, { method: "DELETE" }),
 
-  /* P1 — Suites/tags + suite runs + JUnit export. */
+  /* P1 â€” Suites/tags + suite runs + JUnit export. */
   listSuites: (projectId: string) =>
     day6req<SuiteRecord[]>(`/projects/${projectId}/suites`),
   createSuite: (projectId: string, name: string, description?: string) =>
@@ -458,7 +458,7 @@ export const api = {
     day6req<{ suiteRunId: string; cancelled: string[]; alreadyTerminal: string[] }>(
       `/suite-runs/${suiteRunId}/cancel`,
       // NOTE: Fastify rejects `content-type: application/json` with an empty
-      // body (400) — bodiless POSTs must send '{}' explicitly.
+      // body (400) â€” bodiless POSTs must send '{}' explicitly.
       { method: "POST", body: "{}" },
     ),
   /* Bug-from-failure: outbound integrations (jira/backlog/slack/lark) + markdown. */
@@ -482,7 +482,7 @@ export const api = {
       `/runs/${runId}/bug-report`,
       { method: "POST", body: JSON.stringify(payload) },
     ),
-  /* P1 wave 2 — Auth profiles (storageState; secret/state never returned). */
+  /* P1 wave 2 â€” Auth profiles (storageState; secret/state never returned). */
   listProfiles: (projectId: string) =>
     day6req<AuthProfile[]>(`/projects/${projectId}/profiles`),
   createProfile: (projectId: string, payload: { name: string; environmentId?: string; storageStateJson?: string }) =>
@@ -500,7 +500,7 @@ export const api = {
   deleteProfile: (profileId: string) =>
     day6req<void>(`/profiles/${profileId}`, { method: "DELETE" }),
 
-  /* P1 wave 2 — File library (base64 upload; download via blob). */
+  /* P1 wave 2 â€” File library (base64 upload; download via blob). */
   listFiles: (projectId: string) =>
     day6req<FileAsset[]>(`/projects/${projectId}/files`),
   uploadFile: (projectId: string, payload: { name: string; contentBase64: string; mimeType?: string }) =>
@@ -537,7 +537,7 @@ export const api = {
     }
   },
 
-  /* P1 wave 2 — Schedules (cron; runs with trigger='schedule'). */
+  /* P1 wave 2 â€” Schedules (cron; runs with trigger='schedule'). */
   listSchedules: (projectId: string) =>
     day6req<ScheduleRecord[]>(`/projects/${projectId}/schedules`),
   createSchedule: (projectId: string, payload: ScheduleCreate) =>
@@ -560,7 +560,7 @@ export const api = {
       body: JSON.stringify({}),
     }),
 
-  /* P1 wave 2 — Project export/import + spec import. */
+  /* P1 wave 2 â€” Project export/import + spec import. */
   exportProjectUrl: (projectId: string) =>
     `${API_BASE}/projects/${projectId}/export?format=json`,
   downloadProjectExport: async (projectId: string): Promise<void> => {
@@ -626,14 +626,14 @@ export interface Environment {
   isDefault: boolean;
   baseUrl?: string | null;
 }
-/** P1 — reusable action parameter (secret params resolve at run time). */
+/** P1 â€” reusable action parameter (secret params resolve at run time). */
 export interface ActionParameter {
   name: string;
   description?: string;
   default?: string;
   secret?: boolean;
 }
-/** P1 — reusable business action (project-scoped; body is P0 steps only). */
+/** P1 â€” reusable business action (project-scoped; body is P0 steps only). */
 export interface ActionRecord {
   schemaVersion: "1.0";
   id: string;
@@ -677,13 +677,13 @@ export interface RunStep {
   /** P2 healing evidence surfaced live (proposal itself via GET healing). */
   healEvidence?: unknown;
 }
-/** P1 — embedded dataset table (rows are plaintext; secrets stay in variables). */
+/** P1 â€” embedded dataset table (rows are plaintext; secrets stay in variables). */
 export interface DataSet {
   id: string;
   name: string;
   rows: Record<string, string>[];
 }
-/** P1 wave 2 — auth profile (storageState never returned; only presence flag). */
+/** P1 wave 2 â€” auth profile (storageState never returned; only presence flag). */
 export interface AuthProfile {
   id: string;
   projectId: string;
@@ -694,7 +694,7 @@ export interface AuthProfile {
   hasStorageState: boolean;
   createdAt?: string;
 }
-/** P1 wave 2 — file library entry (content only via /download). */
+/** P1 wave 2 â€” file library entry (content only via /download). */
 export interface FileAsset {
   id: string;
   projectId: string;
@@ -705,7 +705,7 @@ export interface FileAsset {
   /** Steps currently referencing this file (optional; server may omit). */
   usedBy?: Array<{ testId: string; testName?: string; stepId: string; stepName?: string }>;
 }
-/** P1 wave 2 — scheduled run (suite or single test). */
+/** P1 wave 2 â€” scheduled run (suite or single test). */
 export interface ScheduleRecord {
   id: string;
   projectId: string;
@@ -758,7 +758,7 @@ export function isNotImplemented(e: unknown): boolean {
 }
 /**
  * 404 detector for clients that throw plain Errors (p2api, raw fetch):
- * matches `ApiError` 404s plus messages like "API 404: …" / "HTTP 404: …".
+ * matches `ApiError` 404s plus messages like "API 404: â€¦" / "HTTP 404: â€¦".
  */
 export function isNotFoundError(e: unknown): boolean {
   if (isNotImplemented(e)) return true;

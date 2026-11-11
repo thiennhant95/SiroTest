@@ -1,10 +1,10 @@
 /**
- * Shared recorder types. Mirrors 04-recorder/recorder-spec.md + 03-test-model/step-catalog.md.
+ * Shared recorder types. Mirrors spec/04-recorder/recorder-spec.md + spec/03-test-model/step-catalog.md.
  */
 
 // ---- Minimal metadata sent by the injected bridge script ----
 // NOTE: bridge must NOT send selector/xpath/css strings. Candidates are
-// computed server-side via Playwright DOM/ARIA analysis (05-locator).
+// computed server-side via Playwright DOM/ARIA analysis (spec/05-locator).
 export type BridgeEventKind =
   | 'navigation'
   | 'click'
@@ -26,7 +26,7 @@ export interface BridgeEvent {
   tag?: string;
   /** input type attr, e.g. text/password/checkbox/radio */
   inputType?: string;
-  /** name/id/placeholder/label hints — hints only, never trusted as locator */
+  /** name/id/placeholder/label hints â€” hints only, never trusted as locator */
   nameHint?: string;
   /** raw value for text inputs (server masks if sensitive) */
   value?: string;
@@ -44,7 +44,7 @@ export interface BridgeEvent {
    * Full element metadata captured synchronously in-page at event time.
    * Preferred over point re-resolution (the page may change before the host
    * evaluates). Shape mirrors locator-engine ElementMetadata; never contains
-   * trusted selectors — candidates are still computed server-side.
+   * trusted selectors â€” candidates are still computed server-side.
    */
   meta?: Record<string, unknown>;
 }
