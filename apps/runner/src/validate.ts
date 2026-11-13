@@ -1,6 +1,6 @@
 /**
- * Step 1/8 â€” Validate test definition.
- * Pure function: never mutates the stored definition (spec/03-test-model).
+ * Step 1/8 — Validate test definition.
+ * Pure function: never mutates the stored definition (03-test-model).
  */
 
 import type { TestDefinition, TestStep } from './types.js';
@@ -150,7 +150,7 @@ function validateStep(step: TestStep, index: number, issues: ValidationIssue[]):
   }
   // SSRF/code-injection guard (defense-in-depth; the server re-checks resolved
   // URLs before launch): block non-http(s) schemes such as javascript:/data:/file:.
-  // {{VAR}} templates and relative paths are allowed â€” they resolve server-side.
+  // {{VAR}} templates and relative paths are allowed — they resolve server-side.
   for (const field of ['url', 'pattern', 'expected'] as const) {
     const v = (step as unknown as Record<string, unknown>)[field];
     if (typeof v === 'string') {

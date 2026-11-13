@@ -87,18 +87,18 @@ export interface BaseStep {
 
 export type TestStep = BaseStep;
 
-/** P1 â€” a named parameter of a reusable action. */
+/** P1 — a named parameter of a reusable action. */
 export interface ActionParameter {
   name: string;
   description?: string;
   /** Used when the caller omits the argument. */
   default?: string;
-  /** Secret params must be passed as {{VARIABLE}} refs â€” never literals. */
+  /** Secret params must be passed as {{VARIABLE}} refs — never literals. */
   secret?: boolean;
 }
 
 /**
- * P1 â€” reusable business action (project-scoped). Body steps are P0 steps
+ * P1 — reusable business action (project-scoped). Body steps are P0 steps
  * only: nested `callAction` is rejected at compile time with an explicit
  * error (keeps inlining total and readable).
  */
@@ -127,12 +127,12 @@ export interface TestDefinition {
   timeoutMs?: number;
   tags?: string[];
   variables?: Record<string, string>;
-  /** P1 â€” embedded data tables; a run selects one via RunRequest.datasetId. */
+  /** P1 — embedded data tables; a run selects one via RunRequest.datasetId. */
   datasets?: DataSet[];
   steps: TestStep[];
 }
 
-/** P1 â€” one named table of plaintext rows for data-driven runs. */
+/** P1 — one named table of plaintext rows for data-driven runs. */
 export interface DataSet {
   id: string;
   name: string;
@@ -169,7 +169,7 @@ export interface RunRequest {
    * P1 reusable actions: resolved callee bodies for `callAction` steps.
    * Optional (existing callers keep working); when a definition contains
    * `callAction` but the action is absent here, compilation fails
-   * explicitly â€” never silently skipped.
+   * explicitly — never silently skipped.
    */
   actions?: ReusableAction[];
   /**
@@ -182,7 +182,7 @@ export interface RunRequest {
    * P1 wave-2 files: original library filenames per fileId. The runner
    * stages per-run copies under these REAL names (storage keeps
    * `<id>-<name>` for uniqueness) so apps that validate filenames see the
-   * original. Absent â†’ fall back to the stored basenames.
+   * original. Absent → fall back to the stored basenames.
    */
   fileNames?: Record<string, string>;
   /**
@@ -190,7 +190,7 @@ export interface RunRequest {
    * materializes it as `storageState.json` in the isolated workDir and
    * points the Playwright config at it; the file is removed with the
    * workDir in step 8. Undefined (default) keeps a fresh context.
-   * How the server resolves/decrypts this value is agent B's scope â€”
+   * How the server resolves/decrypts this value is agent B's scope —
    * the runner only receives and materializes it.
    */
   storageStateJson?: string;
@@ -198,7 +198,7 @@ export interface RunRequest {
    * P2 visual regression (all optional, backward compatible):
    * - `baselines`: baseline name -> absolute baseline path (server resolves
    *   from the Baseline table; injected as `VV_BASELINES` JSON at run time).
-   * - `updateBaselines`: capture mode (`VV_UPDATE_BASELINES=1`) â€” visual
+   * - `updateBaselines`: capture mode (`VV_UPDATE_BASELINES=1`) — visual
    *   steps pass and the server promotes actual artifacts to baselines.
    */
   baselines?: Record<string, string>;
@@ -207,7 +207,7 @@ export interface RunRequest {
    * P2 plugin steps: directory the runner loads trusted plugins from
    * (`PLUGINS_DIR` default). Loading additionally requires
    * `ALLOW_PLUGINS=1`; otherwise compilation fails explicitly
-   * (PLUGIN_DISABLED / PLUGIN_NOT_FOUND â€” never silently skipped).
+   * (PLUGIN_DISABLED / PLUGIN_NOT_FOUND — never silently skipped).
    */
   pluginsDir?: string;
   /** project-level default timeout (ms) */
@@ -220,11 +220,11 @@ export interface RunRequest {
   triggeredBy?: string;
   /**
    * P2 opt-in healing (healing.ts). When true, locator-bearing steps that
-   * FAIL with a locator error (timeout/waiting-for-selector â€” never
+   * FAIL with a locator error (timeout/waiting-for-selector — never
    * assertion failures) get post-failure analysis over their stored
    * `alternatives`: the step still ends `failed`, but a `step.healed` event
    * plus evidence is emitted/returned so the server can open a reviewable
-   * `HealingProposal`. Default false â€” P0 executes `primary` only.
+   * `HealingProposal`. Default false — P0 executes `primary` only.
    */
   healWithAlternatives?: boolean;
   artifacts?: RunArtifactsOptions;
@@ -236,7 +236,7 @@ export interface RunRequest {
    */
   slowMoMs?: number;
   /**
-   * Debug mode (â‰ˆ `playwright test --debug`): run headed with PWDEBUG=1 so
+   * Debug mode (≈ `playwright test --debug`): run headed with PWDEBUG=1 so
    * Playwright opens its Inspector on the host; the tester steps through
    * manually and the run settles when the browser/Inspector closes (or via
    * Cancel, which tree-kills the child). Forces headed regardless of

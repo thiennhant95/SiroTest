@@ -30,12 +30,12 @@ declare module 'fastify' {
  * Dev-stub user auto-provisioning (pilot unblocker).
  *
  * P0 auth mints identities from a header without a signup flow, so a fresh
- * tester has no User row â€” and without it no owner membership can exist,
+ * tester has no User row — and without it no owner membership can exist,
  * which makes every project-scoped write 403 for exactly the users the
  * pilot is for. Auto-provision a minimal row on first sight (idempotent
  * upsert; never overwrites an existing row). Real auth (JWT/OIDC) replaces
  * the stub and keeps this as a harmless no-op. Failures never fail the
- * request â€” downstream membership checks apply as before.
+ * request — downstream membership checks apply as before.
  */
 export async function ensureUserRow(userId: string): Promise<void> {
   try {
@@ -48,7 +48,7 @@ export async function ensureUserRow(userId: string): Promise<void> {
       data: { id: userId, email: `${userId}@stub.local`, authRef: 'stub', role: 'tester' },
     });
   } catch {
-    // DB hiccup or lost create race: proceed â€” membership checks still
+    // DB hiccup or lost create race: proceed — membership checks still
     // enforce as before.
   }
 }
@@ -56,7 +56,7 @@ export async function ensureUserRow(userId: string): Promise<void> {
 export async function requireAuth(req: FastifyRequest, _reply: FastifyReply): Promise<void> {
   // 1) Stateful session token (real auth): Bearer <session-token>.
   // Session tokens are 43-char base64url (32 random bytes). Anything shaped
-  // like one MUST verify â€” a revoked/unknown token is rejected outright and
+  // like one MUST verify — a revoked/unknown token is rejected outright and
   // never demoted to a dev identity (otherwise logout would be meaningless).
   const header = req.headers.authorization;
   if (header?.startsWith('Bearer ')) {
@@ -70,7 +70,7 @@ export async function requireAuth(req: FastifyRequest, _reply: FastifyReply): Pr
       throw new ApiError('UNAUTHORIZED', 'Invalid or expired token', 401);
     }
     // Not a session token: legacy dev clients send `Bearer <user-id>`.
-    // Honor that only while dev auth is allowed (otherwise 401 outright â€”
+    // Honor that only while dev auth is allowed (otherwise 401 outright —
     // a Bearer-looking credential is never silently demoted on hard hosts).
     if (!devAuthAllowed()) {
       throw new ApiError('UNAUTHORIZED', 'Invalid or expired token', 401);
@@ -118,7 +118,7 @@ export function devAuthAllowed(): boolean {
 /**
  * Verify a stateful session token (login/register issued). Returns the user
  * with the DB role, or null. Touches lastUsedAt (sliding activity, best
- * effort â€” a failure there must not fail the request).
+ * effort — a failure there must not fail the request).
  */
 export async function verifySessionToken(raw: string): Promise<AuthUser | null> {
   const { createHash } = await import('node:crypto');

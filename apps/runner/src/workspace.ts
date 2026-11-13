@@ -1,5 +1,5 @@
 /**
- * Step 3/8 + Step 8/8 â€” Isolated run workspace and artifact layout.
+ * Step 3/8 + Step 8/8 — Isolated run workspace and artifact layout.
  *
  * Isolation (runner-spec.md + spec/11-security/security.md):
  * - Every run gets a UNIQUE working directory under os.tmpdir() (fresh browser
@@ -8,7 +8,7 @@
  *   never deletes them.
  * - runId is strictly validated and every artifact write goes through
  *   assertSafePath() to block path traversal.
- * - Playwright is always spawned with an argument ARRAY (shell: false) â€”
+ * - Playwright is always spawned with an argument ARRAY (shell: false) —
  *   see process.ts. Never concatenate user input into shell commands.
  *
  * Layout:
@@ -64,7 +64,7 @@ export interface RunWorkspace {
   resultPath: string;
 }
 
-/** Step 3 â€” create isolated temp dir + artifact dir skeleton for one run. */
+/** Step 3 — create isolated temp dir + artifact dir skeleton for one run. */
 export async function createRunWorkspace(runId: string): Promise<RunWorkspace> {
   assertValidRunId(runId);
   const runsTmp = join(tmpdir(), 'pw-studio-runs');
@@ -96,7 +96,7 @@ export async function writeWorkFile(workDir: string, fileName: string, content: 
   return full;
 }
 
-/** Step 8 â€” remove the temp source dir; artifacts under storage/ are retained. */
+/** Step 8 — remove the temp source dir; artifacts under storage/ are retained. */
 export async function cleanupWorkDir(workDir: string): Promise<void> {
   const base = resolve(join(tmpdir(), 'pw-studio-runs'));
   assertSafePath(base, resolve(workDir));

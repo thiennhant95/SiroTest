@@ -64,7 +64,7 @@ export function spawnArgs(command: string, args: readonly string[], opts: SpawnO
 export async function killProcessTree(pid: number | undefined): Promise<void> {
   if (!pid) return;
   if (process.platform === 'win32') {
-    // taskkill with arg array â€” no shell, no string concatenation.
+    // taskkill with arg array — no shell, no string concatenation.
     await new Promise<void>((resolve) => {
       const killer = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], { shell: false, windowsHide: true });
       killer.on('close', () => resolve());
@@ -79,7 +79,7 @@ export async function killProcessTree(pid: number | undefined): Promise<void> {
     try {
       process.kill(pid, 'SIGKILL');
     } catch {
-      // already dead â€” nothing to do
+      // already dead — nothing to do
     }
   }
 }

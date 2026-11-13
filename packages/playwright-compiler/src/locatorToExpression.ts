@@ -43,11 +43,11 @@ function exactOption(exact?: boolean): string | null {
 }
 
 /**
- * Compile the PRIMARY locator candidate to a `page.â€¦` expression string.
+ * Compile the PRIMARY locator candidate to a `page.…` expression string.
  * Pure + deterministic: same input -> same output. Throws on unknown strategy.
  *
  * P1 wave-2: `pageVar` selects the page handle the locator runs on
- * (`page` by default; `page2`, `page3`, â€¦ after `newTab` steps). The P0
+ * (`page` by default; `page2`, `page3`, … after `newTab` steps). The P0
  * default keeps byte-identical output when no `newTab` step is present.
  */
 export function locatorToExpression(spec: LocatorSpec, pageVar = 'page'): string {

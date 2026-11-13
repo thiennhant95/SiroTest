@@ -1,9 +1,9 @@
 # Documentation Index
 
 ## Overview
-- `spec/00-overview/vision.md` â€” product thesis and principles
-- `spec/00-overview/scope.md` â€” P0/P1/P2 scope and non-goals
-- `spec/00-overview/reference-projects.md` â€” concepts to borrow from existing Playwright ecosystem projects
+- `spec/00-overview/vision.md` — product thesis and principles
+- `spec/00-overview/scope.md` — P0/P1/P2 scope and non-goals
+- `spec/00-overview/reference-projects.md` — concepts to borrow from existing Playwright ecosystem projects
 
 ## Product
 - `spec/01-product/personas.md`
@@ -47,14 +47,14 @@
 - `spec/16-decisions/architecture-decisions.md`
 
 ## Operations & notes
-- `CHANGELOG.md` â€” recent changes by commit
-- `docs/notify-webhooks.md` â€” schedule alerts + run-event webhooks (operator setup)
-- `docs/mcp-server.md` â€” control-plane MCP server setup (9 tools)
-- `docs/gherkin-vi-plan.md` â€” Vietnamese Gherkin implementation plan
-- `docs/pilot-lessons.md` â€” lessons from real-project pilots
-- `docs/ci-trigger.md` â€” CI trigger notes
-- `docs/oidc-sso.md` â€” SSO configuration (config-only, IdP unverified)
-- `SELFHOST-WINDOWS.md` â€” Windows self-host guide
+- `CHANGELOG.md` — recent changes by commit
+- `docs/notify-webhooks.md` — schedule alerts + run-event webhooks (operator setup)
+- `docs/mcp-server.md` — control-plane MCP server setup (9 tools)
+- `docs/gherkin-vi-plan.md` — Vietnamese Gherkin implementation plan
+- `docs/pilot-lessons.md` — lessons from real-project pilots
+- `docs/ci-trigger.md` — CI trigger notes
+- `docs/oidc-sso.md` — SSO configuration (config-only, IdP unverified)
+- `SELFHOST-WINDOWS.md` — Windows self-host guide
 
 ## Examples
 - `examples/login-test.json`

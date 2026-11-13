@@ -5,7 +5,7 @@ import { CopyId, EmptyState, ErrorState, Skeleton } from "../components/ui";
 import { ExportProjectButton, ImportSpecDialog } from "../components/ProjectTransfer";
 
 /**
- * /projects/:id â€” project detail (spec/10-ui-ux/screens.md required route).
+ * /projects/:id — project detail (spec/10-ui-ux/screens.md required route).
  * Name + description, links to Tests/Environments/Settings, recent tests.
  */
 export function ProjectDetailPage() {
@@ -44,7 +44,7 @@ export function ProjectDetailPage() {
         <ErrorState message="Missing project id" />
         <p className="mt-3">
           <Link to="/projects" className="text-sm text-indigo-700 hover:underline">
-            â† Back to Projects
+            ← Back to Projects
           </Link>
         </p>
       </main>
@@ -69,15 +69,15 @@ export function ProjectDetailPage() {
   }
 
   const sections: Array<{ to: string; icon: string; label: string; hint: string; primary?: boolean }> = [
-    { to: `/projects/${id}/tests`, icon: "ðŸ§ª", label: "Tests", hint: "Author + run tests", primary: true },
-    { to: `/projects/${id}/suites`, icon: "ðŸ“¦", label: "Suites", hint: "Group tests to run together" },
-    { to: `/projects/${id}/schedules`, icon: "ðŸ•’", label: "Schedules", hint: "Run on a cron schedule" },
-    { to: `/projects/${id}/analytics`, icon: "ðŸ“Š", label: "Analytics", hint: "Pass rate, flaky" },
-    { to: `/projects/${id}/ai`, icon: "âœ¨", label: "AI Assistant", hint: "Generate steps from a description" },
-    { to: `/projects/${id}/actions`, icon: "ðŸ”", label: "Actions", hint: "Reusable keywords" },
-    { to: `/projects/${id}/profiles`, icon: "ðŸ‘¤", label: "Profiles", hint: "Pre-authenticated logins (storage)" },
-    { to: `/projects/${id}/files`, icon: "ðŸ“", label: "Files", hint: "Files for Upload steps" },
-    { to: `/projects/${id}/audit`, icon: "ðŸ§¾", label: "Audit", hint: "Who did what, when" },
+    { to: `/projects/${id}/tests`, icon: "🧪", label: "Tests", hint: "Author + run tests", primary: true },
+    { to: `/projects/${id}/suites`, icon: "📦", label: "Suites", hint: "Group tests to run together" },
+    { to: `/projects/${id}/schedules`, icon: "🕒", label: "Schedules", hint: "Run on a cron schedule" },
+    { to: `/projects/${id}/analytics`, icon: "📊", label: "Analytics", hint: "Pass rate, flaky" },
+    { to: `/projects/${id}/ai`, icon: "✨", label: "AI Assistant", hint: "Generate steps from a description" },
+    { to: `/projects/${id}/actions`, icon: "🔁", label: "Actions", hint: "Reusable keywords" },
+    { to: `/projects/${id}/profiles`, icon: "👤", label: "Profiles", hint: "Pre-authenticated logins (storage)" },
+    { to: `/projects/${id}/files`, icon: "📁", label: "Files", hint: "Files for Upload steps" },
+    { to: `/projects/${id}/audit`, icon: "🧾", label: "Audit", hint: "Who did what, when" },
   ];
 
   const tools: Array<{ to: string; label: string }> = [
@@ -89,7 +89,7 @@ export function ProjectDetailPage() {
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-6">
       <Link to="/projects" className="text-sm text-slate-500 hover:text-slate-800">
-        â† Projects
+        ← Projects
       </Link>
       <div>
         <h1 className="text-xl font-semibold">{project!.name}</h1>
@@ -116,7 +116,7 @@ export function ProjectDetailPage() {
       <div className="flex flex-wrap gap-2 text-sm">
         {tools.map((t) => (
           <Link key={t.to} to={t.to} className="text-slate-500 hover:text-slate-800 hover:underline">
-            {t.label} â†’
+            {t.label} →
           </Link>
         ))}
       </div>
@@ -128,7 +128,7 @@ export function ProjectDetailPage() {
           className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
           title="Paste .spec.ts to create a test draft"
         >
-          ðŸ“„ Import spec
+          📄 Import spec
         </button>
       </div>
       <ImportSpecDialog projectId={id} open={specOpen} onClose={() => setSpecOpen(false)} />
@@ -145,7 +145,7 @@ export function ProjectDetailPage() {
                 to={`/projects/${id}/tests`}
                 className="text-sm text-indigo-700 hover:underline"
               >
-                â†’ Go to Tests
+                → Go to Tests
               </Link>
             }
           />

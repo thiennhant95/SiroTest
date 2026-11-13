@@ -1,13 +1,13 @@
 /**
- * browser.ts Ã¢â‚¬â€ live-browser host for recorder sessions (spec/04-recorder).
+ * browser.ts — live-browser host for recorder sessions (04-recorder).
  *
  * Launches a real Chromium via Playwright, injects the bridge script with
  * `addInitScript`, and forwards interaction events (plus server-side
  * navigation) into the session manager. Locator candidates are resolved
- * server-side from Playwright DOM/ARIA analysis (spec/05-locator) Ã¢â‚¬â€ the bridge
+ * server-side from Playwright DOM/ARIA analysis (05-locator) — the bridge
  * never sends selector strings.
  *
- * Degradation contract: every Playwright call is guarded Ã¢â‚¬â€ a metadata or
+ * Degradation contract: every Playwright call is guarded — a metadata or
  * count failure yields a step WITHOUT a locator (or an unverified resolve),
  * never a dropped session. Test Locator without a live page stays an
  * explicit 503 (route-level), never a fabricated count.
@@ -38,7 +38,7 @@ export interface LaunchRecorderBrowserOptions {
   headed?: boolean;
   /** Initial page URL (navigated after the bridge is installed). */
   baseUrl?: string;
-  /** Forward hover events (off by default Ã¢â‚¬â€ noisy). */
+  /** Forward hover events (off by default — noisy). */
   includeHover?: boolean;
   events?: RecorderBrowserEvents;
 }
@@ -86,7 +86,7 @@ const METADATA_SOURCE = /* js */ `
   const name = (get('aria-label') || label || get('placeholder') || get('alt') || get('title') ||
     ((tag === 'BUTTON' || tag === 'A') ? text : '') ||
     ((tag === 'INPUT' && (get('type') === 'submit' || get('type') === 'button')) ? (el.value || text) : '')).trim().slice(0, 120);
-  // css path (capped, may be unstable Ã¢â‚¬â€ scored down by the engine)
+  // css path (capped, may be unstable — scored down by the engine)
   const parts = [];
   let node = el;
   for (let d = 0; d < 6 && node instanceof Element; d++) {
@@ -150,7 +150,7 @@ export interface RecorderBrowser {
   resolveFromEvent: (evt: BridgeEvent) => Promise<EventLocator | null>;
   /** Resolve candidates for the element at a viewport point (null when none). */
   resolveFromPoint: (point: { x: number; y: number }) => Promise<ResolvedLocator | null>;
-  /** Live 0/1/N count + highlight for a candidate (spec/05-locator Test Locator). */
+  /** Live 0/1/N count + highlight for a candidate (spec/05-locator/Test Locator). */
   testLocator: (candidate: LocatorCandidate) => Promise<TestLocatorResult & { preview: string }>;
 }
 
@@ -235,12 +235,12 @@ export interface LocatorResolvingBrowser {
 /**
  * Single choke point for event-time locator resolution (bridge binding path,
  * WS-ingested path and pick mode all funnel here):
- * 1. event-time `meta` (synchronous in-page capture Ã¢â‚¬â€ immune to post-event
+ * 1. event-time `meta` (synchronous in-page capture — immune to post-event
  *    DOM swaps) ranked with live counts when a page + counter are given;
  * 2. point re-resolution against the live page (metadata-less events);
  * 3. unverified rank from `meta` when no page is available (WS-ingested
  *    events from externally-driven pages).
- * Returns undefined when nothing usable exists Ã¢â‚¬â€ the step is still captured.
+ * Returns undefined when nothing usable exists — the step is still captured.
  */
 export async function resolveEventLocator(
   page: Page | undefined,
@@ -270,7 +270,7 @@ export async function resolveEventLocator(
 /**
  * Build a LIVE Playwright Locator from a candidate (runtime counting and
  * highlighting). This mirrors the codegen mapping in candidateToExpression
- * but calls page.getBy* directly Ã¢â‚¬â€ codegen strings (with the `page.` prefix)
+ * but calls page.getBy* directly — codegen strings (with the `page.` prefix)
  * are NOT valid page.locator() input.
  */
 function locate(page: Page, c: LocatorCandidate): Locator {
@@ -331,7 +331,7 @@ export async function launchRecorderBrowser(
 
   if (opts.baseUrl) {
     await page.goto(opts.baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {
-      // baseUrl unreachable at start is not fatal Ã¢â‚¬â€ the user can navigate.
+      // baseUrl unreachable at start is not fatal — the user can navigate.
     });
   }
 

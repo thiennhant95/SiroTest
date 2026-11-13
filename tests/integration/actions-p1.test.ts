@@ -1,7 +1,7 @@
 /**
  * Integration: P1 reusable actions + parameters (backlog 15-tasks).
  * Strategy: spec/12-testing/test-strategy.md (Integration: API CRUD + runner
- * lifecycle with the stub Playwright CLI â€” no browser required).
+ * lifecycle with the stub Playwright CLI — no browser required).
  *
  * Covers:
  * - Actions CRUD (GET/POST /projects/:id/actions, GET/PATCH/DELETE

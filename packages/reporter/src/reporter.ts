@@ -103,7 +103,7 @@ export function parseStepId(title: string): string | null {
 /**
  * Merge one dataset-loop iteration into the accumulated step entry:
  * durations add up, any failure fails the step, the first error is kept,
- * wall-clock spans earliest-start â†’ latest-finish.
+ * wall-clock spans earliest-start → latest-finish.
  */
 export function mergeIterationEntry(
   prev: StepResultEntry,
@@ -210,7 +210,7 @@ export class P0Reporter {
     this.live.delete(stepId);
     const finishedAt = Date.now();
     const err = errorText(step.error);
-    // Security: redact secrets BEFORE the WS event leaves this process â€”
+    // Security: redact secrets BEFORE the WS event leaves this process —
     // error text/URLs frequently echo filled values (spec/11-security/security.md).
     const safeErr = err ? this.redact(err) : undefined;
     const entry: StepResultEntry = {
@@ -342,7 +342,7 @@ export class P0Reporter {
     try {
       await appendFile(this.eventsPath, JSON.stringify({ runId: this.runId, at: Date.now(), ...line }) + '\n', 'utf8');
     } catch {
-      // events are informational â€” never fail the run for a sink error
+      // events are informational — never fail the run for a sink error
     }
   }
 

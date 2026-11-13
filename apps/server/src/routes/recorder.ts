@@ -58,11 +58,11 @@ async function handleLiveEvent(
     }
     recorderManager.ingestResolved(sessionId, evt, locator);
   } catch {
-    // Degrade to a plain ingest â€” the session must survive host errors.
+    // Degrade to a plain ingest — the session must survive host errors.
     try {
       recorderManager.ingest(sessionId, evt);
     } catch {
-      // Session gone (stopped concurrently) â€” nothing to do.
+      // Session gone (stopped concurrently) — nothing to do.
     }
   }
 }
@@ -72,11 +72,11 @@ function safeInterrupt(sessionId: string, reason: string): void {
     const s = recorderManager.getBySessionId(sessionId);
     // Skip terminal sessions: stop() already settled them, and an
     // already-interrupted session must not re-emit (closeBrowser triggers
-    // onClose after an explicit interrupt â€” that echo is noise, not news).
+    // onClose after an explicit interrupt — that echo is noise, not news).
     if (!s || s.status === 'stopped' || s.status === 'interrupted') return;
     recorderManager.markInterrupted(sessionId, reason);
   } catch {
-    // Session already gone â€” nothing to do.
+    // Session already gone — nothing to do.
   }
 }
 
@@ -98,7 +98,7 @@ export async function recorderRoutes(app: FastifyInstance): Promise<void> {
         userId: req.user!.id, testId: id, projectId: test.projectId,
         includeHover: body.includeHover,
       });
-      // Live browser (spec/04-recorder): launch Chromium for real human
+      // Live browser (04-recorder): launch Chromium for real human
       // interaction, with the bridge injected on every page. Headed launch
       // failure falls back to headless once; total failure still starts the
       // session (WS-ingested events keep working) but flags liveBrowser false.
@@ -177,7 +177,7 @@ function testBaseUrl(test: { definitionJson: string }): string | undefined {
     await recorderManager.closeBrowser(sessionId, 'session-stopped');
     // Persist draft steps into definition_json (append). Same versioning rule
     // as PATCH /tests/:id (versioning.md): every meaningful save mints a new
-    // immutable test_versions row â€” recorder stops must not bypass history.
+    // immutable test_versions row — recorder stops must not bypass history.
     const test = await db().test.findUnique({
       where: { id: stopped.testId },
       include: { versions: { orderBy: { versionNumber: 'desc' }, take: 1 } },
@@ -226,7 +226,7 @@ function testBaseUrl(test: { definitionJson: string }): string | undefined {
     // by the normalizer (persistence only ever stores flushed steps).
     return { ...s, liveBrowser: recorderManager.hasLiveBrowser(sessionId), pendingSteps: recorderManager.pendingSteps(sessionId) };
   });
-  // Pick locator mode (locator picker protocol â€” Day 3 gate)
+  // Pick locator mode (locator picker protocol — Day 3 gate)
   app.post('/recorder/:sessionId/locator/pick', { preHandler: requireAuth }, async (req) => {
     const { sessionId } = req.params as { sessionId: string };
     requireSessionOwner(sessionId, req.user!.id);

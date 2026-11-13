@@ -50,7 +50,7 @@ function useRun(runId: string) {
 }
 
 /** Fetch any artifact bytes with auth; returns an object URL (for
- *  <video> playback and trace.zip download â€” plain links cannot carry the
+ *  <video> playback and trace.zip download — plain links cannot carry the
  *  Authorization header). */
 function useArtifactBlob(runId: string, artifactId: string | undefined, endpoint: "image" | "download") {
   const [url, setUrl] = useState<string | null>(null);
@@ -90,7 +90,7 @@ function TraceDownload({ runId, artifactId }: { runId: string; artifactId: strin
   if (!url)
     return (
       <span className="muted small">
-        Loading traceâ€¦ (<code>{artifactId}.zip</code>)
+        Loading trace… (<code>{artifactId}.zip</code>)
       </span>
     );
   return (
@@ -109,7 +109,7 @@ function TraceDownload({ runId, artifactId }: { runId: string; artifactId: strin
 function RunVideo({ runId, artifactId }: { runId: string; artifactId: string }) {
   const { url, failed } = useArtifactBlob(runId, artifactId, "download");
   if (failed) return <p className="muted small">Could not load the video.</p>;
-  if (!url) return <p className="muted small">Loading videoâ€¦</p>;
+  if (!url) return <p className="muted small">Loading video…</p>;
   return <video controls src={url} aria-label="Run video" style={{ maxWidth: "100%" }} />;
 }
 
@@ -145,7 +145,7 @@ function AuthArtifactImage({ runId, artifactId, label }: { runId: string; artifa
     };
   }, [runId, artifactId]);
   if (failed) return <p className="muted small">Could not load image {label}.</p>;
-  if (!src) return <p className="muted small">Loading image {label}â€¦</p>;
+  if (!src) return <p className="muted small">Loading image {label}…</p>;
   return (
     <figure>
       <figcaption>{label}</figcaption>
@@ -156,7 +156,7 @@ function AuthArtifactImage({ runId, artifactId, label }: { runId: string; artifa
 
 /** 1-click failure explanation (P2): POST /ai/explain {runId} inline.
  *  The server reads the failed step from the DB; the response engine badge
- *  (rules|llm) is always rendered â€” rule output is never presented as LLM.
+ *  (rules|llm) is always rendered — rule output is never presented as LLM.
  *  Hidden for the offline demo run (no DB row to explain). */
 function ExplainWithAi({ runId, projectId, demo }: { runId: string; projectId?: string; demo: boolean }) {
   const [result, setResult] = useState<ExplainResponse | null>(null);
@@ -180,7 +180,7 @@ function ExplainWithAi({ runId, projectId, demo }: { runId: string; projectId?: 
       <h2>AI explanation {projectId ? <Link className="small" to={`/projects/${projectId}/ai`}>Open in AI assistant</Link> : null}</h2>
       {!result && !error ? (
         <button type="button" className="btn" data-testid="explain-btn" disabled={loading} onClick={() => void run()}>
-          {loading ? "Analyzingâ€¦" : "Explain with AI"}
+          {loading ? "Analyzing…" : "Explain with AI"}
         </button>
       ) : null}
       {error ? <ErrorState message={error} onRetry={() => void run()} /> : null}
@@ -197,7 +197,7 @@ function ExplainWithAi({ runId, projectId, demo }: { runId: string; projectId?: 
           <p className="small"><strong>Likely causes:</strong> {exp.likelyCauses.join("; ")}</p>
           <p className="small"><strong>Suggested fixes:</strong> {exp.suggestedFixes.join("; ")}</p>
           <button type="button" className="btn btn-ghost" disabled={loading} onClick={() => void run()}>
-            {loading ? "Analyzingâ€¦" : "Re-analyze"}
+            {loading ? "Analyzing…" : "Re-analyze"}
           </button>
         </div>
       ) : null}
@@ -230,7 +230,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
   const [defSteps, setDefSteps] = useState<Map<string, BuilderStep>>(new Map());
   const [testName, setTestName] = useState<string | null>(null);
 
-  // Live WS subscription (spec/08-api/websocket-events.md): informational only â€”
+  // Live WS subscription (spec/08-api/websocket-events.md): informational only —
   // DB (useRun above) stays authoritative; terminal events trigger refetch.
   const isLive = !!run && (run.status === "queued" || run.status === "running");
   const channel = useRunChannel(isLive ? runId : null);
@@ -250,7 +250,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
       .getTest(run.testId)
       .then((t) => {
         if (!alive) return;
-        // GET /tests/:id returns definitionJson as a JSON STRING â€” parse it
+        // GET /tests/:id returns definitionJson as a JSON STRING — parse it
         // (a direct cast yields an empty map and every failed step wrongly
         // reports "no longer in the current definition").
         const raw = parseDefinition(t.definitionJson) as { steps?: BuilderStep[] } | null;
@@ -324,7 +324,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
         toast.push("info", "Demo rerun queued (server not called)");
       } else {
         await api.rerun(run.testId, run.environmentId ?? "env_staging", run.browser);
-        toast.push("success", "Rerun started â€” follow progress in the Runs tab");
+        toast.push("success", "Rerun started — follow progress in the Runs tab");
       }
     } catch (e) {
       toast.push("error", e instanceof Error ? e.message : "Could not rerun");
@@ -352,7 +352,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
   if (loading) {
     return (
       <section className="page" aria-label="Run detail">
-        <Skeleton lines={6} label="Loading run resultâ€¦" />
+        <Skeleton lines={6} label="Loading run result…" />
       </section>
     );
   }
@@ -376,13 +376,13 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
       <header className="run-head">
         <div>
           <p className="crumb">
-            <Link to={`/tests/${run.testId}`}>â† Back to test</Link>
+            <Link to={`/tests/${run.testId}`}>← Back to test</Link>
           </p>
           <h1>{run.testName || testName || "Run result"}</h1>
           <p className="muted">
-            Environment <strong>{run.environment}</strong> Â· Browser{" "}
-            <strong>{run.browser}</strong> Â· Started {formatTime(run.startedAt)} Â· Duration{" "}
-            <strong>{formatDuration(run.durationMs)}</strong> Â· <CopyId id={run.id} label="run" />
+            Environment <strong>{run.environment}</strong> · Browser{" "}
+            <strong>{run.browser}</strong> · Started {formatTime(run.startedAt)} · Duration{" "}
+            <strong>{formatDuration(run.durationMs)}</strong> · <CopyId id={run.id} label="run" />
           </p>
         </div>
         <div className="run-head-right">
@@ -425,9 +425,9 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
             />
           </div>
           <p className="muted small">
-            Run is {run.status === "queued" ? "queued" : "running"} Â· WS:{" "}
-            {channel.connected ? "connected" : "reconnectingâ€¦"}
-            {channel.error ? ` Â· ${channel.error}` : null}
+            Run is {run.status === "queued" ? "queued" : "running"} · WS:{" "}
+            {channel.connected ? "connected" : "reconnecting…"}
+            {channel.error ? ` · ${channel.error}` : null}
           </p>
           <button
             type="button"
@@ -436,7 +436,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
             disabled={cancelling}
             onClick={() => void cancel()}
           >
-            {cancelling ? "Cancellingâ€¦" : "Cancel run"}
+            {cancelling ? "Cancelling…" : "Cancel run"}
           </button>
         </div>
       ) : null}
@@ -447,7 +447,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
         </div>
       ) : run.status === "passed" ? (
         <div className="alert alert-pass" role="status">
-          Test passed â€” all steps succeeded.
+          Test passed — all steps succeeded.
         </div>
       ) : null}
 
@@ -470,7 +470,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
               className={`step step-${s.status}`}
               open={s.status === "failed"}
             >
-              {/* API rows carry `errorMessage`, WS/mocks carry `error` â€” read both (a failed step must never render "This step passed"). */}
+              {/* API rows carry `errorMessage`, WS/mocks carry `error` — read both (a failed step must never render "This step passed"). */}
               {(() => {
                 const stepError = s.error ?? s.errorMessage ?? null;
                 return (
@@ -485,7 +485,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
                       : s.status === "skipped"
                         ? "Skipped"
                         : "Running"}{" "}
-                  Â· {formatDuration(s.durationMs)}
+                  · {formatDuration(s.durationMs)}
                 </span>
                 <span
                   className="bar"
@@ -506,7 +506,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
                     </p>
                     <p>
                       <strong>Locator:</strong>{" "}
-                      <code>{locatorFor(s) ?? "â€” (not present in result/definition)"}</code>
+                      <code>{locatorFor(s) ?? "— (not present in result/definition)"}</code>
                     </p>
                     <p>
                       <strong>Timeout:</strong>{" "}
@@ -518,7 +518,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
                             <span className="muted small">(source: {t.source})</span>
                           </>
                         ) : (
-                          <span className="muted">â€” (runner default)</span>
+                          <span className="muted">— (runner default)</span>
                         );
                       })()}
                     </p>
@@ -607,7 +607,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
       </div>
       {traceUrl && !traceArtifact && role === "developer" ? (
         <p className="muted small">
-          Or run locally: <code>npx playwright show-trace trace.zip</code> Â· Original file:{" "}
+          Or run locally: <code>npx playwright show-trace trace.zip</code> · Original file:{" "}
           <code>{traceUrl}</code>
         </p>
       ) : null}
@@ -627,7 +627,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
           disabled={rerunning || run.status === "running"}
           onClick={() => void rerun()}
         >
-          {rerunning ? "Queueingâ€¦" : "Rerun"}
+          {rerunning ? "Queueing…" : "Rerun"}
         </button>
         {failedStep?.stepId ? (
           <Link className="btn" to={`/tests/${run.testId}?focusStep=${failedStep.stepId}`}>
@@ -643,7 +643,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
           disabled={downloadingJUnit || run.status === "running" || run.status === "queued"}
           onClick={() => void downloadJUnit()}
         >
-          {downloadingJUnit ? "Downloading JUnitâ€¦" : "â¬‡ JUnit XML"}
+          {downloadingJUnit ? "Downloading JUnit…" : "⬇ JUnit XML"}
         </button>
         <button
           type="button"
@@ -653,7 +653,7 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
           onClick={() => setShowBug(true)}
           title="Build a Markdown bug report, download .md, or file to Jira/Backlog/Slack/Lark"
         >
-          ðŸž Report bug
+          🐞 Report bug
         </button>
       </div>
       {showBug && run.projectId ? (
@@ -666,8 +666,8 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
 
 /**
  * Per-type step summary from the stored definition (generic fallback when
- * the type has no dedicated branch). Rendered for every timeline row â€”
- * failed or passed â€” so reviewers see method+URL, thresholds, file namesâ€¦
+ * the type has no dedicated branch). Rendered for every timeline row —
+ * failed or passed — so reviewers see method+URL, thresholds, file names…
  * without opening the Builder.
  */
 function StepTypeDetail({ stepId, def, testId }: { stepId?: string; def?: BuilderStep; testId: string }) {
@@ -686,7 +686,7 @@ function StepTypeDetail({ stepId, def, testId }: { stepId?: string; def?: Builde
       return (
         <p className="muted small">
           Download {url ? <>from <code>{url}</code></> : "via click + waiting for the download event"}
-          {saveAs ? <> â†’ artifact <code>{saveAs}</code> (see Evidence below)</> : null}.
+          {saveAs ? <> → artifact <code>{saveAs}</code> (see Evidence below)</> : null}.
         </p>
       );
     }
@@ -698,8 +698,8 @@ function StepTypeDetail({ stepId, def, testId }: { stepId?: string; def?: Builde
       return (
         <p className="muted small">
           <code>{method}</code> <code>{url}</code>
-          {exp !== null ? <> Â· expect status <code>{exp}</code></> : null}
-          {saveAs ? <> Â· save response to <code>{saveAs}</code></> : null}.
+          {exp !== null ? <> · expect status <code>{exp}</code></> : null}
+          {saveAs ? <> · save response to <code>{saveAs}</code></> : null}.
         </p>
       );
     }
@@ -708,7 +708,7 @@ function StepTypeDetail({ stepId, def, testId }: { stepId?: string; def?: Builde
       const threshold = typeof def.threshold === "number" ? def.threshold : 0.05;
       return (
         <p className="muted small">
-          Compared against baseline <code>{name}</code> Â· threshold {(threshold * 100).toFixed(1)}% Â·{" "}
+          Compared against baseline <code>{name}</code> · threshold {(threshold * 100).toFixed(1)}% ·{" "}
           <Link to={`/tests/${testId}/visual`}>open the Visual page</Link>.
         </p>
       );
@@ -723,7 +723,7 @@ function StepTypeDetail({ stepId, def, testId }: { stepId?: string; def?: Builde
     }
     case "newTab": {
       const url = str(def.url);
-      return <p className="muted small">Open a new tab{url ? <> â†’ <code>{url}</code></> : null}; subsequent steps use this tab.</p>;
+      return <p className="muted small">Open a new tab{url ? <> → <code>{url}</code></> : null}; subsequent steps use this tab.</p>;
     }
     case "closeTab":
       return <p className="muted small">Close the current tab (explicit error if it is the last tab).</p>;
@@ -733,7 +733,7 @@ function StepTypeDetail({ stepId, def, testId }: { stepId?: string; def?: Builde
       return (
         <p className="muted small">
           Handle the next dialog: <code>{action}</code>
-          {promptText ? <> Â· type <code>{promptText}</code></> : null}.
+          {promptText ? <> · type <code>{promptText}</code></> : null}.
         </p>
       );
     }
@@ -748,7 +748,7 @@ export function RunDetailRoute() {  const { id } = useParams();
     return (
       <section className="page">
         <p className="muted">Missing run id.</p>
-        <Link to="/projects">â† Back to Projects</Link>
+        <Link to="/projects">← Back to Projects</Link>
       </section>
     );
   }

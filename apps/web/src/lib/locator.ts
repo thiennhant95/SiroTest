@@ -2,7 +2,7 @@
  * Web-side locator presentation helpers (Day 5-6: Locator picker).
  *
  * Single source of truth for expressions + 0/1/N semantics is
- * packages/locator-engine â€” imported directly from source so web and
+ * packages/locator-engine — imported directly from source so web and
  * engine can never drift (same mapping as spec/06-compiler/playwright-compiler.md).
  */
 import {
@@ -42,7 +42,7 @@ export function roleLabel(role: string): string {
 }
 
 function truncate(s: string, max = 40): string {
-  return s.length > max ? `${s.slice(0, max - 1)}â€¦` : s;
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
 /**
