@@ -4,6 +4,7 @@
 ![version](https://img.shields.io/badge/version-0.2.0-blue)
 ![node](https://img.shields.io/badge/node-20-green)
 ![playwright](https://img.shields.io/badge/playwright-1.63-45ba4b)
+![license](https://img.shields.io/badge/license-MIT-green)
 
 > Low-code E2E testing on top of upstream `@playwright/test`: testers **Record → Edit → Run** visually, developers keep native Playwright code, debugging and escape hatches. Never forks Playwright core.
 
@@ -105,3 +106,9 @@ file ships yet — one will be added before any public free announcement.
 
 Read [AGENTS.md](./AGENTS.md) first (normative contributor rules), then the spec
 folders in [INDEX.md](./INDEX.md). No P1/P2 work while the P0 release gate is red.
+
+## License
+
+[MIT](./LICENSE) — free to use, modify and self-host. The SiroTest name and
+logo are trademarks of the project owners.
+
