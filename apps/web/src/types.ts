@@ -1,4 +1,4 @@
-/** Day 7 shared types â€” mirrors spec/08-api/api-spec.md + spec/07-runner/artifacts-reporting.md */
+/** Day 7 shared types — mirrors spec/08-api/api-spec.md + spec/07-runner/artifacts-reporting.md */
 
 export type RunStatus =
   | "queued"
@@ -15,9 +15,9 @@ export interface StepResult {
   status: RunStatus | "skipped";
   durationMs: number;
   error?: string;
-  /** DB column name (RunStep.errorMessage) â€” API rows and WS events carry this, not `error`. */
+  /** DB column name (RunStep.errorMessage) — API rows and WS events carry this, not `error`. */
   errorMessage?: string | null;
-  /** raw stack â€” only shown to Developer role, redacted server-side. */
+  /** raw stack — only shown to Developer role, redacted server-side. */
   rawError?: string;
   screenshotUrl?: string;
   /** Flow C (spec/01-product/user-flows.md): failed step shows locator + timeout. */

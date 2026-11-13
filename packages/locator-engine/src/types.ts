@@ -1,5 +1,5 @@
 /**
- * Locator Engine P0 â€” canonical types.
+ * Locator Engine P0 — canonical types.
  *
  * `LocatorCandidate` reuses spec/03-test-model/test-definition.md verbatim so the
  * engine output plugs directly into `LocatorSpec { primary, alternatives }`.

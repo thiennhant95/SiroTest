@@ -1,5 +1,5 @@
 /**
- * P2 â€” explicit, reviewable locator healing (ADR-003, ADR-005, 05-locator).
+ * P2 — explicit, reviewable locator healing (ADR-003, ADR-005, 05-locator).
  *
  * NEVER auto-applies. This module only *proposes*: given a failed
  * locator-bearing step plus its stored `alternatives`, it walks the
@@ -7,12 +7,12 @@
  * uniquely. The failing step keeps status `failed` (a broken primary is a
  * fact), the proposal is emitted as a `step.healed` WS event and returned in
  * the run result so the SERVER can persist a `HealingProposal` row
- * (status `pending`). A human approves/rejects via the healing API â€” the
+ * (status `pending`). A human approves/rejects via the healing API — the
  * definition is rewritten only on explicit approval, which demotes the old
  * primary to the head of `alternatives` and mints a new test version.
  *
  * "Re-run the step with the healed locator" happens on the NEXT run after
- * approval â€” never silently inside the failed run (that would be silent
+ * approval — never silently inside the failed run (that would be silent
  * self-healing, forbidden in P0 and unauditable in P2).
  *
  * P0 behavior is unchanged: healing runs only when
@@ -20,7 +20,7 @@
  *
  * NOTE: the candidate preview formatter below intentionally duplicates the
  * minimal logic of `packages/locator-engine/src/toExpression.ts` instead of
- * importing it â€” `@playwright-studio/runner` has no dependency on the
+ * importing it — `@playwright-studio/runner` has no dependency on the
  * locator engine (see apps/runner/package.json) and this file must stay
  * dependency-free and unit-testable without a browser.
  */
@@ -42,7 +42,7 @@ export const HEALING_PROBE_BUDGET_MS = 15_000;
 
 /**
  * Live match counter for one alternative candidate.
- * In production (no live page handle in the runner host â€” the browser lives
+ * In production (no live page handle in the runner host — the browser lives
  * inside the Playwright child) this is injected by the caller when a probe
  * page is available; tests inject a stub. Returning `undefined` means
  * "unknown" (unverified), never 0.
@@ -104,7 +104,7 @@ export function isLocatorBearingStep(step: Pick<TestStep, 'type'>): boolean {
 }
 
 /**
- * Assertion-failure markers (Playwright `expect`) â€” these must NEVER be
+ * Assertion-failure markers (Playwright `expect`) — these must NEVER be
  * treated as locator failures, even though assertion timeouts also contain
  * the word "Timeout ... exceeded". Checked FIRST.
  */
@@ -131,12 +131,12 @@ const LOCATOR_MARKERS: RegExp[] = [
 /**
  * True only for genuine locator failures (actionability timeouts,
  * waiting-for-selector, strict-mode violations). Assertion failures and any
- * other error class return false â€” healing must not fire on them.
+ * other error class return false — healing must not fire on them.
  *
  * Exception: an `expect()` error whose call log proves the locator resolved
  * to NOTHING (`element(s) not found`, `resolved to 0`) IS a locator failure:
  * the element is gone, not the expectation wrong. This is the common
- * "assertVisible fails because the element vanished" case â€” without it,
+ * "assertVisible fails because the element vanished" case — without it,
  * healing would never fire for assertion steps, which compile to
  * `expect(locator).toBeVisible()` etc.
  */
@@ -180,7 +180,7 @@ export function previewHealingCandidate(candidate: LocatorCandidate): string {
  * alternatives, or the error is not a locator failure). Otherwise returns an
  * attempt whose evidence records every alternative tried; `succeededWith` is
  * set only for the FIRST alternative with a unique (`=== 1`) match. A probe
- * returning `undefined` (unknown) never wins â€” unverified candidates stay
+ * returning `undefined` (unknown) never wins — unverified candidates stay
  * proposals-in-waiting, never silent switches.
  */
 export function attemptHealing(

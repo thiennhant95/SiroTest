@@ -3,7 +3,7 @@
  * Strategy: spec/12-testing/test-strategy.md (Integration: run lifecycle with tiny
  * fixture web app; artifact persistence; WebSocket event ordering/state
  * recovery. Release gate: secret redaction, interrupted runner recovery).
- * No browser required â€” the Playwright CLI is stubbed (stub-playwright.mjs).
+ * No browser required — the Playwright CLI is stubbed (stub-playwright.mjs).
  *
  * Run: npx tsx --test tests/integration/run-lifecycle.test.ts
  */

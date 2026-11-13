@@ -1,5 +1,5 @@
 /**
- * Compiler P0 Security tests â€” Day 8-10 audit (spec/11-security/security.md).
+ * Compiler P0 Security tests — Day 8-10 audit (spec/11-security/security.md).
  * Run: `npm run build && node --test dist/tests/security.test.js`
  *
  * The compiler never sees secret VALUES (only {{NAME}} refs), so the contract

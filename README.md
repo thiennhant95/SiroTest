@@ -10,6 +10,10 @@
 
 **Live demo site:** https://thiennhant95.github.io/SiroTest/ (EN/VI/JA)
 
+![SiroTest Builder](docs/assets/builder.png)
+
+![AI failure explanation](docs/assets/run-ai.png)
+
 ## Why teams switch
 
 - 🎥 **Record, don't code** — click the real browser, steps appear with ranked locators.

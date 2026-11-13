@@ -174,7 +174,7 @@ describe('variables ({{NAME}} -> process.env.NAME)', () => {
 // Step compilation (full P0 catalog)
 // ---------------------------------------------------------------------------
 
-describe('compileStepBody â€” full P0 step catalog', () => {
+describe('compileStepBody — full P0 step catalog', () => {
   const T = (target: LocatorSpec['primary']) => ({ primary: target });
 
   const cases: Array<[TestStep, string[]]> = [

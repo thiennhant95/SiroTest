@@ -101,6 +101,6 @@ export const api = {
 };
 
 export function traceViewerUrl(traceUrl: string): string {
-  // Open the ORIGINAL Playwright Trace Viewer â€” never rebuild it (artifacts-reporting.md).
+  // Open the ORIGINAL Playwright Trace Viewer — never rebuild it (artifacts-reporting.md).
   return `https://trace.playwright.dev/?trace=${encodeURIComponent(traceUrl)}`;
 }

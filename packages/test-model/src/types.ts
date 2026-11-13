@@ -24,7 +24,7 @@ export interface TestDefinition {
   timeoutMs?: number;
   tags?: string[];
   variables?: Record<string, string>;
-  /** P1 â€” embedded data tables; selected per run via `datasetId`. */
+  /** P1 — embedded data tables; selected per run via `datasetId`. */
   datasets?: DataSet[];
   steps: TestStep[];
 }
@@ -124,7 +124,7 @@ export interface WaitForElementStep extends BaseStep {
 }
 export interface WaitForTimeoutStep extends BaseStep {
   type: "waitForTimeout";
-  /** Fixed wait in ms. Discouraged â€” UI must show a visible warning. */
+  /** Fixed wait in ms. Discouraged — UI must show a visible warning. */
   milliseconds: number;
 }
 export interface WaitForURLStep extends BaseStep {
@@ -190,7 +190,7 @@ export interface ScreenshotStep extends BaseStep {
 // P1 additions are strictly additive: P0 parsers/compilers that do not know
 // these shapes must reject them explicitly (never silently skip).
 
-/** P1 â€” a named parameter of a reusable action. */
+/** P1 — a named parameter of a reusable action. */
 export interface ActionParameter {
   name: string;
   description?: string;
@@ -201,7 +201,7 @@ export interface ActionParameter {
 }
 
 /**
- * P1 â€” reusable business action (project-scoped, stored in `actions` table).
+ * P1 — reusable business action (project-scoped, stored in `actions` table).
  * Body steps are P0 steps only: nested `callAction` is rejected at compile
  * time with an explicit error (keeps inlining total and readable).
  */
@@ -214,7 +214,7 @@ export interface ReusableAction {
   steps: TestStep[];
 }
 
-/** P1 â€” invoke a reusable action with argument values. */
+/** P1 — invoke a reusable action with argument values. */
 export interface CallActionStep extends BaseStep {
   type: "callAction";
   actionId: string;
@@ -222,10 +222,10 @@ export interface CallActionStep extends BaseStep {
 }
 
 // ---------------------------------------------------- P1 wave 2 steps ---
-// Shapes only â€” semantics live in the P1 compiler/runner agents. P0 tooling
+// Shapes only — semantics live in the P1 compiler/runner agents. P0 tooling
 // rejects these types explicitly (unknown-type path), never silently.
 
-/** P1 â€” file upload via setInputFiles (fileId references the file store). */
+/** P1 — file upload via setInputFiles (fileId references the file store). */
 export interface UploadStep extends BaseStep {
   type: "upload";
   target: LocatorSpec;
@@ -234,7 +234,7 @@ export interface UploadStep extends BaseStep {
 }
 
 /**
- * P1 â€” capture a download. Either clicks `target` and waits for the
+ * P1 — capture a download. Either clicks `target` and waits for the
  * download event, or downloads `url` directly (at least one required).
  */
 export interface DownloadStep extends BaseStep {
@@ -245,19 +245,19 @@ export interface DownloadStep extends BaseStep {
   saveAs?: string;
 }
 
-/** P1 â€” open a new tab (optionally navigating), later steps use it. */
+/** P1 — open a new tab (optionally navigating), later steps use it. */
 export interface NewTabStep extends BaseStep {
   type: "newTab";
   url?: string;
 }
 
-/** P1 â€” close the current tab (explicit fail when it is the last one). */
+/** P1 — close the current tab (explicit fail when it is the last one). */
 export interface CloseTabStep extends BaseStep {
   type: "closeTab";
 }
 
 /**
- * P1 â€” one-time dialog handler for the NEXT dialog (alert/confirm/prompt).
+ * P1 — one-time dialog handler for the NEXT dialog (alert/confirm/prompt).
  * Must precede the step that triggers the dialog.
  */
 export interface HandleDialogStep extends BaseStep {
@@ -268,7 +268,7 @@ export interface HandleDialogStep extends BaseStep {
 }
 
 /**
- * P1 â€” HTTP API request via Playwright `request` fixture, with optional
+ * P1 — HTTP API request via Playwright `request` fixture, with optional
  * status assertion and response capture into a run variable.
  */
 export interface ApiRequestStep extends BaseStep {
@@ -313,7 +313,7 @@ export interface AxeCheckStep extends BaseStep {
 // P2 additions are strictly additive (same contract as P1 additions).
 
 /**
- * P2 â€” visual regression check against a stored baseline screenshot.
+ * P2 — visual regression check against a stored baseline screenshot.
  * First passing run with `updateBaselines` captures the baseline;
  * later runs diff against it within `threshold` (0..1 fraction of
  * differing pixels).
@@ -328,7 +328,7 @@ export interface VisualCheckStep extends BaseStep {
   threshold?: number;
 }
 
-/** P1 â€” one named table of rows for data-driven runs (embedded, capped). */
+/** P1 — one named table of rows for data-driven runs (embedded, capped). */
 export interface DataSet {
   id: string;
   name: string;

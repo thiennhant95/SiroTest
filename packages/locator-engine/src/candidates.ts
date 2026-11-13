@@ -87,7 +87,7 @@ export function buildCandidates(meta: ElementMetadata): LocatorCandidate[] {
 
 /**
  * Score all candidates, pick the top as primary, keep the rest as
- * alternatives (stored evidence â€” P0 executes primary only, never heals).
+ * alternatives (stored evidence — P0 executes primary only, never heals).
  *
  * Without a browser counter, every candidate is assumed unique and the
  * result is marked `verified: false`; use Test Locator (testLocatorMatch)

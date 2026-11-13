@@ -1,5 +1,5 @@
 /**
- * P0 Security tests â€” Day 8-10 audit (spec/11-security/security.md).
+ * P0 Security tests — Day 8-10 audit (spec/11-security/security.md).
  * Run: `npx tsx --test src/security.test.ts` (no DB needed; pure helpers only).
  */
 import { describe, it, beforeEach, afterEach } from 'node:test';

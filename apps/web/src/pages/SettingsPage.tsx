@@ -15,7 +15,7 @@ import {
 } from "../components/ui";
 
 /**
- * /settings â€” environments CRUD + global (shared) variables + retention/limits
+ * /settings — environments CRUD + global (shared) variables + retention/limits
  * info (spec/10-ui-ux/screens.md required route). Secrets stay write-only.
  */
 export function SettingsPage() {
@@ -65,7 +65,7 @@ export function SettingsPage() {
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-6">
       <Link to="/projects" className="text-sm text-slate-500 hover:text-slate-800">
-        â† Projects
+        ← Projects
       </Link>
       <h1 className="text-xl font-semibold">Settings</h1>
 
@@ -98,7 +98,7 @@ export function SettingsPage() {
                   projectId={projectId}
                   envs={envs}
                   onChanged={() => void reload(projectId)}
-                  onClose={() => toast.push("info", "Panel closed â€” list updated.")}
+                  onClose={() => toast.push("info", "Panel closed — list updated.")}
                 />
               </section>
 
@@ -135,9 +135,9 @@ export function SettingsPage() {
               Retention &amp; limits (admin)
             </h2>
             <ul className="list-disc space-y-1 pl-5 text-xs text-slate-600">
-              <li>Max JSON body 1 MB Â· max test definition 512 KB.</li>
-              <li>Max artifact 50 MB Â· max 100 screenshots / run.</li>
-              <li>Default 1â€“2 concurrent runs / host; excess runs queue.</li>
+              <li>Max JSON body 1 MB · max test definition 512 KB.</li>
+              <li>Max artifact 50 MB · max 100 screenshots / run.</li>
+              <li>Default 1–2 concurrent runs / host; excess runs queue.</li>
               <li>Secret values resolve only at run time and are redacted from code/logs/events/result JSON.</li>
             </ul>
           </section>

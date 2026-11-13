@@ -35,12 +35,12 @@ export interface RunDependencies {
   publish: EventPublisher;
   /** absolute path to the built custom reporter (packages/reporter). */
   reporterPath?: string;
-  /** e.g. ['npx', ...] prefix â€” tests inject a stub command. */
+  /** e.g. ['npx', ...] prefix — tests inject a stub command. */
   playwrightCommand?: { command: string; baseArgs: string[]; nodePath?: string };
   /**
    * P2 healing probe: live unique-match counter for alternative candidates.
    * Injected by callers with a live page (tests inject a stub). Absent means
-   * every alternative is `undefined` (unknown) â€” attempts are still recorded
+   * every alternative is `undefined` (unknown) — attempts are still recorded
    * with `verified: false`, but no winner is declared and no proposal with a
    * `succeededWith` is produced. Never throws into the run (healing.ts
    * guards probe errors).
@@ -171,7 +171,7 @@ async function tailEvents(
           }),
         );
       } catch {
-        // ignore malformed line â€” events are informational
+        // ignore malformed line — events are informational
       }
     }
   }
@@ -206,7 +206,7 @@ async function promotePlaywrightOutputs(ws: RunWorkspace): Promise<void> {
     try {
       await copyFile(trace, ws.tracePath);
     } catch {
-      // best effort â€” collectArtifacts simply records nothing
+      // best effort — collectArtifacts simply records nothing
     }
   }
   const video = await findFirstFile(outDir, (n) => n.toLowerCase().endsWith('.webm'));
@@ -231,7 +231,7 @@ async function collectArtifacts(ws: RunWorkspace, runId: string): Promise<Artifa
         artifacts.push({ id: `${runId}-${type}`, runId, type, path: rel, mimeType, sizeBytes: st.size });
       }
     } catch {
-      // optional artifact absent â€” skip
+      // optional artifact absent — skip
     }
   };
   await maybe(ws.resultPath, `runs/${runId}/result.json`, 'result', 'application/json');
@@ -256,7 +256,7 @@ async function collectArtifacts(ws: RunWorkspace, runId: string): Promise<Artifa
       }
     }
   } catch {
-    // no screenshots â€” fine
+    // no screenshots — fine
   }
   return artifacts;
 }
@@ -293,7 +293,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
   // Dataset selection is validated here too (unknown datasetId / bad rowIndex
   // fail fast before any workspace/spawn). Resolved rows are injected as
   // VV_DATASET_ROWS in step 5; the compiled spec loops over them (or runs
-  // once with `{}` when the dataset is empty â€” never silently skipped).
+  // once with `{}` when the dataset is empty — never silently skipped).
   let datasetRows: Record<string, string>[] = [];
   try {
     validateTestDefinition(req.test);
@@ -329,7 +329,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     }
   } catch (err) {
     // Name fallback: under tsx dev/loader conditions validate.js can exist
-    // as dual ESM/CJS instances (see datasets.ts re-export note) â€” the
+    // as dual ESM/CJS instances (see datasets.ts re-export note) — the
     // message stays identical either way, never silently swallowed.
     const message =
       err instanceof ValidationError || (err as Error)?.name === 'ValidationError'
@@ -377,7 +377,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
   let status: RunStatus = 'failed';
   let errorSummary: string | undefined;
   // P2 healing outcomes (proposal-only; the steps below stay `failed`).
-  // Prisma `RunStep` has no evidence column (schema frozen) â€” evidence
+  // Prisma `RunStep` has no evidence column (schema frozen) — evidence
   // travels via the `step.healed` WS event + this return value so the server
   // can persist `HealingProposal` rows. Never silently applied.
   const healing: HealAttempt[] = [];
@@ -386,7 +386,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     // ---- Step 3.5: stage uploads under REAL filenames ----
     // Library bytes are `<id>-<name>` in shared storage; the page must see
     // `report.csv`, not the internal id. Staged copies live in the isolated
-    // workDir (removed in step 8). Failure here fails the run explicitly â€”
+    // workDir (removed in step 8). Failure here fails the run explicitly —
     // an upload must never silently fall back to the wrong file.
     let uploadPaths: Record<string, string> | undefined;
     if (req.filePaths !== undefined) {
@@ -406,7 +406,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     // P1 auth context: materialize the decrypted storageState JSON as
     // `storageState.json` in the isolated workDir (config points at the
     // relative filename; step 8 removes the whole workDir). Validated as
-    // JSON in step 1 â€” written verbatim here, never logged.
+    // JSON in step 1 — written verbatim here, never logged.
     let storageStateFile: string | undefined;
     if (req.storageStateJson !== undefined) {
       await writeWorkFile(ws.workDir, 'storageState.json', req.storageStateJson);
@@ -421,7 +421,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     // axe-core shim for `axeCheck` steps. The isolated workdir has no
     // node_modules and NODE_PATH only covers the Playwright CLI owner, so the
     // runner resolves the absolute entry now (fail fast when uninstallled)
-    // and the shim requires it directly. Same host â‡’ byte-identical output.
+    // and the shim requires it directly. Same host ⇒ byte-identical output.
     if (test.steps.some((s) => s.enabled !== false && s.type === 'axeCheck')) {
       let axeEntry: string;
       try {
@@ -434,7 +434,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     // P2 plugins: load the trusted registry (ALLOW_PLUGINS=1 required),
     // copy entry files into the workdir and write the `vv-plugins.cjs`
     // shim. Disabled/missing plugins fail here with an explicit
-    // PLUGIN_* error â€” before any browser is spawned, never silently.
+    // PLUGIN_* error — before any browser is spawned, never silently.
     const pluginTypes = collectPluginStepTypes(test.steps);
     let pluginRegistry: MaterializedPlugins['registry'] | undefined;
     if (pluginTypes.length > 0) {
@@ -445,7 +445,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
       datasetId: req.datasetId,
       // P1 reusable actions: resolved callee bodies (server loads them from
       // the project's actions table). Absent actions fail explicitly inside
-      // compileSpec â€” before any browser is spawned, never silently skipped.
+      // compileSpec — before any browser is spawned, never silently skipped.
       ...(req.actions !== undefined
         ? { actions: new Map(req.actions.map((a) => [a.id, a] as const)) }
         : {}),
@@ -498,7 +498,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
       ...(nodePath ? { NODE_PATH: nodePath } : {}),
       RUN_ID: runId,
       RUN_ARTIFACT_DIR: ws.artifactDir,
-      // Debug mode (â‰ˆ --debug): PWDEBUG=1 makes Playwright open its
+      // Debug mode (≈ --debug): PWDEBUG=1 makes Playwright open its
       // Inspector on this host; headed is forced above. The run stays alive
       // until the tester closes the browser/Inspector or hits Cancel.
       ...(req.debug === true ? { PWDEBUG: '1' } : {}),
@@ -605,12 +605,12 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
               screenshotPath: s.screenshot,
             });
           } catch {
-            // step missing from seed (should not happen) â€” ignore
+            // step missing from seed (should not happen) — ignore
           }
         }
       }
     } catch {
-      // result.json missing/unreadable (e.g. crash before reporter onEnd) â€” keep exit-code status.
+      // result.json missing/unreadable (e.g. crash before reporter onEnd) — keep exit-code status.
     }
 
     if (token.cancelled) status = 'cancelled';
@@ -637,7 +637,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     // genuinely verified. The post-run walk below stays as the unverified
     // fallback (proposal queue skips attempts without a winner). The step
     // keeps `failed`; a `step.healed` event carries runId + stepId + evidence
-    // (informational, like all WS events). Nothing is rewritten here â€” the
+    // (informational, like all WS events). Nothing is rewritten here — the
     // runner has no DB and never mutates the stored definition.
     if (req.healWithAlternatives === true && !token.cancelled) {
       const healedSteps = new Set<string>();
@@ -687,7 +687,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
           );
         }
       } catch {
-        // no evidence file (no primary failure, or probes disabled) â€” fallback below
+        // no evidence file (no primary failure, or probes disabled) — fallback below
       }
       // Unverified fallback: post-run walk without a live probe.
       const settled = await store.getSummary(runId);
@@ -711,24 +711,24 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
       }
     }
     // Playwright writes trace.zip / *.webm under outputDir (workDir/output),
-    // never directly to the artifact dir â€” promote the first of each into
+    // never directly to the artifact dir — promote the first of each into
     // storage before cleanup, otherwise trace/video artifacts can never
     // exist no matter the retention mode. Best-effort: absence just means
     // Playwright produced none (e.g. mode 'off').
     await promotePlaywrightOutputs(ws);
     // Playwright trace.zip embeds RESOLVED values (params, error text,
-    // network bodies) â€” scrub secret plaintext from its text entries before
+    // network bodies) — scrub secret plaintext from its text entries before
     // the artifact becomes downloadable. Best-effort, never fails the run.
     try {
       await scrubTraceSecrets(ws.tracePath, secrets);
     } catch {
-      // original zip stays â€” result.json/DB/WS redaction still holds
+      // original zip stays — result.json/DB/WS redaction still holds
     }
     for (const artifact of await collectArtifacts(ws, runId)) {
       await store.addArtifact(artifact);
     }
     // Cancel wins: an HTTP cancel may have settled this row 'cancelled'
-    // while the worker was dying â€” never overwrite it with 'failed'
+    // while the worker was dying — never overwrite it with 'failed'
     // (same rule as the queue guard: never resurrect a settled run).
     const cur = await store.getRun(runId).catch(() => null);
     if (cur?.status === 'cancelled') status = 'cancelled';
@@ -760,7 +760,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
     try {
       await cleanupWorkDir(ws.workDir);
     } catch {
-      // best effort â€” temp dirs are also namespaced for external reaping
+      // best effort — temp dirs are also namespaced for external reaping
     }
     activeRuns.delete(runId);
   }

@@ -1,6 +1,6 @@
 /**
  * Integration: recorder capture -> normalize -> definition (+ session recovery).
- * Strategy: spec/12-testing/test-strategy.md (Integration: Recorder captureâ†’definition;
+ * Strategy: spec/12-testing/test-strategy.md (Integration: Recorder capture→definition;
  * Release gate: recorder normalization/debounce, interrupted recovery).
  * Pure in-process test (no DB, no browser).
  *

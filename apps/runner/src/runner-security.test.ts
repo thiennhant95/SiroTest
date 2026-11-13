@@ -1,5 +1,5 @@
 /**
- * Runner P0 Security tests â€” Day 8-10 audit (spec/11-security/security.md).
+ * Runner P0 Security tests — Day 8-10 audit (spec/11-security/security.md).
  * Run: `npx tsx --test src/runner-security.test.ts`
  *
  * Covers: path traversal, shell-injection (arg array, shell:false) and
@@ -58,7 +58,7 @@ describe('path traversal protection', () => {
 });
 
 describe('shell-injection protection (arg array, shell:false)', () => {
-  it('passes hostile input as a literal argv â€” never interpreted by a shell', async () => {
+  it('passes hostile input as a literal argv — never interpreted by a shell', async () => {
     const hostile = ';touch PWNED && echo INJECTED $(whoami) `id` | tee x';
     const lines: string[] = [];
     const { done } = spawnArgs(process.execPath, ['-e', 'console.log("MARKER:" + process.argv[1])', hostile], {
@@ -76,7 +76,7 @@ describe('shell-injection protection (arg array, shell:false)', () => {
 describe('secret redaction (logs / code / WS / result JSON)', () => {
   const vars = [{ key: 'ADMIN_PASSWORD', value: SECRET, isSecret: true }];
 
-  it('generated code carries only the env lookup â€” never the plaintext', () => {
+  it('generated code carries only the env lookup — never the plaintext', () => {
     const spec = compileSpec(testDef(), {});
     assert.ok(spec.includes('process.env'), spec);
     assert.ok(!spec.includes(SECRET), 'secret leaked into generated code');

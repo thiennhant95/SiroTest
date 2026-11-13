@@ -1,5 +1,5 @@
 /**
- * Step 4/8 â€” Compile TestDefinition -> deterministic Playwright TypeScript.
+ * Step 4/8 — Compile TestDefinition -> deterministic Playwright TypeScript.
  *
  * Follows spec/06-compiler/playwright-compiler.md:
  * - Pure/deterministic for same definition + compiler version.
@@ -33,17 +33,17 @@ type CompileDataSet = NonNullable<TestDefinition['datasets']>[number];
 export const RUNNER_COMPILER_VERSION = 'p0-runner-1';
 
 /**
- * P2 â€” visual regression + plugin steps (additive mirror of
+ * P2 — visual regression + plugin steps (additive mirror of
  * packages/playwright-compiler; this file keeps its own `[id]` title dialect
- * and `(process.env[â€¦] ?? '')` template shape, so P0 output is byte-identical
+ * and `(process.env[…] ?? '')` template shape, so P0 output is byte-identical
  * when no P2 step is present).
  *
  * - `visualCheck` screenshots into the artifact dir and diffs via the
  *   workdir helper `./vv-visual-compare.cjs` (pure self-written PNG codec,
- *   see visual-compare.ts â€” no new dependency).
+ *   see visual-compare.ts — no new dependency).
  * - `plugin:<name>` steps call `./vv-plugins.cjs`, materialized from the
  *   trusted registry; unknown types fail with PLUGIN_NOT_FOUND (compile time
- *   when `opts.plugins` is passed, run time otherwise â€” never silent).
+ *   when `opts.plugins` is passed, run time otherwise — never silent).
  */
 export const VISUAL_DEFAULT_THRESHOLD = 0.05;
 
@@ -195,14 +195,14 @@ function locatorExpr(target: TestStep['target'], stepId: string, pageVar = 'page
 
 /**
  * P1 wave-2 semantics (mirrors packages/playwright-compiler; runner keeps
- * its own `[id]`-prefixed title dialect and `(process.env[â€¦] ?? '')`
+ * its own `[id]`-prefixed title dialect and `(process.env[…] ?? '')`
  * template shape):
  * - upload: run-time `VV_FILE_PATHS`/`FILE_PATHS` map lookup + explicit
  *   throw when the fileId entry is missing; never inlines paths.
  * - download with target: `waitForEvent('download')` + click + `saveAs`
  *   (or `suggestedFilename()`); url-only: `page.evaluate(fetch)` (browser
  *   cookies apply) + `node:fs/promises.writeFile`.
- * - newTab/closeTab: deterministic `page`/`page2`/â€¦ tracking in
+ * - newTab/closeTab: deterministic `page`/`page2`/… tracking in
  *   compileSpec; `closeTab` on the last tab fails explicitly.
  * - handleDialog: one-time `once('dialog')` for the NEXT dialog.
  * - apiRequest: `request` fixture; explicit throw on expectedStatus
@@ -214,7 +214,7 @@ function locatorExpr(target: TestStep['target'], stepId: string, pageVar = 'page
 /**
  * Step timeout also governs expect() polling: Playwright's `test.step`
  * timeout does NOT extend assertion waits (expect defaults to 5s), so a
- * step-level timeoutMs must be forwarded explicitly â€” otherwise raising a
+ * step-level timeoutMs must be forwarded explicitly — otherwise raising a
  * step timeout has no effect on assertions and slow pages fail identically.
  * Returns '' when unset (output byte-identical to before).
  */
@@ -334,7 +334,7 @@ function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string
       // Screenshots are run evidence: write into the run artifact dir (runner
       // injects RUN_ARTIFACT_DIR) so collectArtifacts() persists them. The old
       // __dirname-relative path landed in the temp compile dir, which is
-      // cleaned up â€” screenshots silently never reached storage.
+      // cleaned up — screenshots silently never reached storage.
       return `await ${pageVar}.screenshot({ path: require('node:path').join(process.env.RUN_ARTIFACT_DIR ?? '.', 'screenshots', ${esc(`${step.id}.png`)}), fullPage: ${step.fullPage ? 'true' : 'false'} });`;
     case 'visualCheck':
       return visualCheckBody(step, pageVar);
@@ -356,7 +356,7 @@ function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string
       const url = typeof rec['url'] === 'string' && rec['url'] ? (rec['url'] as string) : undefined;
       const saveAs = typeof rec['saveAs'] === 'string' && rec['saveAs'] ? (rec['saveAs'] as string) : undefined;
       if (!target && !url) {
-        throw new CompileError(step.id, `Step '${step.id}': download requires at least one of 'target' or 'url' â€” failing compilation, never silently skipping`);
+        throw new CompileError(step.id, `Step '${step.id}': download requires at least one of 'target' or 'url' — failing compilation, never silently skipping`);
       }
       if (target) {
         if (!target.primary) throw new CompileError(step.id, `Step '${step.id}': download requires target.primary`);
@@ -381,7 +381,7 @@ function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string
     }
     case 'newTab': {
       if (!newPageVar) {
-        throw new CompileError(step.id, `Step '${step.id}': newTab requires a deterministic page name â€” compile via compileSpec() so tabs are named page/page2/... explicitly`);
+        throw new CompileError(step.id, `Step '${step.id}': newTab requires a deterministic page name — compile via compileSpec() so tabs are named page/page2/... explicitly`);
       }
       const rec = step as unknown as Record<string, unknown>;
       const url = typeof rec['url'] === 'string' && rec['url'] ? (rec['url'] as string) : undefined;
@@ -412,9 +412,9 @@ function stepBody(step: TestStep, pageVar = 'page', newPageVar?: string): string
     case 'axeCheck':
       return axeCheckBody(step, pageVar);
     case 'callAction':
-      throw new CompileError(step.id, `Step '${step.id}': callAction needs an actions context â€” pass { actions } to compileSpec() so the callee body can be inlined explicitly`);
+      throw new CompileError(step.id, `Step '${step.id}': callAction needs an actions context — pass { actions } to compileSpec() so the callee body can be inlined explicitly`);
     default:
-      throw new CompileError(step.id, `Step '${step.id}': unsupported step type '${step.type}' â€” failing compilation, never silently skipping`);
+      throw new CompileError(step.id, `Step '${step.id}': unsupported step type '${step.type}' — failing compilation, never silently skipping`);
   }
 }
 
@@ -483,7 +483,7 @@ function assertPluginStep(step: TestStep, plugins?: Record<string, PluginCompile
   if (!plugins) return;
   const info = Object.prototype.hasOwnProperty.call(plugins, step.type) ? plugins[step.type] : undefined;
   if (!info) {
-    throw new CompileError(step.id, `Step '${step.id}': PLUGIN_NOT_FOUND â€” plugin step '${step.type}' is not registered (install under PLUGINS_DIR, enable with ALLOW_PLUGINS=1 after Developer/Admin review)`);
+    throw new CompileError(step.id, `Step '${step.id}': PLUGIN_NOT_FOUND — plugin step '${step.type}' is not registered (install under PLUGINS_DIR, enable with ALLOW_PLUGINS=1 after Developer/Admin review)`);
   }
   const schema = info.schema;
   if (!schema) return;
@@ -559,7 +559,7 @@ function apiRequestBody(step: TestStep): string {
 
 /**
  * mockRoute -> `page.route()` interception registered BEFORE the app fires
- * the request (ordering is the author's job â€” put it before goto/click).
+ * the request (ordering is the author's job — put it before goto/click).
  * Method filter falls through to the network; everything else fulfills.
  * Deterministic: same fields always emit the same lines (no timestamps).
  */
@@ -647,7 +647,7 @@ function axeCheckBody(step: TestStep, pageVar: string): string {
  * record; inner body titles carry NO `[id]` prefix so they stream as plain
  * nested Playwright steps without creating phantom step records.
  * Unknown actions / missing args / nested calls / plaintext secrets all
- * fail with an explicit CompileError â€” never silently skipped.
+ * fail with an explicit CompileError — never silently skipped.
  */
 function lookupAction(actions: ActionsContext | undefined, actionId: string): ReusableAction | undefined {
   if (!actions) return undefined;
@@ -683,7 +683,7 @@ function resolveActionArguments(caller: TestStep, action: ReusableAction): Recor
       throw new CompileError(caller.id, `Step '${caller.id}': callAction argument '${param.name}' must be a string`);
     } else if (param.default !== undefined) {
       if (param.secret === true && findTemplateVars(param.default).length === 0) {
-        throw new CompileError(caller.id, `Step '${caller.id}': secret parameter '${param.name}' of action '${action.name}' has a plaintext default â€” defaults for secret params must be {{VARIABLE}} references`);
+        throw new CompileError(caller.id, `Step '${caller.id}': secret parameter '${param.name}' of action '${action.name}' has a plaintext default — defaults for secret params must be {{VARIABLE}} references`);
       }
       resolved[param.name] = param.default;
     } else {
@@ -721,7 +721,7 @@ function interpolateActionStep(step: TestStep, args: Record<string, string>): Te
 /**
  * P2 healing probe wrapper (flag-gated, `compileSpec(test, { healingProbe })`).
  * On primary failure, each stored alternative is counted read-only
- * (`.count()` never waits â€” bounded, immediate) and one JSON line is
+ * (`.count()` never waits — bounded, immediate) and one JSON line is
  * appended to VV_HEALING_PATH. The original error is always rethrown: the
  * step keeps `failed`, nothing is silently healed. Without the flag the
  * output is byte-identical to before (P0 primary-only unchanged).
@@ -804,10 +804,10 @@ function emitCallAction(
   const inner: string[] = [];
   for (const bodyStep of action.steps) {
     if (bodyStep.type === 'callAction') {
-      throw new CompileError(caller.id, `Step '${caller.id}': cannot inline action '${action.name}' (${action.id}) â€” nested callAction (body step '${bodyStep.id}') is rejected, action bodies must be P0 steps`);
+      throw new CompileError(caller.id, `Step '${caller.id}': cannot inline action '${action.name}' (${action.id}) — nested callAction (body step '${bodyStep.id}') is rejected, action bodies must be P0 steps`);
     }
     if (bodyStep.type === 'newTab' || bodyStep.type === 'closeTab') {
-      throw new CompileError(caller.id, `Step '${caller.id}': cannot inline action '${action.name}' (${action.id}) â€” body step '${bodyStep.id}' (${bodyStep.type}) manages tabs, multi-tab state never crosses the action boundary`);
+      throw new CompileError(caller.id, `Step '${caller.id}': cannot inline action '${action.name}' (${action.id}) — body step '${bodyStep.id}' (${bodyStep.type}) manages tabs, multi-tab state never crosses the action boundary`);
     }
     // Runner convention: disabled steps are omitted (no StepRecord exists for
     // body steps, so there is nothing to mark skipped).
@@ -865,7 +865,7 @@ export function compileSpec(
   });
   const fixtures = ['page', ...(needsContext ? ['context'] : []), ...(needsRequest ? ['request'] : [])].join(', ');
   const lines: string[] = [
-    `// Generated by runner compiler ${RUNNER_COMPILER_VERSION} â€” do not edit.`,
+    `// Generated by runner compiler ${RUNNER_COMPILER_VERSION} — do not edit.`,
     `// Test: ${test.name} (${test.id})`,
     `import { test, expect } from '@playwright/test';`,
     ``,
@@ -874,14 +874,14 @@ export function compileSpec(
   if (opts?.testTimeoutMs) lines.push(`  test.setTimeout(${opts.testTimeoutMs});`);
   const pad = dataset ? '  ' : '';
   if (dataset) {
-    lines.push(`  // Data-driven: dataset ${esc(dataset.name)} (${dataset.id}) â€” rows from VV_DATASET_ROWS.`);
-    lines.push(`  // Dataset rows are plaintext â€” never put secrets in datasets, use {{VARIABLES}} instead.`);
+    lines.push(`  // Data-driven: dataset ${esc(dataset.name)} (${dataset.id}) — rows from VV_DATASET_ROWS.`);
+    lines.push(`  // Dataset rows are plaintext — never put secrets in datasets, use {{VARIABLES}} instead.`);
     lines.push(`  const VV_ROWS: Array<Record<string, string>> = JSON.parse(process.env.VV_DATASET_ROWS ?? '[]');`);
     lines.push(`  for (let _vvIteration = 0; _vvIteration < (VV_ROWS.length ? VV_ROWS.length : 1); _vvIteration++) {`);
     lines.push(`    const row: Record<string, string> = VV_ROWS[_vvIteration] ?? {};`);
   }
   // P1 wave-2 tab tracking mirrors the package compiler: deterministic
-  // `page`/`page2`/â€¦ stack; `closeTab` on the last tab fails explicitly.
+  // `page`/`page2`/… stack; `closeTab` on the last tab fails explicitly.
   const pageStack: string[] = ['page'];
   let pageCounter = 1;
   const emitTopLevel = (step: TestStep, body: string, pageVar: string): void => {
@@ -907,7 +907,7 @@ export function compileSpec(
     }
     if (step.type === 'closeTab') {
       if (pageStack.length <= 1) {
-        throw new CompileError(step.id, `Step '${step.id}': closeTab cannot close the last remaining tab â€” at least one page must stay open`);
+        throw new CompileError(step.id, `Step '${step.id}': closeTab cannot close the last remaining tab — at least one page must stay open`);
       }
       const currentPage = pageStack[pageStack.length - 1];
       emitTopLevel(step, stepBody(step, currentPage), currentPage);
@@ -919,14 +919,14 @@ export function compileSpec(
       const action = typeof actionId === 'string' ? lookupAction(opts?.actions, actionId) : undefined;
       if (!action) {
         throw new CompileError(step.id, typeof actionId === 'string' && actionId.length > 0
-          ? `Step '${step.id}': callAction references unknown action '${actionId}' â€” pass it via compileSpec(test, { actions })`
+          ? `Step '${step.id}': callAction references unknown action '${actionId}' — pass it via compileSpec(test, { actions })`
           : `Step '${step.id}': callAction requires actionId`);
       }
       lines.push(...emitCallAction(step, action, `${pad}  `, dataset !== undefined, pageStack[pageStack.length - 1] as string, opts?.healingProbe === true));
       continue;
     }
     // P2 plugin fail-fast when the registry snapshot is available (otherwise
-    // the workdir helper throws PLUGIN_NOT_FOUND at run time â€” never silent).
+    // the workdir helper throws PLUGIN_NOT_FOUND at run time — never silent).
     if (typeof step.type === 'string' && PLUGIN_STEP_PATTERN.test(step.type)) {
       assertPluginStep(step, opts?.plugins);
     }
@@ -939,7 +939,7 @@ export function compileSpec(
 }
 
 /**
- * Resolve the dataset for a data-driven compile. No datasetId â†’ plain P0
+ * Resolve the dataset for a data-driven compile. No datasetId → plain P0
  * output. Unknown id fails explicitly; `{{row.*}}` without a dataset fails
  * explicitly (there would be no `row` binding at run time).
  */
@@ -977,7 +977,7 @@ function assertNoRowRefs(test: TestDefinition): void {
       if (walk(rec[f])) {
         throw new CompileError(
           step.id,
-          `Step '${step.id}' uses {{row.*}} but no dataset is selected â€” pass datasetId or remove the reference`,
+          `Step '${step.id}' uses {{row.*}} but no dataset is selected — pass datasetId or remove the reference`,
         );
       }
     }
@@ -987,7 +987,7 @@ function assertNoRowRefs(test: TestDefinition): void {
         if (typeof v === 'string' && findRowRefs(v).length > 0) {
           throw new CompileError(
             step.id,
-            `Step '${step.id}' passes {{row.*}} into an action argument but no dataset is selected â€” pass datasetId or remove the reference`,
+            `Step '${step.id}' passes {{row.*}} into an action argument but no dataset is selected — pass datasetId or remove the reference`,
           );
         }
       }
@@ -1011,7 +1011,7 @@ export interface RunConfigOptions {
   /**
    * P1 auth context: relative filename of the materialized storageState
    * JSON inside the isolated workDir (e.g. `storageState.json`). When
-   * undefined (default) the config keeps `storageState: undefined` â€”
+   * undefined (default) the config keeps `storageState: undefined` —
    * byte-identical to P0 (fresh context per run, never reused).
    */
   storageStateFile?: string;
@@ -1028,14 +1028,14 @@ export function compileConfig(opts: RunConfigOptions): string {
   const storageStateLine = opts.storageStateFile
     ? `    contextOptions: { storageState: ${esc(opts.storageStateFile)} }, // P1 auth context materialized per run`
     : `    contextOptions: { storageState: undefined }, // fresh context per run, never reused`;
-  // NOTE: devices['Desktop Chrome'] pins viewport 1280x720 â€” an explicit
+  // NOTE: devices['Desktop Chrome'] pins viewport 1280x720 — an explicit
   // run/test viewport must be re-applied AFTER the spread, otherwise the
   // responsive override is silently ignored (screenshots stay 1280x720).
   const viewportLine = opts.viewport
     ? `, viewport: { width: ${opts.viewport.width}, height: ${opts.viewport.height} }`
     : ``;
   return [
-    `// Generated by runner compiler ${RUNNER_COMPILER_VERSION} â€” isolated run ${opts.runId}.`,
+    `// Generated by runner compiler ${RUNNER_COMPILER_VERSION} — isolated run ${opts.runId}.`,
     `import { defineConfig, devices } from '@playwright/test';`,
     ``,
     `export default defineConfig({`,

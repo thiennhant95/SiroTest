@@ -154,7 +154,7 @@ model Action {
   @@unique([projectId, name])
 }
 
-// P1 — suites (09-database/schema.md: test_suites + suite_tests).
+// P1 — suites (spec/09-database/schema.md: test_suites + suite_tests).
 model TestSuite {
   id          String      @id @default(cuid())
   projectId   String

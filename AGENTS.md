@@ -1,7 +1,7 @@
-# AGENTS.md Ã¢â‚¬â€ Mandatory rules for every agent (Playwright Studio / playwright-vv)
+# AGENTS.md — Mandatory rules for every agent (Playwright Studio / playwright-vv)
 
 > Source of truth: `INDEX.md` + spec folders under `spec/` (`00-16`). This file is a normative
-> summary Ã¢â‚¬â€ when in doubt, the spec folder wins. No P1/P2 work until the P0
+> summary — when in doubt, the spec folder wins. No P1/P2 work until the P0
 > release gate is green.
 
 ## 1. Canonical model & engine boundaries (ADR-001, ADR-002)
@@ -12,26 +12,26 @@
 - NEVER fork or modify Playwright core. Upstream `@playwright/test` remains
   the execution engine (`README.md` non-goals, ADR-001).
 - NEVER silently mutate stored definitions. `schemaVersion` migrations must be
-  explicit, deterministic and tested (`spec/03-test-model` Compatibility).
+  explicit, deterministic and tested (`03-test-model` Compatibility).
 
 ## 2. Compiler is deterministic and pure (`spec/06-compiler/playwright-compiler.md`)
 
-- Same definition + same compiler version Ã¢â€¡â€™ byte-identical output.
+- Same definition + same compiler version ⇒ byte-identical output.
 - Escape all generated strings safely; generated export must be readable,
   not minified; preserve step names via `test.step()` when useful.
 - Locator mapping is fixed:
-  `role` Ã¢â€ â€™ `page.getByRole()`; `label` Ã¢â€ â€™ `getByLabel()`;
-  `placeholder` Ã¢â€ â€™ `getByPlaceholder()`; `testId` Ã¢â€ â€™ `getByTestId()`;
-  `text` Ã¢â€ â€™ `getByText()`; `css`/`xpath` Ã¢â€ â€™ `page.locator()`.
+  `role` → `page.getByRole()`; `label` → `getByLabel()`;
+  `placeholder` → `getByPlaceholder()`; `testId` → `getByTestId()`;
+  `text` → `getByText()`; `css`/`xpath` → `page.locator()`.
 - `{{NAME}}` variables compile to an injected runtime env/config helper.
 
-## 3. P0 executes primary locator ONLY Ã¢â‚¬â€ no self-healing (ADR-003, `05-locator`)
+## 3. P0 executes primary locator ONLY — no self-healing (ADR-003, `05-locator`)
 
 - Recorder stores ranked candidates (`primary` + `alternatives`), but P0
   executes `primary` only. Alternatives are evidence for future (P2) repair.
 - NEVER silently switch locator during execution. P2 healing must be
-  explicit/auditable Ã¢â‚¬â€ it is out of scope for P0 (`README.md`, ADR-005).
-- Locator priority (not absolute Ã¢â‚¬â€ candidates must also be unique and stable):
+  explicit/auditable — it is out of scope for P0 (`README.md`, ADR-005).
+- Locator priority (not absolute — candidates must also be unique and stable):
   1. Role + accessible name
   2. Label
   3. Placeholder
@@ -55,12 +55,12 @@
 
 ## 5. No silent skips, no silent failures
 
-- Unsupported step Ã¢â€¡â€™ compilation FAILS with an explicit error. Never silently
+- Unsupported step ⇒ compilation FAILS with an explicit error. Never silently
   skip (`spec/06-compiler` Requirements).
-- Runner lifecycle is fixed (`spec/07-runner/runner-spec.md`): validate Ã¢â€ â€™ resolve
-  env/variables Ã¢â€ â€™ isolated temp run dir Ã¢â€ â€™ compile spec/config Ã¢â€ â€™ execute with
-  custom reporter Ã¢â€ â€™ stream WS events Ã¢â€ â€™ persist
-  status/duration/error/artifact metadata Ã¢â€ â€™ cleanup temp source, retain
+- Runner lifecycle is fixed (`spec/07-runner/runner-spec.md`): validate → resolve
+  env/variables → isolated temp run dir → compile spec/config → execute with
+  custom reporter → stream WS events → persist
+  status/duration/error/artifact metadata → cleanup temp source, retain
   configured artifacts.
 - Run status: `queued | running | passed | failed | cancelled`.
   Step status: `pending | running | passed | failed | skipped`.
@@ -74,42 +74,42 @@
 - Events are informational ONLY. On reconnect the client must fetch current
   run/session state from the DB/API instead of assuming no events were missed.
 
-## 7. Isolation & execution safety (`spec/07-runner`, `11-security`)
+## 7. Isolation & execution safety (`07-runner`, `11-security`)
 
 - Each run gets a UNIQUE working directory + UNIQUE browser context, used
   ONCE. Never reuse test state unless an explicit P1 auth/storage-state
   feature is used.
-- P0 default 1Ã¢â‚¬â€œ2 concurrent runs per host (configurable); queue excess; never
+- P0 default 1–2 concurrent runs per host (configurable); queue excess; never
   let recorder sessions starve execution workers.
-- Timeout precedence: project default Ã¢â€ â€™ test override Ã¢â€ â€™ step override; UI must
+- Timeout precedence: project default → test override → step override; UI must
   make overrides visible.
 - Run executions in dedicated working dirs with path-traversal protection;
   validate URLs + project permissions before recorder/run; artifact/size
   limits apply (JSON body 1 MB, definition 512 KB, single artifact 50 MB,
   100 screenshots/run); never expose server filesystem paths to browser clients.
 - `ALLOW_CUSTOM_CODE` stays unset in P0: arbitrary custom steps are rejected
-  for ALL roles (ADR-006 Ã¢â‚¬â€ custom code is a Developer/Admin escape hatch, not
+  for ALL roles (ADR-006 — custom code is a Developer/Admin escape hatch, not
   normal tester UX; preferably disabled in P0 without a safe sandbox).
 - `ALLOW_PRIVATE_TARGETS=1` only for local E2E against the bundled `/fixture`
   app. NEVER on internet-facing hosts (SSRF).
 - Auth: REST requires `Authorization: Bearer` (or dev `x-user-id`); WS `/ws`
   requires `?token=` and fans out only to the subscribed `runId`/`sessionId`.
-  No cookie auth exists Ã¢â‚¬â€ do not add cookie sessions without Origin-checked
+  No cookie auth exists — do not add cookie sessions without Origin-checked
   CSRF tokens.
 
 ## 8. After every fix: typecheck + corresponding tests
 
 - Run `pnpm typecheck` (or the affected package `typecheck`) plus the test
-  layer(s) covering the change Ã¢â‚¬â€ see `.opencode/skills/test-gate/SKILL.md`:
+  layer(s) covering the change — see `.opencode/skills/test-gate/SKILL.md`:
   `pnpm test:unit | test:security | test:integration | test:e2e | test:p0`.
 - Golden compiler rule (`spec/12-testing/test-strategy.md`): JSON fixtures with
   expected `.spec.ts` snapshots; generated code must also parse/typecheck.
 
-## 9. P0 gate first Ã¢â‚¬â€ no P1 until green
+## 9. P0 gate first — no P1 until green
 
 - Do NOT open P1 work (reusable actions, data-driven tests, suites/tags,
   import/export, scheduling/CI, collaboration) while the P0 gate
-  (`spec/12-testing` Release gate: no known data-loss bug; compiler coverage for
+  (`12-testing` Release gate: no known data-loss bug; compiler coverage for
   every P0 step; core E2E green on Chromium; secret redaction green;
   interrupted runner/recorder recovery tested) is red.
 - P2 (AI assistance, self-healing, plugins, distributed runners, enterprise

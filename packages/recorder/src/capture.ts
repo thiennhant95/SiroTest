@@ -1,5 +1,5 @@
 /**
- * capture.ts â€” allowlist-only raw event -> captured step.
+ * capture.ts — allowlist-only raw event -> captured step.
  * Spec: spec/04-recorder/recorder-spec.md
  *  - capture: navigation, click/dblclick, input/change, select,
  *    checkbox/radio, meaningful keys, hover (optional).
@@ -57,7 +57,7 @@ export function maskValue(value: string | undefined): string {
 }
 
 function elementKey(e: BridgeEvent): string {
-  // Fingerprint for debounce only â€” resolved to a real locator server-side.
+  // Fingerprint for debounce only — resolved to a real locator server-side.
   // Uses stable hints + point bucket, never a selector string.
   const px = e.point ? Math.round(e.point.x / 4) : 0;
   const py = e.point ? Math.round(e.point.y / 4) : 0;

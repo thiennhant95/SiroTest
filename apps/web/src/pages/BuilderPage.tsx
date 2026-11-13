@@ -82,7 +82,7 @@ export function BuilderPage() {
   const [showEnvs, setShowEnvs] = useState(false);
   const [showRunModal, setShowRunModal] = useState(false);
   const [showInspector, setShowInspector] = useState(false);
-  // -- locator picker wiring (spec/05-locator): session + per-step test results + assertion modal --
+  // -- locator picker wiring (05-locator): session + per-step test results + assertion modal --
   const [sessionId, setSessionId] = useState("");
   const [testResults, setTestResults] = useState<Record<string, StepTestResult | null>>({});
   const [assertionOpen, setAssertionOpen] = useState(false);
@@ -102,7 +102,7 @@ export function BuilderPage() {
   const selectedStep: BuilderStep | null =
     definition?.steps.find((s) => s.id === selectedId) ?? null;
 
-  // Origin for testLocator/setPickMode (they append /api/v1/â€¦). apiBase includes /api/v1.
+  // Origin for testLocator/setPickMode (they append /api/v1/…). apiBase includes /api/v1.
   const apiBaseOrigin = useMemo(() => apiBase.replace(/\/api\/v1$/, "").replace(/\/$/, "") || window.location.origin, []);
   const unhealthy = useMemo(
     () => (definition?.steps ?? []).filter((s) => testResults[s.id] && !testResults[s.id]!.canSave),
@@ -150,7 +150,7 @@ export function BuilderPage() {
     try {
       setVariables(await api.listVariables(pid));
     } catch {
-      /* variables optional â€” tab shows error/empty */
+      /* variables optional — tab shows error/empty */
     }
   }, []);
 
@@ -186,7 +186,7 @@ export function BuilderPage() {
       await reloadVariables(record.projectId);
     } catch (e) {
       if (e instanceof ApiError && e.status === 0) {
-        // API server chÆ°a cháº¡y: offline demo Ä‘á»ƒ váº«n thao tÃ¡c Ä‘Æ°á»£c UI.
+        // API server chưa chạy: offline demo để vẫn thao tác được UI.
         const demo = demoDefinition(id);
         setDefinition(demo);
         setProjectId(demo.projectId);
@@ -304,14 +304,14 @@ export function BuilderPage() {
   };
 
   // -- run (always uses persisted revision) --
-  // NÃºt Run má»Ÿ RunModal (chá»n env/browser/headed) â†’ api.createRun â†’ navigate /runs/:id.
+  // Nút Run mở RunModal (chọn env/browser/headed) → api.createRun → navigate /runs/:id.
   const runDisabled = dirty || saveState === "saving" || !envId;
   const runHint = offline
-    ? "Offline demo â€” start the API server to run."
+    ? "Offline demo — start the API server to run."
     : !envId
       ? "Select an environment to run."
       : dirty || saveState === "saving"
-        ? "Saving draftâ€¦ Run is available once saved (runs always use the persisted revision)."
+        ? "Saving draft… Run is available once saved (runs always use the persisted revision)."
         : "Run the saved revision.";
 
   const envName = environments.find((e) => e.id === envId)?.name ?? "";
@@ -339,7 +339,7 @@ export function BuilderPage() {
         <ErrorState message={loadError || "Test not found"} onRetry={load} />
         <p className="mt-3">
           <Link to="/projects" className="text-sm text-indigo-700 hover:underline">
-            â† Back to Projects
+            ← Back to Projects
           </Link>
         </p>
       </main>
@@ -357,7 +357,7 @@ export function BuilderPage() {
       {/* ================= Header ================= */}
       <header className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-4 py-2">
         <Link to={projectId && projectId !== "demo" ? `/projects/${projectId}/tests` : "/projects"} className="text-slate-500 hover:text-slate-800" title="Back to tests">
-          â†
+          ←
         </Link>
         <Input
           aria-label="Test name"
@@ -379,7 +379,7 @@ export function BuilderPage() {
                 setDefinition((d) => (d ? { ...d, tags: (d.tags ?? []).filter((x) => x !== t) } : d))
               }
             >
-              Ã—
+              ×
             </button>
           </span>
         ))}
@@ -395,21 +395,21 @@ export function BuilderPage() {
           }
         />
         <Select aria-label="Environment" value={envId} onChange={(e) => setEnvId(e.target.value)} className="w-44">
-          <option value="">Environmentâ€¦</option>
+          <option value="">Environment…</option>
           {environments.map((e) => (
             <option key={e.id} value={e.id}>{e.name}</option>
           ))}
         </Select>
         <Button size="sm" variant="outline" onClick={() => setShowEnvs(true)} disabled={offline || !projectId || projectId === "demo"} title="Manage environments">
-          âš™ Envs
+          ⚙ Envs
         </Button>
         {projectId && projectId !== "demo" ? (
           <ProjectMenu projectId={projectId} nav={nav} />
         ) : null}
         <Input
           aria-label="Recorder session"
-          title="Recorder session â€” enables Pick from page + Test locator on live page"
-          placeholder="Recorder sessionâ€¦"
+          title="Recorder session — enables Pick from page + Test locator on live page"
+          placeholder="Recorder session…"
           value={sessionId}
           onChange={(e) => setSessionId(e.target.value)}
           className="w-44"
@@ -425,7 +425,7 @@ export function BuilderPage() {
           <Tooltip tip="Record actions into steps">
             <span data-tour="record">
               <Button size="sm" variant="outline" onClick={() => nav(`/tests/${id}/record`)}>
-                â— Record
+                ● Record
               </Button>
             </span>
           </Tooltip>
@@ -433,7 +433,7 @@ export function BuilderPage() {
             <Tooltip tip={runDisabled ? runHint : "Run the saved revision"}>
               <span data-tour="run">
                 <Button size="sm" disabled={runDisabled} onClick={() => setShowRunModal(true)}>
-                  â–¶ Run
+                  ▶ Run
                 </Button>
               </span>
             </Tooltip>
@@ -447,7 +447,7 @@ export function BuilderPage() {
       </header>
       {offline ? (
         <p className="border-b border-amber-200 bg-amber-50 px-4 py-1.5 text-xs text-amber-800">
-          Offline demo mode â€” could not reach the API (<code>/api/v1</code>). Start the server in{" "}
+          Offline demo mode — could not reach the API (<code>/api/v1</code>). Start the server in{" "}
           <code>apps/server</code> then reload to persist (GET/PATCH /tests/:id).
         </p>
       ) : null}
@@ -486,13 +486,13 @@ export function BuilderPage() {
         {/* Left: test tree / search */}
         <aside className="thin-scroll hidden min-h-0 flex-col gap-2 overflow-y-auto border-r border-slate-200 bg-white p-3 md:flex">
           <Input
-            placeholder="Search stepsâ€¦"
+            placeholder="Search steps…"
             aria-label="Search steps"
             value={treeQuery}
             onChange={(e) => setTreeQuery(e.target.value)}
           />
           <p className="text-[11px] uppercase tracking-wide text-slate-400">
-            Test tree Â· {definition.steps.length} steps
+            Test tree · {definition.steps.length} steps
           </p>
           <ul className="space-y-1">
             {visibleSteps.map((s, i) => (
@@ -534,7 +534,7 @@ export function BuilderPage() {
           {definition.steps.length === 0 ? (
             <EmptyState
               title="This test has no steps"
-              hint="Click Add step and search familiar terms: click, text, URLâ€¦"
+              hint="Click Add step and search familiar terms: click, text, URL…"
               action={
                 <Button size="sm" onClick={() => setPaletteOpen(true)}>
                   + Add step
@@ -625,9 +625,9 @@ export function BuilderPage() {
         <div className="thin-scroll max-h-48 min-h-24 overflow-y-auto px-4 py-3">
           {bottomTab === "steps" ? (
             <p className="text-xs text-slate-500">
-              {definition.steps.length} steps Â· {definition.steps.filter((s) => !s.enabled).length} disabled Â·
+              {definition.steps.length} steps · {definition.steps.filter((s) => !s.enabled).length} disabled ·
               browser <code>{definition.browser}</code>
-              {definition.baseUrl ? <> Â· baseUrl <code>{definition.baseUrl}</code></> : null}
+              {definition.baseUrl ? <> · baseUrl <code>{definition.baseUrl}</code></> : null}
             </p>
           ) : null}
           {bottomTab === "variables" ? (
@@ -714,7 +714,7 @@ export function BuilderPage() {
       />
       <BuilderTour />
 
-      {/* Header env select Ä‘á»“ng bá»™ vá»›i EnvironmentsPanel (chung envId state). */}
+      {/* Header env select đồng bộ với EnvironmentsPanel (chung envId state). */}
       <Dialog open={showEnvs} onClose={() => setShowEnvs(false)} title="Environments" wide>
         <EnvironmentsPanel
           projectId={projectId}
@@ -749,16 +749,16 @@ export function BuilderPage() {
 function ProjectMenu({ projectId, nav }: { projectId: string; nav: (to: string) => void }) {
   const [open, setOpen] = useState(false);
   const items = [
-    { to: `/projects/${projectId}/actions`, icon: "ðŸ”", label: "Actions", hint: "Reusable actions / business keywords" },
-    { to: `/projects/${projectId}/profiles`, icon: "ðŸ‘¤", label: "Profiles", hint: "Auth profiles (storageState)" },
-    { to: `/projects/${projectId}/files`, icon: "ðŸ“", label: "Files", hint: "File library for Upload steps" },
-    { to: `/projects/${projectId}/schedules`, icon: "ðŸ•’", label: "Schedules", hint: "Cron schedules for suites/tests" },
-    { to: `/projects/${projectId}/suites`, icon: "ðŸ“¦", label: "Suites", hint: "Group tests to run together" },
+    { to: `/projects/${projectId}/actions`, icon: "🔁", label: "Actions", hint: "Reusable actions / business keywords" },
+    { to: `/projects/${projectId}/profiles`, icon: "👤", label: "Profiles", hint: "Auth profiles (storageState)" },
+    { to: `/projects/${projectId}/files`, icon: "📁", label: "Files", hint: "File library for Upload steps" },
+    { to: `/projects/${projectId}/schedules`, icon: "🕒", label: "Schedules", hint: "Cron schedules for suites/tests" },
+    { to: `/projects/${projectId}/suites`, icon: "📦", label: "Suites", hint: "Group tests to run together" },
   ];
   return (
     <span className="relative">
       <Button size="sm" variant="outline" onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open} title="Project resources">
-        ðŸ“ Project â–¾
+        📁 Project ▾
       </Button>
       {open ? (
         <>
@@ -795,7 +795,7 @@ function TagsEditor({ disabled, onAdd }: { disabled?: boolean; onAdd: (tag: stri
         type="button"
         className="text-xs text-slate-500 hover:text-indigo-700 hover:underline"
         disabled={disabled}
-        title={disabled ? "Offline â€” start the server to save tags" : "Add tag (autosave PATCH definition.tags)"}
+        title={disabled ? "Offline — start the server to save tags" : "Add tag (autosave PATCH definition.tags)"}
         onClick={() => setOpen(true)}
       >
         + Tag
@@ -819,7 +819,7 @@ function TagsEditor({ disabled, onAdd }: { disabled?: boolean; onAdd: (tag: stri
         aria-label="New tag"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="tagâ€¦"
+        placeholder="tag…"
         className="h-6 w-24 text-xs"
       />
       <Button size="sm" type="submit" variant="outline" className="h-6 px-2 text-xs">
@@ -834,7 +834,7 @@ function TagsEditor({ disabled, onAdd }: { disabled?: boolean; onAdd: (tag: stri
           setValue("");
         }}
       >
-        Ã—
+        ×
       </button>
     </form>
   );
@@ -851,13 +851,13 @@ function AutosaveBadge({
   error: string;
   offline: boolean;
 }) {
-  if (offline) return <Badge tone="amber">Offline â€” not saved to server</Badge>;
-  if (state === "saving" || dirty) return <Badge tone="indigo">Savingâ€¦</Badge>;
-  if (state === "error") return <Badge tone="red" title={error}>Save error â€” keep editing to retry</Badge>;
+  if (offline) return <Badge tone="amber">Offline — not saved to server</Badge>;
+  if (state === "saving" || dirty) return <Badge tone="indigo">Saving…</Badge>;
+  if (state === "error") return <Badge tone="red" title={error}>Save error — keep editing to retry</Badge>;
   return <Badge tone="green">Saved</Badge>;
 }
 
-/** Stability stamp + rubric at a glance. Check runs the gate async (202 + poll) â€” needs an environment. */
+/** Stability stamp + rubric at a glance. Check runs the gate async (202 + poll) — needs an environment. */
 function StabilityBadge({ testId, envId, offline, version }: { testId: string; envId: string; offline: boolean; version: string }) {
   const toast = useToast();
   const [stamp, setStamp] = useState<{ stable: boolean; stableRuns: number } | null>(null);
@@ -883,7 +883,7 @@ function StabilityBadge({ testId, envId, offline, version }: { testId: string; e
           setGate(null);
           setStamp({ stable: g.stable, stableRuns: g.stable ? g.total : 0 });
           if (g.status === "cancelled") toast.push("info", "Stability check cancelled.");
-          else toast.push(g.stable ? "success" : "error", g.stable ? `Stable ${g.passed}/${g.total} â€” stamp set.` : g.error ? `Gate failed: ${g.error}` : `Unstable: ${g.passed}/${g.total} passed. Inspect the runs.`);
+          else toast.push(g.stable ? "success" : "error", g.stable ? `Stable ${g.passed}/${g.total} — stamp set.` : g.error ? `Gate failed: ${g.error}` : `Unstable: ${g.passed}/${g.total} passed. Inspect the runs.`);
         } else {
           setGate({ gateId: gate.gateId, done, total: g.total });
         }
@@ -904,14 +904,14 @@ function StabilityBadge({ testId, envId, offline, version }: { testId: string; e
       {stamp ? (
         stamp.stable
           ? <Badge tone="green" title={`Passed ${stamp.stableRuns}/${stamp.stableRuns} consecutive runs. Any edit clears the stamp.`}>Stable {stamp.stableRuns}/{stamp.stableRuns}</Badge>
-          : <Badge tone="slate" title="Not stamped â€” run the stability gate (3 consecutive passes) to certify this definition.">Not stable</Badge>
+          : <Badge tone="slate" title="Not stamped — run the stability gate (3 consecutive passes) to certify this definition.">Not stable</Badge>
       ) : null}
       {score !== null ? <Badge tone="slate" title="Recording-quality rubric (stable locators, backups, no hard sleeps, assertions, names)">Rubric {score}/100</Badge> : null}
       <Button
         size="sm"
         variant="outline"
         disabled={busy || !envId}
-        title={envId ? "Run 3 consecutive passes in the background (202 + poll) â€” stamps the definition stable on 3/3" : "Select an environment first"}
+        title={envId ? "Run 3 consecutive passes in the background (202 + poll) — stamps the definition stable on 3/3" : "Select an environment first"}
         onClick={() => {
           if (!envId) { toast.push("error", "Select an environment first."); return; }
           if (busy) return;
@@ -920,7 +920,7 @@ function StabilityBadge({ testId, envId, offline, version }: { testId: string; e
           }).catch((e) => toast.push("error", e instanceof ApiError ? e.message : "Stability check failed"));
         }}
       >
-        {busy && gate ? `Checking ${gate.done}/${gate.total}â€¦` : "Check 3Ã—"}
+        {busy && gate ? `Checking ${gate.done}/${gate.total}…` : "Check 3×"}
       </Button>
       {busy && gate ? (
         <Button
@@ -1043,7 +1043,7 @@ function RunsPanel({ testId }: { testId: string }) {
           header: "Run",
           render: (r) => (
             <Link to={`/runs/${r.id}`} className="text-indigo-700 hover:underline">
-              Open â†’
+              Open →
             </Link>
           ),
         },

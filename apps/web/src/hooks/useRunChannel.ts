@@ -77,7 +77,7 @@ export function useRunChannel(runId: string | null) {
     let closed = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
-    void refetch(); // DB first â€” authoritative
+    void refetch(); // DB first — authoritative
 
     function connect() {
       if (closed) return;
@@ -97,7 +97,7 @@ export function useRunChannel(runId: string | null) {
         let parsed: { event?: string; payload?: Record<string, unknown> };
         try { parsed = JSON.parse(String(msg.data)); } catch { return; }
         const { event, payload } = parsed;
-        if (!payload || typeof payload.runId !== 'string') return; // runId báº¯t buá»™c
+        if (!payload || typeof payload.runId !== 'string') return; // runId bắt buộc
         if (payload.runId !== runIdRef.current) return; // ignore other runs
         if (typeof event !== 'string' || !event.startsWith('run.') && !event.startsWith('step.')) return;
         setEvents((prev) => [...prev.slice(-199), { event: event as RunEventType, payload: payload as WsRunEvent['payload'] }]);
