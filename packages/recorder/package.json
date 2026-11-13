@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@playwright-vv/locator-engine": "workspace:*",
-    "nanoid": "^5.0.0",
+    "nanoid": "^6.0.2",
     "playwright-core": "^1.63.0"
   },
   "devDependencies": {
