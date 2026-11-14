@@ -51,7 +51,7 @@ Press **▶ Run** → pick environment + browser → **Start run**. The run page
 | # | Step | Value |
 |---|---|---|
 | 1 | Go to page | \`https://demo.example.com/login\` |
-| 2 | Fill | textbox "Email Đăng Nhập" ← \`ci.smoke.company@in3m.local\` |
+| 2 | Fill | textbox "Email Đăng Nhập" ← \`qa@example.com\` |
 | 3 | Fill (sensitive) | textbox "Mật Khẩu" ← \`{{CA_PASS}}\` |
 | 4 | Click | button "Login" |
 | 5 | Assert page title | \`Công ty | Dashboard\` |
@@ -196,7 +196,7 @@ Trigger a suite or a single test on cron:
 
 Create them in **Schedules** (suite or test + environment + cron). Keep the switch **disabled** until the target is side-effect free, and never schedule headed/debug runs.
 
-## Worked example — "DP - Vòng đời người dùng"
+## Worked example — "User lifecycle"
 Five tests in order: SuperAdmin login → create user → edit user → login as the new user → open orders. Tests 2–3 carry \`writes\` tags, so the Run dialog shows the amber side-effect warning ("may create real data") — it warns, never blocks. Each member runs in its own fresh browser context, so no logout steps are needed between the admin and the new-user sessions. Re-running from scratch needs a fresh email: this app soft-deletes users and reserves the address forever, so the suite documents its test account (\`NEW_USER_EMAIL\`) instead of pretending to be repeatable.`,
   },
   {
@@ -315,7 +315,7 @@ Kịch bản: Đăng nhập thành công
 \`\`\`
 Kịch bản: Đăng nhập công ty và lọc hóa đơn cần xử lý
   Cho rằng mở trang https://demo.example.com/login
-  Khi nhập "Email Đăng Nhập" là "ci.smoke.company@in3m.local"
+  Khi nhập "Email Đăng Nhập" là "qa@example.com"
   Và nhập "Mật Khẩu" là "THAY_BANG_CA_PASS"
   Và bấm nút "Login"
   Và mở trang https://demo.example.com/orders-new?page=1

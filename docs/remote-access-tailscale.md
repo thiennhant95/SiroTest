@@ -1,204 +1,174 @@
-# Truy cập từ xa cho BRSE qua Tailscale (tạm thời)
+# Self-hosting SiroTest (Windows or Linux)
 
-> Đối tượng: IT + team lead. Tester/BRSE chỉ cần đọc mục 5.
-> Nguyên tắc: **máy chủ ở văn phòng, BRSE ở đâu cũng vào được bằng danh tính thật.**
-> Trạng thái: giải pháp tạm — khi BRSE > 30 người hoặc có audit bảo mật, chuyển sang
-> Cloudflare Access + SSO (xem cuối file).
+> Audience: the one person who installs the server. Testers and BRSEs never read this — they only open a URL.
+> Verified on Windows 10/11 + Node 20 + pnpm 9. Linux works the same (bash instead of PowerShell).
 
-## 0. Kiến trúc (đọc 1 phút)
+## 0. Architecture (30 seconds)
 
 ```
-BRSE ở nhà/khách hàng/café (Windows, có internet)
-   │  Tailscale (mạng riêng ảo, không mở port router)
-   ▼
-Máy chủ văn phòng (Windows, mạng dây, không tắt)
-   ├─ Web UI  : http://100.x.y.z:5173  (BRSE mở bằng Chrome/Edge)
-   └─ API     : http://127.0.0.1:3001  (chỉ máy chủ thấy, web proxy qua)
+Server host (office PC, wired network, never sleeps)
+├─ SiroTest web UI    :5173   (users open this)
+├─ SiroTest API       :3001   (/api/v1 + /ws)
+├─ Runner             in-process workers (MAX_CONCURRENT_RUNS, default 2)
+├─ SQLite             file:<data-dir>/app.db  (Prisma, Postgres-compatible)
+└─ Artifacts          file:<data-dir>/storage/runs/<run-id>/…
 ```
 
-- BRSE **không cài** Node/pnpm/browser-test. Chỉ cần browser + link.
-- Mọi thao tác của BRSE đều ghi audit (`Audit` trong tool) như người ngồi văn phòng.
-- File vận hành: `start-tool.ps1` (chạy cả server+web), `scripts/add-member.mjs` (cấp quyền tạm).
+Remote teammates reach it over **Tailscale** (no router ports). The database is the
+source of truth: the UI only shows the latest state it fetched.
 
-## 1. Chuẩn bị
+## 1. Prerequisites
 
-| Thứ | Yêu cầu | Lấy ở đâu |
-|---|---|---|
-| Máy chủ | Windows 10/11, RAM ≥ 8GB, **mạng dây**, không sleep/hibernate | IT chuẩn bị |
-| Tài khoản team | Google/Microsoft chung công ty (đăng nhập Tailscale) | Admin Google/MS |
-| Quyền Tailscale admin | duyệt máy vào mạng | người giữ admin |
-| `SECRET_ENCRYPTION_KEY` | base64 32 bytes (giải mã secret trong DB) | team lead |
-| `VV_AI_API_KEY` | key gateway AI (tính năng Explain/Compose) | team lead |
-| IP tailnet máy chủ | dạng `100.x.y.z` | xem ở mục 2 bước 3 |
+| Item | Requirement |
+|---|---|
+| OS | Windows 10/11 or Linux (x64) |
+| Runtime | Node.js 20 LTS + pnpm 9 (`corepack prepare pnpm@9.0.0 --activate`) |
+| RAM / disk | 8 GB+ (16 GB for two parallel runs) / 50 GB free |
+| Network | Wired, always-on, sleep disabled |
+| Secrets | `SECRET_ENCRYPTION_KEY` = base64 of 32 random bytes (encrypts secret variables) |
 
-Không có key AI thì tool vẫn chạy (AI về chế độ rules) — 2 key trên thiếu cái nào thì báo, đừng bịa.
-
-## 2. Lắp Tailscale (mỗi máy 3 phút)
-
-**Bước 1 — Cài.** Mở `https://tailscale.com/download` → Windows → cài đặt →
-biểu tượng Tailscale hiện ở khay hệ thống (góc phải taskbar) → bấm **Log in** →
-đăng nhập bằng tài khoản công ty. Làm cho máy chủ + từng máy BRSE.
-
-**Bước 2 — Duyệt.** Admin mở `https://login.tailscale.dev` → **Machines** →
-máy mới hiện nút **Approve** thì bấm. (Nếu không thấy nút, nghĩa là admin đã bật
-auto-approve — bỏ qua.)
-
-**Bước 3 — Lấy IP.** Di chuột lên icon Tailscale ở **máy chủ**, ghi dãy số
-`100.x.y.z` (ví dụ `100.87.41.12`). Đây là "địa chỉ văn phòng" của BRSE.
-
-**Kiểm tra nhanh:** từ máy BRSE mở `http://100.x.y.z:5173` — chưa thấy tool cũng
-được (mục 3 chưa chạy), nhưng không được báo DNS/timeout. Timeout = hầm chưa
-thông → xem Troubleshooting #1.
-
-## 3. Chạy tool chế độ public (máy chủ, 5 phút)
-
-**Bước 4 — Nạp key 1 lần duy nhất.** Mở PowerShell trên máy chủ, paste 2 dòng
-(đóng PowerShell đi là xong, key lưu theo máy — **không paste key vào chat/file**):
+Generate the key once:
 
 ```powershell
-setx SECRET_ENCRYPTION_KEY "<dán key team lead đưa>"
-setx VV_AI_API_KEY "<dán key team lead đưa>"
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
 ```
 
-**Bước 5 — Chạy.** Mở PowerShell tại thư mục tool:
+## 2. Install
+
+```powershell
+git clone https://github.com/thiennhant95/SiroTest.git C:\SiroTest
+cd C:\SiroTest
+pnpm install
+npx prisma generate
+npx playwright install chromium
+```
+
+Create the database (first time only):
+
+```powershell
+$env:DATABASE_URL='file:C:/SiroTest/data/app.db'
+npx prisma db push --skip-generate
+```
+
+## 3. Configure (once per host)
+
+`setx` persists the values for the service user. Never commit these to git.
+
+```powershell
+setx SECRET_ENCRYPTION_KEY "<base64-32-bytes>"
+setx VV_AI_API_KEY "<your OpenAI-compatible key, optional>"
+```
+
+Environment variables read at start:
+
+| Variable | Purpose | Example |
+|---|---|---|
+| `PORT` | API port | `3001` |
+| `DATABASE_URL` | SQLite file | `file:C:/SiroTest/data/app.db` |
+| `SECRET_ENCRYPTION_KEY` | AES-256-GCM key for secrets at rest | base64 (32 bytes) |
+| `AI_BASE_URL` / `AI_API_KEY` / `AI_MODEL` | Optional LLM gateway | `https://gateway.internal/v1` |
+| `MAX_CONCURRENT_RUNS` | Parallel runs per host | `2` |
+| `ALLOW_DEV_AUTH` | Dev login bypass — **`0` on any networked host** | `0` |
+| `ALLOW_PRIVATE_TARGETS` | Allow private-IP targets (local E2E only) | unset publicly |
+| `CORS_ALLOWED_ORIGINS` | Allowed web origins | `http://127.0.0.1:5173` |
+
+## 4. Start
+
+Local mode (Dev login enabled, web on localhost):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File start-tool.ps1
+```
+
+Networked mode (Dev login disabled, web bound to all interfaces):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File start-tool.ps1 -Public
 ```
 
-Đợi dòng kết quả (khoảng 15–30 giây):
+Expected output: `server ... 3001=True | web ... 5173=True | mode=PUBLIC (no Dev auth)`.
 
-```
-server PID=... 3001=True | web PID=... 5173=True | mode=PUBLIC (no Dev auth)
-```
+Logs: `%TEMP%\opencode\vv-server.log` and `vv-web.log`.
 
-Ý nghĩa từng chữ:
-- `3001=True 5173=True` — cả API lẫn web đã nghe. `False` = port kẹt tiến trình
-  cũ → script đã tự kill rồi chạy lại bước 5.
-- `PUBLIC (no Dev auth)` — **không còn tab Dev bypass**. Bỏ `-Public` là chế độ
-  local (có Dev, web chỉ nghe localhost) — dùng khi tester ngồi tại máy chủ.
+## 5. Run it as a service (survives reboot)
 
-> Vì sao không chạy `npx vite` tay: thiếu `--host 0.0.0.0` thì web chỉ nghe
-> localhost, BRSE ngoài mạng không bao giờ tới được. Script `-Public` lo sẵn.
-
-**Đọc log khi sự cố:** `%TEMP%\opencode\vv-server.log` và `vv-web.log`
-(`Win+R → %TEMP%\opencode`).
-
-**Tự chạy khi mở máy (khuyến nghị):** Task Scheduler → Create Task →
-Trigger *At log on* → Action chạy `powershell.exe` với argument
-`-ExecutionPolicy Bypass -File "D:\...\start-tool.ps1 -Public"` (điền đường dẫn
-thật). Kẻo thứ 2 cả team gọi vì quên bật tool.
-
-## 4. Tài khoản + phân quyền
-
-**Bước 6 — BRSE đăng ký.** BRSE mở `http://100.x.y.z:5173` → trang Login →
-tab **Sign up** → email + mật khẩu → vào được nhưng **chưa thấy project nào**.
-Đây là bình thường (tool chưa có nút mời member — xem chú thích ở bước 7).
-
-**Bước 7 — IT cấp quyền (tạm thời bằng script).** PowerShell tại thư mục tool:
+A normal background process dies when the SSH/RDP session closes. Use a scheduled
+task instead:
 
 ```powershell
-$env:DATABASE_URL='file:C:/SiroTest/hub/apps/server/app.db'
-node scripts/add-member.mjs brse@congty.com editor
+echo powershell -NoProfile -ExecutionPolicy Bypass -File C:\SiroTest\start-tool.ps1 -Public > C:\SiroTest\start-hub.cmd
+schtasks /create /tn SiroTestHub /tr C:\SiroTest\start-hub.cmd /sc onlogon /f
+schtasks /run /tn SiroTestHub
 ```
 
-- `editor` = viết + chạy test (cho BRSE). Người chỉ xem: ghi `viewer`.
-- Thêm project khác: gắn thêm id project cuối lệnh (mặc định là Demo Print).
-- Thành công in: `OK brse@congty.com -> Demo Print as editor`.
-- Lỗi `no User row` = người đó chưa Sign up (quay lại bước 6).
-- Không bao giờ cấp `owner` bằng script.
+> `onlogon` requires someone to log in after a reboot. Enable auto-logon for the
+> service user, or switch the trigger to *At startup* and run as SYSTEM (then pin
+> `DATABASE_URL` to an absolute path and make sure the browser binaries are under
+> the SYSTEM profile or a shared `PLAYWRIGHT_BROWSERS_PATH`).
 
-| Role | Được | Không được |
+## 6. Remote access for teammates (Tailscale)
+
+1. Install Tailscale on the server and on each teammate's machine, log in with the
+   company account.
+2. Approve new devices in the Tailscale admin console if prompted.
+3. Read the server's tailnet IP: `tailscale ip -4` (e.g. `100.x.y.z`).
+4. Teammates open `http://100.x.y.z:5173`, click **Sign up**, then tell the admin.
+5. Admin grants project access (see §7). Reload → projects appear.
+
+## 7. Accounts and permissions
+
+Sign-up creates a user but no project membership. Grant one of:
+
+| Role | Can | Cannot |
 |---|---|---|
-| viewer | Đọc mọi thứ, chạy test, xem video/trace | Tạo/sửa/xóa |
-| editor | Mọi thứ của viewer + tạo/sửa/chạy/dọn | Xóa project |
-| owner | Tất cả (chỉ người tạo project) | — |
+| viewer | Read everything, run tests | Create/edit/delete |
+| editor | Everything a viewer can + author/run | Delete a project |
+| owner | Everything | — |
 
-> `scripts/add-member.mjs` là băng dính tạm: ghi thẳng DB, không sinh audit row
-> (giống `cleanup-db.mjs`). Khi tool có nút mời member trong Settings thì xóa
-> file này. Việc đáng làm nửa ngày, đã ghi nợ.
+Until an invite UI ships, grant membership with the helper (writes the DB directly,
+no audit row):
 
-**Bước 8 — BRSE đăng nhập lại** (F5) → thấy project Demo Print → mở 1 test bấm
-Run thử → xanh là xong onboarding.
+```powershell
+$env:DATABASE_URL='file:C:/SiroTest/data/app.db'
+node scripts/add-member.mjs teammate@company.com editor
+```
 
-## 5. Dành cho BRSE (đọc tới đây là đủ)
+`node scripts/add-member.mjs teammate@company.com viewer <projectId>` targets a
+specific project; the default is the first project in the database.
 
-1. Mở `http://100.x.y.z:5173` (lấy IP ở IT, bookmark lại).
-2. Login tài khoản của bạn. Không có tab Dev — là đúng (chế độ public).
-3. Làm test như bình thường (xem Cẩm nang Tester). Mạng chậm thì video/trace
-   vẫn xem được — đợi load, đừng bấm Run liên tục (mỗi Run chiếm 1 worker).
-4. Hết việc: cứ tắt browser. Không cần logout, không cần tắt gì thêm.
+## 8. Security checklist
 
-## 6. Nghiệm thu (từ 4G, 5 phút)
+- `ALLOW_DEV_AUTH=0` on any host reachable from the network (the Dev tab is a bypass).
+- Only Tailscale (or a VPN / Cloudflare Access) — never NAT ports 3001/5173 to the internet.
+- Rotate `AI_API_KEY` / integration keys if they ever leak, then re-run `setx`.
+- Secrets live encrypted in SQLite; the API never returns plaintext after creation.
 
-**Bước 9 — Test 4G.** Tắt wifi điện thoại, bật 4G → mở IP tailnet (dùng browser
-điện thoại) → login → mở 1 run cũ xem được video → **đạt**.
+## 9. Operations
 
-**Bước 10 — Ghi sheet IT:**
+| Task | Command |
+|---|---|
+| Restart | re-run `start-tool.ps1` (it kills stale listeners first) |
+| Backup | copy `app.db` **with its `-wal` and `-shm` files** while the server is stopped |
+| Update | `git pull` → `pnpm install` → `npx prisma generate` → restart |
+| Audit | open **Audit** in the UI (every state change is recorded) |
+| Retention | `pnpm cleanup:dry` then `pnpm cleanup` (artifacts + old runs) |
 
-| IP tailnet máy chủ | Email BRSE | Quyền | Ngày cấp | Người cấp |
-|---|---|---|---|---|
-| 100.87.41.12 | brse@congty.com | editor | 2026-… | … |
+> SQLite runs in WAL mode: a bare `.db` copy taken while the server is running can
+> miss recent transactions. Stop the server or use the three-file copy.
 
-## 7. Bảo mật (3 cấm kỵ)
+## 10. Troubleshooting
 
-1. **Cấm Dev mode ra ngoài.** `-Public` tắt `ALLOW_DEV_AUTH`. Nếu thấy tab Dev
-   khi truy cập từ ngoài = đang chạy sai chế độ → chạy lại bước 5.
-2. **Cấm http công cộng.** Chỉ đi qua Tailscale (mã hóa sẵn). Không NAT port
-   5173/3001 ra internet bao giờ.
-3. **Key lộ thì regen.** Key AI/Backlog từng paste ở chat → nếu chat share ra
-   ngoài, regen key mới, `setx` lại (bước 4), báo team cập nhật. Secret trong DB
-   mã hóa AES-256-GCM, API không bao giờ trả plaintext — giữ nguyên, đừng tắt.
+| Symptom | Cause | Fix |
+|---|---|---|
+| Teammate times out on the tailnet IP | Tailscale not logged in / not approved | Check both clients, approve in admin |
+| `@prisma/client did not initialize yet` | client stub after install | `npx prisma generate` then restart |
+| Server starts then exits silently | process tied to the SSH session | use the scheduled task (§5) |
+| API returns 401 for `tester-1` | `-Public` mode (correct) | sign up instead of Dev login |
+| Runs stay `queued` | worker slots busy / stale run | wait, cancel old runs, check logs |
+| Videos won't load over a slow link | large artifact | wait, or use Download |
+| No project after sign-up | no membership | §7 |
 
-## 8. Vận hành hàng ngày
+## 11. When to leave Tailscale
 
-- **Restart tool:** chạy lại bước 5 (script tự kill tiến trình cũ).
-- **Backup:** copy file `apps\server\pilot-mizoguchi.db` sang chỗ khác mỗi tuần
-  (SQLite = 1 file, copy là xong) + thư mục artifacts nếu cần video cũ.
-- **Update bản mới:** `git pull` → chạy lại bước 5. Test/lịch sử run/variables
-  nằm trong DB nên còn nguyên.
-- **Xem ai làm gì:** mở `Audit` trong tool (kể cả BRSE ngoài mạng).
-
-## 9. Troubleshooting
-
-| # | Triệu chứng | Nguyên nhân hay gặp | Sửa |
-|---|---|---|---|
-| 1 | BRSE mở IP không được (timeout) | Tailscale chưa login/approve; nhầm IP; máy chủ tắt | Kiểm tra icon Tailscale 2 đầu, Approve ở admin, ping IP tailnet |
-| 2 | Thấy trang login nhưng không có tab Dev | Đúng (chế độ public) — BRSE dùng Sign up | Không phải lỗi |
-| 3 | Login báo 403/no access sau Sign up | Chưa chạy bước 7 | `add-member.mjs` cho đúng email |
-| 4 | Run treo ở `queued` mãi | Hết worker (tối đa 2) hoặc run cũ kẹt | Đợi / Cancel run cũ; xem `%TEMP%\opencode\vv-server.log` |
-| 5 | Video/trace không load từ xa | Mạng yếu + file lớn | Đợi; thử Download thay vì xem inline |
-| 6 | Login chập chờn sau nhiều lần thử | Rate-limit / gõ sai | Nghỉ 1–2 phút, kiểm tra lại mật khẩu |
-| 7 | Sáng thứ 2 không vào được | Máy chủ tắt/ngủ đêm | Bật máy, chạy bước 5; ghim Task Scheduler |
-| 8 | Tailscale báo key/device expired | Lâu không mở máy | Mở app Tailscale Log in lại |
-| 9 | Đổi mật khẩu AI/secret | Key cũ hết hạn | `setx` lại (bước 4) + chạy lại bước 5 |
-| 10 | Muốn thu quyền ai đó | Nghỉ việc/đổi team | Chạy `add-member.mjs <email> viewer` (không có lệnh xóa nhanh — ghi nợ cùng nút mời member) |
-
-## 10. Khi nào bỏ Tailscale
-
-- BRSE > 30 người, hoặc khách hàng/pass audit bảo mật hỏi tới → chuyển
-  Cloudflare Tunnel + Access (SSO Google/MS công ty) — tool không đổi gì,
-  chỉ thay đường vào.
-- Giữ file này cập nhật theo: mỗi lần đổi cách vào, sửa mục 2 + 9.
-
-## 11. Bài học dựng hub thật (ghi lại để lần sau khỏi vấp)
-
-1. **Node/pnpm/Browsers:** hub Windows trắng cần `winget install OpenJS.NodeJS.20`,
-   `corepack prepare pnpm@9.0.0`, `pnpm install`, `npx playwright install chromium`.
-   Repo clone tag release (`git clone --branch v0.2.0 …`).
-2. **Prisma client:** nếu server báo `@prisma/client did not initialize yet`,
-   chạy `npx prisma generate` tại root rồi restart (postinstall đôi khi chỉ để
-   lại stub).
-3. **Copy DB phải đủ trio:** SQLite chạy WAL — copy cả `.db` + `.db-shm` +
-   `.db-wal`, và chỉ copy khi server nguồn đã dừng (không thì bản copy thiếu
-   transaction, server đích crash lặng lẽ). Backup cũng vậy.
-4. **Đừng chạy server bằng tiến trình nền thường qua SSH:** session đóng là
-   process chết theo mà không để lại log. Dùng Scheduled Task
-   (`schtasks /create /tn SiroTestHub … /sc onlogon` + `schtasks /run`) —
-   sống qua đóng SSH lẫn reboot (khi user logon).
-5. **Tailscale login không làm được qua SSH BatchMode:** chạy `tailscale up`,
-   lấy URL `https://login.tailscale.com/a/…` đưa admin mở browser xác thực
-   (hoặc dùng auth key), rồi kiểm tra `tailscale ip -4`.
-6. **`pnpm build` của server fail là bình thường:** nó strict hơn typecheck;
-   server chạy bằng tsx source nên không cần dist của server (chỉ cần dist
-   của các package `packages/*`, `pnpm build` lo phần đó, trừ server).
+More than ~30 users, or a customer security review: move to Cloudflare Tunnel +
+Access (company SSO). The app does not change — only the front door does.

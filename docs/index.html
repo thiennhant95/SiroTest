@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -85,7 +85,7 @@
     <a href="#pricing" data-lang="en" class="show">Pricing</a><a href="#pricing" data-lang="vi">Giá</a><a href="#pricing" data-lang="ja">料金</a>
     <a href="#faq" data-lang="en" class="show">FAQ</a><a href="#faq" data-lang="vi">Hỏi đáp</a><a href="#faq" data-lang="ja">FAQ</a>
   </nav>
-  <div class="lang"><button data-setlang="en">EN</button><button data-setlang="vi" class="on">VI</button><button data-setlang="ja">JA</button></div>
+  <div class="lang"><button data-setlang="en" class="on">EN</button><button data-setlang="ja">JA</button><button data-setlang="vi">VI</button></div>
 </div></header>
 
 <div class="wrap">
@@ -270,7 +270,7 @@
   btns.forEach(function (b) { b.addEventListener('click', function () { set(b.getAttribute('data-setlang')); }); });
   var saved = null;
   try { saved = localStorage.getItem('vv-lang'); } catch (e) {}
-  set(saved === 'en' || saved === 'ja' ? saved : 'vi');
+  set(saved === 'ja' || saved === 'vi' ? saved : 'en');
 
   // Lightbox: click any screenshot to view it full-screen
   (function () {
