@@ -108,11 +108,11 @@ describe("explainFailure provider wiring", () => {
     const p = buildExplainPrompt({
       errorSummary: "TimeoutError: Step timeout of 15000ms exceeded.",
       stepType: "assertVisible",
-      stepName: "Vao mypage",
-      testName: "om01-dang-ky",
+      stepName: "Open dashboard",
+      testName: "login-success",
       priorSummary: "5/5 prior steps passed before failed step s-assert",
     });
-    expect(p).toMatch(/om01-dang-ky/);
+    expect(p).toMatch(/login-success/);
     expect(p).toMatch(/5\/5 prior steps passed/);
   });
 
@@ -121,5 +121,10 @@ describe("explainFailure provider wiring", () => {
     expect(p).toMatch(/NEVER NAVIGATED/);
     expect(p).toMatch(/validation/);
     expect(p).toMatch(/most 'medium'/);
+  });
+
+  it("prompt asks for English summary when lang=en", () => {
+    expect(buildExplainPrompt({ errorSummary: "timeout", lang: "en" })).toMatch(/one paragraph, English/);
+    expect(buildExplainPrompt({ errorSummary: "timeout" })).toMatch(/one paragraph, Vietnamese/);
   });
 });

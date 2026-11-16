@@ -248,6 +248,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         ...(timeoutMs !== undefined ? { timeoutMs } : {}),
         ...(testName !== undefined ? { testName } : {}),
         ...(priorSummary !== undefined ? { priorSummary } : {}),
+        lang: (process.env.AI_EXPLAIN_LANG ?? 'vi').toLowerCase() === 'en' ? 'en' : 'vi',
       },
       getExplainProvider(),
     );

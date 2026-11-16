@@ -37,6 +37,8 @@ export interface FailureInput {
    * apart from "page was slow".
    */
   priorSummary?: string;
+  /** Output language for the LLM summary (default Vietnamese). */
+  lang?: "vi" | "en";
 }
 
 export interface FailureExplanation {
@@ -197,7 +199,7 @@ export function buildExplainPrompt(input: FailureInput): string {
     "You are a Playwright test-failure analyst. Classify the failure and reply",
     "with ONE JSON object only: {",
     '  "category": "locator-not-found|timeout|assert-mismatch|navigation|unknown",',
-    '  "summary": "<one paragraph, Vietnamese>",',
+    '  "summary": "<one paragraph, ' + (input.lang === "en" ? "English" : "Vietnamese") + '>",',
     '  "likelyCauses": ["..."],',
     '  "suggestedFixes": ["..."],',
     '  "confidence": "low|medium|high"',
