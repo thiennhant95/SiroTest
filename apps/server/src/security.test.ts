@@ -162,7 +162,7 @@ describe('redaction + filenames + server paths + limits', () => {
   });
   it('strips spaceless Windows temp paths (run.spec call logs)', () => {
     const out = stripServerPaths(
-      'at C:\\Users\\ASUS\\AppData\\Local\\Temp\\pw-studio-runs\\abc123\\run.spec.ts:14:24',
+      'at C:\\Users\\qa\\AppData\\Local\\Temp\\pw-studio-runs\\abc123\\run.spec.ts:14:24',
     );
     assert.ok(!out.includes('C:\\Users'), `leaked: ${out}`);
     assert.ok(!out.includes('pw-studio-runs'), `leaked: ${out}`);

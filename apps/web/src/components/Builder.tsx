@@ -14,7 +14,7 @@ import {
   sampleLoginSteps,
   toDefinitionSteps,
 } from "../builder/sampleSteps";
-import { authHeaders } from "../lib/api";
+import { apiBase as apiBaseUrl, authHeaders } from "../lib/api";
 import { LocatorBadge } from "./LocatorBadge";
 import { StepInspector } from "./StepInspector";
 import {
@@ -25,7 +25,7 @@ import {
 type SaveState = "Saved" | "Saving" | "Error" | "Unsaved" | "No test selected";
 
 export function Builder(): JSX.Element {
-  const [apiBase, setApiBase] = useState("http://localhost:3001");
+  const [apiBase, setApiBase] = useState(apiBaseUrl);
   const [testId, setTestId] = useState("");
   const [sessionId, setSessionId] = useState("");
   const [steps, setSteps] = useState<BuilderStep[]>(() => sampleLoginSteps());
