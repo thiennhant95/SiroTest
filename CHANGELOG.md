@@ -23,7 +23,7 @@ Format follows Keep a Changelog. Dates are commit dates (`git log --oneline`).
 - `e2e/playwright.config.ts`: ignore `qc-smoke.spec.ts` (QC harness owns it)
 
 ### Changed
-- UI rebrand to SiroTest (title, topbar, login) + bug-report footer text (temporary pilot branding)
+- UI rebrand to the pilot product name (title, topbar, login) + bug-report footer text (temporary pilot branding)
 - `/docs` enriched with pilot-grounded examples (locator cookbook cases, trace reading, Gherkin traps, Backlog config incl. required `priorityId`, troubleshooting: validation-first, soft-delete reservation, login-goto race, popup tabs, SweetAlert confirms)
 
 ## [0.1.0] — 2026-10-13 (release: P0 GREEN + P2 audit/AI batch)

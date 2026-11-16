@@ -2,7 +2,9 @@
 #
 #   ONE-TIME per machine (persisted, run once as the service user):
 #     setx SECRET_ENCRYPTION_KEY "oW7gm2...<paste>"
-#     setx VV_AI_API_KEY "sk-xxx-...<paste>"
+#     setx VV_AI_API_KEY "sk-...<paste>"
+#     setx VV_AI_BASE_URL "https://your-gateway.example/v1"
+#     setx VV_AI_MODEL "your-model"
 #   (get values from the team lead — never commit them to git)
 #
 #   Local (tester on this machine):   powershell -ExecutionPolicy Bypass -File start-tool.ps1
@@ -26,9 +28,9 @@ $env:SECRET_ENCRYPTION_KEY = if ($env:SECRET_ENCRYPTION_KEY) { $env:SECRET_ENCRY
 $env:MAX_CONCURRENT_RUNS = '2'
 $env:ALLOW_PRIVATE_TARGETS = '1'
 $env:CORS_ALLOWED_ORIGINS = 'http://127.0.0.1:5173'
-$env:AI_BASE_URL = 'https://gateway.example.com/v1'
 $env:AI_API_KEY = if ($env:VV_AI_API_KEY) { $env:VV_AI_API_KEY } else { '' }
-$env:AI_MODEL = 'gemini-2.5-flash'
+if ($env:VV_AI_BASE_URL) { $env:AI_BASE_URL = $env:VV_AI_BASE_URL }
+if ($env:VV_AI_MODEL) { $env:AI_MODEL = $env:VV_AI_MODEL }
 if ($Public) { $env:ALLOW_DEV_AUTH = '0' } else { $env:ALLOW_DEV_AUTH = '1' }
 
 # Kill anything already on the ports (stale runs leave listeners behind).
