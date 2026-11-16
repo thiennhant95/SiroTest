@@ -4,6 +4,7 @@ import { toErrorBody } from './errors.js';
 import { authenticateWsTokenAsync } from './auth.js';
 import { JSON_BODY_LIMIT_BYTES } from './security.js';
 import { projectRoutes } from './routes/projects.js';
+import { memberRoutes } from './routes/members.js';
 import { testRoutes } from './routes/tests.js';
 import { environmentRoutes } from './routes/environments.js';
 import { variableRoutes } from './routes/variables.js';
@@ -74,6 +75,7 @@ export async function buildApp() {
   await app.register(
     async (v1) => {
       await v1.register(projectRoutes);
+      await v1.register(memberRoutes);
       await v1.register(testRoutes);
       await v1.register(environmentRoutes);
       await v1.register(variableRoutes);

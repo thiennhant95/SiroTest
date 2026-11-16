@@ -117,16 +117,19 @@ schtasks /run /tn SiroTestHub
 
 ## 7. Accounts and permissions
 
-Sign-up creates a user but no project membership. Grant one of:
+Sign-up creates a user but no project membership. An **owner** adds them in
+**Settings → Members** (paste the email they signed up with, pick `viewer` or
+`editor`). The last owner cannot be removed, and the owner role is never granted
+from that screen.
 
 | Role | Can | Cannot |
 |---|---|---|
 | viewer | Read everything, run tests | Create/edit/delete |
 | editor | Everything a viewer can + author/run | Delete a project |
-| owner | Everything | — |
+| owner | Everything, including member management | — |
 
-Until an invite UI ships, grant membership with the helper (writes the DB directly,
-no audit row):
+If the UI is unavailable (automation, bootstrap), the same change can be made
+directly against the database:
 
 ```powershell
 $env:DATABASE_URL='file:C:/SiroTest/data/app.db'

@@ -4,6 +4,7 @@ import { ApiError, api, type Environment, type ProjectRecord, type Variable } fr
 import { SECRET_MASK } from "../lib/variables";
 import { EnvironmentsPanel } from "../components/EnvironmentsPanel";
 import { IntegrationsPanel } from "../components/IntegrationsPanel";
+import { MembersPanel } from "../components/MembersPanel";
 import {
   Badge,
   DataTable,
@@ -127,6 +128,8 @@ export function SettingsPage() {
               </section>
             </>
           ) : null}
+
+          {projectId ? <MembersPanel projectId={projectId} /> : null}
 
           {projectId ? <IntegrationsPanel projectId={projectId} /> : null}
 

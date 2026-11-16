@@ -254,6 +254,13 @@ export interface TestRecord {
   name: string;
 }
 
+export interface ProjectMember {
+  userId: string;
+  email: string;
+  name: string | null;
+  role: "owner" | "editor" | "viewer";
+}
+
 export interface SuiteRecord {
   id: string;
   projectId: string;
@@ -304,8 +311,7 @@ export const api = {
   del: (path: string) => day6req<void>(path, { method: "DELETE" }),
 
   /* Compat helpers used by pages/Projects + ProjectTests (Day 5/7 shell). */
-  listProjects: () => day6req<ProjectRecord[]>("/projects"),
-  createProject: (payload: { name: string; description?: string; baseUrl?: string }) =>
+  listProjects: () => day6req<ProjectRecord[]>("/projects"),  createProject: (payload: { name: string; description?: string; baseUrl?: string }) =>
     day6req<ProjectRecord>(`/projects`, {
       method: "POST",
       body: JSON.stringify(payload),
@@ -408,7 +414,19 @@ export const api = {
       body: JSON.stringify({ name, ...(description ? { description } : {}) }),
     }),
   getSuite: (suiteId: string) => day6req<SuiteRecord>(`/suites/${suiteId}`),
-  deleteSuite: (suiteId: string) =>
+  listMembers: (projectId: string) => day6req<ProjectMember[]>(`/projects/${projectId}/members`),
+  addMember: (projectId: string, email: string, role: "viewer" | "editor") =>
+    day6req<ProjectMember>(`/projects/${projectId}/members`, {
+      method: "POST",
+      body: JSON.stringify({ email, role }),
+    }),
+  updateMemberRole: (projectId: string, userId: string, role: "viewer" | "editor") =>
+    day6req<ProjectMember>(`/projects/${projectId}/members/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    }),
+  removeMember: (projectId: string, userId: string) =>
+    day6req<void>(`/projects/${projectId}/members/${userId}`, { method: "DELETE" }),  deleteSuite: (suiteId: string) =>
     day6req<void>(`/suites/${suiteId}`, { method: "DELETE" }),
   listSuiteMembers: (suiteId: string) =>
     day6req<SuiteMember[]>(`/suites/${suiteId}/tests`),
