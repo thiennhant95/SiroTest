@@ -116,3 +116,9 @@ folders in [INDEX.md](./INDEX.md). No P1/P2 work while the P0 release gate is re
 [MIT](./LICENSE) — free to use, modify and self-host. The SiroTest name and
 logo are trademarks of the project owners.
 
+## Community
+
+- [Contributing](./CONTRIBUTING.md) · [Code of conduct](./CODE_OF_CONDUCT.md) · [Security policy](./SECURITY.md)
+- Bugs and ideas: use the issue templates
+- Docs: [self-host guide](./docs/remote-access-tailscale.md) · [live site](https://thiennhant95.github.io/SiroTest/)
+

@@ -1,0 +1,70 @@
+name: Bug report
+description: Something is broken — a run, the UI, the compiler, or the API.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Do not paste secrets, tokens or customer data.
+        Security issues: use the Security tab instead of this form.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: From package.json or the footer of the app
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Recorder / Builder
+        - Run / runner
+        - Compiler / export
+        - Suites / schedules
+        - AI features
+        - API / auth
+        - Self-host / install
+        - Docs
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and browser
+      placeholder: "Windows 11 23H2, Chromium 153"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open project …
+        2. Run test …
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include the Short error text and the run ID if applicable. Remove server paths and secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, trace or logs
+      description: Optional. Drag files here.
+    validations:
+      required: false
