@@ -1,39 +1,49 @@
 #!/usr/bin/env node
 /**
- * add-member.mjs — TEMPORARY BRSE onboarding helper (Tailscale phase).
+ * add-member.mjs — bootstrap/repair membership directly in the database.
  *
- * The product has no invite/member UI or API yet, so a new signup has no
- * project membership (403 on everything but their own projects). Until the
- * proper invite endpoint lands, IT runs this per BRSE after they Sign up:
+ * Normal onboarding is now the UI (Settings → Members, owner only). Use this
+ * script only for cases the UI cannot solve:
+ *   - the project owner is a legacy/dev stub account (nobody can log in as it),
+ *   - automation/bootstrap on a fresh install.
  *
+ * Usage:
  *   $env:DATABASE_URL='file:C:/SiroTest/hub/apps/server/app.db'
- *   node scripts/add-member.mjs brse@company.com editor
- *   node scripts/add-member.mjs brse2@company.com viewer [projectId]
+ *   node scripts/add-member.mjs user@company.com editor [projectId]
+ *   node scripts/add-member.mjs user@company.com owner  --all
  *
- * Defaults to the Acme Shop project. Roles: viewer (read-only) | editor
- * (create/edit/run, no project delete). Prints the row; exits non-zero when
- * the email has no User row (they must Sign up in the UI first).
+ * Roles: viewer | editor | owner. `owner` is normally created with the project;
+ * granting it here is a deliberate recovery action (e.g. the original owner was
+ * a dev stub). `--all` applies the membership to every project.
  *
- * NOTE: direct-DB write, no audit row (same as cleanup-db.mjs). Remove this
- * file once POST /projects/:id/members exists.
+ * Prints one line per project. Exits non-zero when the email has no User row
+ * (they must Sign up in the UI first).
+ *
+ * NOTE: direct-DB write — no audit row.
  */
 const { PrismaClient } = await import('@prisma/client');
 
-const DEFAULT_PROJECT = 'cmv83coa600004ctuor0oc3ar'; // Acme Shop
 const email = (process.argv[2] || '').trim().toLowerCase();
 const role = (process.argv[3] || 'viewer').trim().toLowerCase();
-const projectId = (process.argv[4] || DEFAULT_PROJECT).trim();
+const all = process.argv.includes('--all');
+const projectId = (process.argv[4] || '').trim();
+
+const ROLES = new Set(['viewer', 'editor', 'owner']);
 
 if (!process.env.DATABASE_URL) {
   console.error('DATABASE_URL is required (file:...app.db)');
   process.exit(2);
 }
 if (!email || !email.includes('@')) {
-  console.error('usage: node scripts/add-member.mjs <user-email> [viewer|editor] [projectId]');
+  console.error('usage: node scripts/add-member.mjs <user-email> [viewer|editor|owner] [projectId] [--all]');
   process.exit(2);
 }
-if (role !== 'viewer' && role !== 'editor') {
-  console.error('role must be viewer or editor (owner is never granted by script)');
+if (!ROLES.has(role)) {
+  console.error('role must be viewer, editor or owner');
+  process.exit(2);
+}
+if (!all && !projectId) {
+  console.error('pass a projectId, or --all to apply to every project');
   process.exit(2);
 }
 
@@ -44,17 +54,24 @@ try {
     console.error(`no User row for ${email} — they must Sign up in the UI first`);
     process.exit(3);
   }
-  const project = await db.project.findUnique({ where: { id: projectId } });
-  if (!project) {
-    console.error(`project ${projectId} not found`);
+
+  const projects = all
+    ? await db.project.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } })
+    : await db.project.findMany({ where: { id: projectId }, select: { id: true, name: true } });
+
+  if (projects.length === 0) {
+    console.error(all ? 'no projects found' : `project ${projectId} not found`);
     process.exit(3);
   }
-  const row = await db.projectMember.upsert({
-    where: { projectId_userId: { projectId, userId: user.id } },
-    update: { role },
-    create: { projectId, userId: user.id, role },
-  });
-  console.log(`OK ${email} -> ${project.name} as ${row.role}`);
+
+  for (const project of projects) {
+    const row = await db.projectMember.upsert({
+      where: { projectId_userId: { projectId: project.id, userId: user.id } },
+      update: { role },
+      create: { projectId: project.id, userId: user.id, role },
+    });
+    console.log(`OK ${email} -> ${project.name} as ${row.role}`);
+  }
 } finally {
   await db.$disconnect();
 }
