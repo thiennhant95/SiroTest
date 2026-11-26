@@ -109,6 +109,13 @@ export class RecorderSessionManager {
     return s;
   }
 
+  /** Number of sessions currently active or paused (capacity planning). */
+  activeCount(): number {
+    let n = 0;
+    for (const s of this.sessions.values()) if (s.status === 'active' || s.status === 'paused') n += 1;
+    return n;
+  }
+
   /**
    * Stop every live session for a deleted test/project (drafts are
    * discarded — the owning test is gone). Best-effort: never throws, so

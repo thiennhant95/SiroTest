@@ -93,6 +93,17 @@ export async function recorderRoutes(app: FastifyInstance): Promise<void> {
     if (!urlCheck.ok) {
       throw new ApiError('VALIDATION_ERROR', `baseUrl rejected: ${urlCheck.reason}`, 400);
     }
+    // Capacity guard: every recorder session holds a real browser on this host.
+    // Default 4 (MAX_RECORDERS); raise only if the machine has headroom.
+    const limit = Math.max(1, Number(process.env.MAX_RECORDERS ?? 4) || 4);
+    const active = recorderManager.activeCount();
+    if (active >= limit) {
+      throw new ApiError(
+        'RECORDER_LIMIT_REACHED',
+        `All ${limit} recording slots are in use (${active} active). Ask a teammate to press Stop, or raise MAX_RECORDERS on the server.`,
+        429,
+      );
+    }
     try {
       const session = recorderManager.start({
         userId: req.user!.id, testId: id, projectId: test.projectId,
