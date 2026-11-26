@@ -1,4 +1,6 @@
 import type { FastifyInstance } from 'fastify';
+import { createServer } from 'node:net';
+import { startRunLiveView } from '../run-live.js';
 import {
   cancelRun,
   runTest,
@@ -72,6 +74,18 @@ export function validateRunDataset(
   return rowIndex !== undefined ? { datasetId, rowIndex } : { datasetId };
 }
 
+/** Ephemeral localhost port for a run's CDP endpoint (read-only live view). */
+function freePort(): Promise<number> {
+  return new Promise((resolve) => {
+    const srv = createServer();
+    srv.listen(0, '127.0.0.1', () => {
+      const addr = srv.address();
+      const port = typeof addr === 'object' && addr ? addr.port : 0;
+      srv.close(() => resolve(port));
+    });
+  });
+}
+
 export async function runRoutes(app: FastifyInstance): Promise<void> {
   // POST /tests/:id/runs  { environmentId, browser, headed }
   app.post('/tests/:id/runs', { preHandler: requireAuth }, async (req, reply) => {
@@ -123,6 +137,9 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
     // 202 immediately; the worker owns the Playwright child pid from here.
     markQueuedEmittedByRoute(run.id);
     const definition = JSON.parse(test.definitionJson) as TestDefinition;
+    // Read-only live view: a free localhost CDP port for this run. The runner
+    // launches Chromium with it; we attach and stream frames to the run page.
+    const cdpPort = await freePort();
     const { projectVariables, environmentVariables } = await resolveRunVariables(
       test.projectId,
       body.environmentId,
@@ -140,6 +157,7 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
       environmentId: body.environmentId,
       browser: body.browser,
       headed: body.headed,
+      cdpPort,
       ...(validatedDataset.datasetId !== undefined ? { datasetId: validatedDataset.datasetId } : {}),
       ...(validatedDataset.rowIndex !== undefined ? { rowIndex: validatedDataset.rowIndex } : {}),
       ...(inputs.actions.length > 0 ? { actions: inputs.actions } : {}),
@@ -161,6 +179,10 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
       triggeredBy: req.user!.id,
     };
     const healCtx = { testId: id, projectId: test.projectId, runId: run.id, createdBy: req.user!.id };
+    startRunLiveView(run.id, cdpPort, async () => {
+      const r = await db().run.findUnique({ where: { id: run.id }, select: { status: true } });
+      return !!r && ['passed', 'failed', 'cancelled'].includes(r.status);
+    });
     void runQueue
       .submit(run.id, async () => {
         // A cancel that landed while the job was still queued must win:

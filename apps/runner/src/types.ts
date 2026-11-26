@@ -161,6 +161,8 @@ export interface RunRequest {
   environmentId?: string;
   browser?: BrowserName;
   headed?: boolean;
+  /** CDP port for read-only live view (server attaches; run stays deterministic). */
+  cdpPort?: number;
   /** P1 data-driven: dataset id selected at trigger time (must exist in test.datasets). */
   datasetId?: string;
   /** P1 data-driven: run a single row only (0-based index into the dataset). */

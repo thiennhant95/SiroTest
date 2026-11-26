@@ -1000,6 +1000,8 @@ export interface RunConfigOptions {
   headed?: boolean;
   /** Observe mode: ms of Playwright launch slow-motion (0/undefined = off). */
   slowMoMs?: number;
+  /** CDP port for a read-only live view (undefined = byte-identical config). */
+  cdpPort?: number;
   baseUrl?: string;
   viewport?: { width: number; height: number };
   reporterPath: string;
@@ -1050,7 +1052,12 @@ export function compileConfig(opts: RunConfigOptions): string {
     ...(typeof opts.healingActionTimeoutMs === 'number' && Number.isFinite(opts.healingActionTimeoutMs)
       ? [`    actionTimeout: ${Math.trunc(opts.healingActionTimeoutMs)}, // P2 healing: primary capped, probes keep headroom`]
       : []),
-    ...(opts.slowMoMs ? [`    launchOptions: { slowMo: ${Math.trunc(opts.slowMoMs)} }, // observe mode`] : []),
+    ...(opts.slowMoMs || opts.cdpPort
+      ? [`    launchOptions: { ${[
+          ...(opts.slowMoMs ? [`slowMo: ${Math.trunc(opts.slowMoMs)}`] : []),
+          ...(opts.cdpPort ? [`args: ['--remote-debugging-port=${Math.trunc(opts.cdpPort)}', '--remote-allow-origins=*']`] : []),
+        ].join(', ')} }, // observe/live view`]
+      : []),
     ...(opts.viewport ? [`    viewport: { width: ${opts.viewport.width}, height: ${opts.viewport.height} },`] : []),
     `    trace: ${esc(opts.trace)},`,
     `    screenshot: ${esc(opts.screenshot)},`,

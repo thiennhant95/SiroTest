@@ -463,6 +463,7 @@ export async function runTest(req: RunRequest, deps: RunDependencies): Promise<{
       browser,
       headed: req.debug === true ? true : (req.headed ?? false),
       ...(req.slowMoMs ? { slowMoMs: req.slowMoMs } : {}),
+      ...(req.cdpPort ? { cdpPort: req.cdpPort } : {}),
       baseUrl: test.baseUrl,
       // Run-level override wins (responsive runs); test default otherwise.
       ...(req.viewport ?? test.viewport ? { viewport: (req.viewport ?? test.viewport)! } : {}),

@@ -6,6 +6,7 @@ import { ApiError, api as studioApi, apiBase, authHeaders, isNotFoundError, pars
 import { BugReportDialog } from "../components/BugReportDialog";
 import { RunTour, restartRunTour } from "../components/GuidedTour";
 import { useRunChannel } from "../hooks/useRunChannel";
+import { RunLiveView } from "../components/RunLiveView";
 import { locatorPreview, type BuilderStep } from "../lib/steps";
 import { sampleRun } from "../mocks/sampleRun";
 import type { RunDetail, UserRole } from "../types";
@@ -454,6 +455,9 @@ export function RunDetailPage({ runId }: { runId: string }) {  const { run, load
       {run.status === "failed" ? (
         <ExplainWithAi runId={run.id} projectId={run.projectId} demo={runId === "demo" || run.id === sampleRun.id} />
       ) : null}
+
+      {/* Live browser (read-only) while the run is executing */}
+      <RunLiveView runId={run.id} active={run.status === "queued" || run.status === "running"} />
 
       {/* Timeline */}
       <h2>Step timeline</h2>
