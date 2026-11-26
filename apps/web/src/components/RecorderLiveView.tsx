@@ -10,10 +10,12 @@ import { useEffect, useRef, useState } from "react";
  */
 export function RecorderLiveView({ sessionId }: { sessionId: string }) {
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const boxRef = useRef<HTMLDivElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const [status, setStatus] = useState<"connecting" | "live" | "error">("connecting");
   const [frame, setFrame] = useState<string>("");
   const [message, setMessage] = useState<string>("");
+  const [zoom, setZoom] = useState<"fit" | "1.5" | "2">("fit");
 
   useEffect(() => {
     const proto = window.location.protocol === "https:" ? "wss" : "ws";
@@ -86,9 +88,34 @@ export function RecorderLiveView({ sessionId }: { sessionId: string }) {
       <div className="flex items-center gap-2 text-xs text-slate-500">
         <span className={`inline-block h-2 w-2 rounded-full ${status === "live" ? "bg-green-500" : status === "error" ? "bg-red-500" : "bg-amber-400"}`} />
         {status === "live" ? "Live view — click and type here" : status === "connecting" ? "Connecting to the browser…" : `Live view unavailable${message ? `: ${message}` : ""}`}
+        <span className="ml-auto flex items-center gap-1">
+          {(["fit", "1.5", "2"] as const).map((z) => (
+            <button
+              key={z}
+              type="button"
+              onClick={() => setZoom(z)}
+              className={`rounded border px-2 py-0.5 ${zoom === z ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-slate-300 text-slate-600 hover:bg-slate-50"}`}
+            >
+              {z === "fit" ? "Fit" : `${Number(z) * 100}%`}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              const el = boxRef.current;
+              if (!el) return;
+              if (document.fullscreenElement) void document.exitFullscreen();
+              else void el.requestFullscreen?.();
+            }}
+            className="rounded border border-slate-300 px-2 py-0.5 text-slate-600 hover:bg-slate-50"
+          >
+            Fullscreen
+          </button>
+        </span>
       </div>
       <div
-        className="overflow-hidden rounded-lg border border-slate-300 bg-slate-900"
+        ref={boxRef}
+        className="overflow-auto rounded-lg border border-slate-300 bg-slate-900"
         tabIndex={0}
         onKeyDown={(e) => {
           const key = e.key;
@@ -112,7 +139,8 @@ export function RecorderLiveView({ sessionId }: { sessionId: string }) {
           src={frame || undefined}
           alt="Live browser"
           draggable={false}
-          className="block w-full cursor-crosshair select-none"
+          className="block cursor-crosshair select-none"
+          style={{ width: zoom === "fit" ? "100%" : `${Number(zoom) * 100}%`, maxWidth: "none" }}
           onMouseDown={(e) => {
             const p = point(e);
             send({ kind: "mouse", type: "mousePressed", button: e.button === 2 ? "right" : "left", clickCount: 1, x: p.x, y: p.y });
