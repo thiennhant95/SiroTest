@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Badge, Button, CopyId, Field, Input, useToast } from "../components/ui";
 import { ApiError, api } from "../lib/api";
+import { RecorderLiveView } from "../components/RecorderLiveView";
 
 /** /tests/:id/record — thin wrapper over recorder REST endpoints. */
 export function RecordPage() {
@@ -43,8 +44,8 @@ export function RecordPage() {
 
       <ol className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 text-sm shadow-sm">
         {[
-          "Enter the Base URL, then Start — a headed browser opens on the server host.",
-          "Interact with the website: each click/keystroke is recorded as a step.",
+          "Enter the Base URL, then Start — a live browser view appears here (no local install needed).",
+          "Click inside the live view and interact: each click/keystroke is recorded as a step.",
           "Pause when you need a break; Resume to continue.",
           "Stop to merge the steps into the builder, then review.",
         ].map((s, i) => (
@@ -60,6 +61,8 @@ export function RecordPage() {
       <Field label="Base URL">
         <Input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} disabled={!!sessionId} />
       </Field>
+
+      {sessionId ? <RecorderLiveView sessionId={sessionId} /> : null}
 
       <div className="flex flex-wrap gap-2">
         {!sessionId ? (

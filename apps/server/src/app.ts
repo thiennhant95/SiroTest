@@ -119,6 +119,8 @@ export async function buildApp() {
     sessionId?: string;
   }
   const peers = new Set<Peer>();
+  /** Live-view CDP sessions keyed by recorder sessionId (one viewer each). */
+  const streams = new Map<string, { cdp: any; metadata?: { deviceWidth: number; deviceHeight: number } }>();
   (globalThis as { __vvWsBroadcast?: unknown }).__vvWsBroadcast = (event: string, payload: unknown) => {
     const p = (payload ?? {}) as Record<string, unknown>;
     const msg = JSON.stringify({ event, payload });
@@ -158,7 +160,107 @@ export async function buildApp() {
       // a session WITH a live browser gets verified candidates; externally
       // driven pages get an unverified rank from event-time metadata.
       try {
-        const msg = JSON.parse(String(raw)) as { sessionId?: string; evt?: unknown };
+        const msg = JSON.parse(String(raw)) as {
+          sessionId?: string;
+          evt?: unknown;
+          stream?: 'start' | 'stop';
+          input?: unknown;
+        };
+        // Live view (remote recording): CDP screencast frames out, input in.
+        // Same ownership guard as bridge ingest — a peer can only drive its
+        // own recorder session.
+        if (msg.sessionId && (msg.stream || msg.input)) {
+          const session = recorderManager.getBySessionId(msg.sessionId);
+          if (!session) return;
+          if (session.userId !== peer.userId) {
+            peer.send(JSON.stringify({ event: 'error', payload: { code: 'FORBIDDEN', message: 'Recorder session belongs to another user' } }));
+            return;
+          }
+          const live = recorderManager.getBrowser(msg.sessionId);
+          const page = live?.page;
+          if (!page) {
+            peer.send(JSON.stringify({ event: 'error', payload: { code: 'RECORDER_NO_LIVE_BROWSER', message: 'No live browser for this session' } }));
+            return;
+          }
+          const sid = msg.sessionId;
+          if (msg.stream === 'start') {
+            if (!streams.has(sid)) {
+              void (async () => {
+                const cdp = await page.context().newCDPSession(page);
+                streams.set(sid, { cdp });
+                cdp.on('Page.screencastFrame', (frame: {
+                  data: string;
+                  sessionId: number;
+                  metadata: { deviceWidth: number; deviceHeight: number };
+                }) => {
+                  const entry = streams.get(sid);
+                  if (entry) entry.metadata = frame.metadata;
+                  void cdp.send('Page.screencastFrameAck', { sessionId: frame.sessionId }).catch(() => {});
+                  peer.send(JSON.stringify({
+                    event: 'recorder.screencast',
+                    payload: { sessionId: sid, data: frame.data, metadata: frame.metadata },
+                  }));
+                });
+                await cdp.send('Page.startScreencast', {
+                  format: 'jpeg',
+                  quality: 60,
+                  maxWidth: 1280,
+                  maxHeight: 900,
+                  everyNthFrame: 1,
+                });
+              })().catch(() => {
+                streams.delete(sid);
+                peer.send(JSON.stringify({ event: 'error', payload: { code: 'SCREENCAST_FAILED', message: 'Could not start live view' } }));
+              });
+            }
+            return;
+          }
+          if (msg.stream === 'stop') {
+            const entry = streams.get(sid);
+            if (entry) {
+              void entry.cdp.send('Page.stopScreencast').catch(() => {});
+              streams.delete(sid);
+            }
+            return;
+          }
+          const entry = streams.get(sid);
+          if (!entry || !entry.metadata) return;
+          const meta = entry.metadata;
+          const input = msg.input as Record<string, unknown>;
+          const kind = String(input['kind'] ?? '');
+          const x = Number(input['x'] ?? 0) * meta.deviceWidth;
+          const y = Number(input['y'] ?? 0) * meta.deviceHeight;
+          if (kind === 'mouse') {
+            void entry.cdp.send('Input.dispatchMouseEvent', {
+              type: String(input['type'] ?? 'mousePressed'),
+              x,
+              y,
+              button: String(input['button'] ?? 'left'),
+              clickCount: Number(input['clickCount'] ?? 1),
+              buttons: Number(input['buttons'] ?? 1),
+            }).catch(() => {});
+          } else if (kind === 'wheel') {
+            void entry.cdp.send('Input.dispatchMouseEvent', {
+              type: 'mouseWheel',
+              x,
+              y,
+              deltaX: 0,
+              deltaY: Number(input['deltaY'] ?? 0),
+            }).catch(() => {});
+          } else if (kind === 'key') {
+            void entry.cdp.send('Input.dispatchKeyEvent', {
+              type: String(input['type'] ?? 'keyDown'),
+              key: input['key'],
+              code: input['code'],
+              text: input['text'],
+              windowsVirtualKeyCode: input['keyCode'],
+              nativeVirtualKeyCode: input['keyCode'],
+            }).catch(() => {});
+          } else if (kind === 'text') {
+            void entry.cdp.send('Input.insertText', { text: String(input['text'] ?? '') }).catch(() => {});
+          }
+          return;
+        }
         if (msg.sessionId && msg.evt) {
           const session = recorderManager.getBySessionId(msg.sessionId);
           if (!session) return;
