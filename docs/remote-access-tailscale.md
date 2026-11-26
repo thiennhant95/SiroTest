@@ -139,6 +139,12 @@ node scripts/add-member.mjs teammate@company.com editor
 `node scripts/add-member.mjs teammate@company.com viewer <projectId>` targets a
 specific project; the default is the first project in the database.
 
+## 7b. Recorder capacity and stuck sessions
+
+- `MAX_RECORDERS` (default 4) caps concurrent Record sessions — each holds a real Chromium on the host. Beyond the cap the API returns `RECORDER_LIMIT_REACHED` and the UI explains it.
+- A forgotten Record tab is closed automatically after `RECORDER_IDLE_TIMEOUT_MIN` minutes idle (default 30; `0` disables). Drafts are kept and the browser is freed.
+- Manual recovery: the Record page lists the caller's active sessions with **Stop all my sessions**.
+
 ## 8. Security checklist
 
 - `ALLOW_DEV_AUTH=0` on any host reachable from the network (the Dev tab is a bypass).
