@@ -165,6 +165,34 @@ function testBaseUrl(test: { definitionJson: string }): string | undefined {
   }
 }
 
+  // Active sessions owned by the caller (Stop-all recovery UI).
+  app.get('/recorder/sessions', { preHandler: requireAuth }, async (req) => {
+    return recorderManager.listForUser(req.user!.id).map((s) => ({
+      sessionId: s.sessionId,
+      testId: s.testId,
+      status: s.status,
+      startedAt: s.startedAt,
+      updatedAt: s.updatedAt,
+      draftCount: s.draftSteps.length,
+      liveBrowser: recorderManager.hasLiveBrowser(s.sessionId),
+    }));
+  });
+
+  // Close every session the caller owns: browser freed, drafts kept.
+  app.post('/recorder/sessions/stop-all', { preHandler: requireAuth }, async (req) => {
+    const mine = recorderManager.listForUser(req.user!.id);
+    let stopped = 0;
+    for (const s of mine) {
+      try {
+        recorderManager.markInterrupted(s.sessionId, 'stopped-by-user');
+        stopped += 1;
+      } catch {
+        /* session vanished */
+      }
+    }
+    return { stopped };
+  });
+
   app.post('/recorder/:sessionId/pause', { preHandler: requireAuth }, async (req) => {
     const { sessionId } = req.params as { sessionId: string };
     requireSessionOwner(sessionId, req.user!.id);

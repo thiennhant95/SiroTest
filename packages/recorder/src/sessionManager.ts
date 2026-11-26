@@ -150,6 +150,18 @@ export class RecorderSessionManager {
     return stopped;
   }
 
+  /** Sessions owned by a user (any status except stopped) — for a Stop-all UI. */
+  listForUser(userId: string): RecorderSession[] {
+    return [...this.sessions.values()].filter((s) => s.userId === userId && s.status !== 'stopped');
+  }
+
+  /** Active/paused sessions older than maxIdleMs since their last event. */
+  idleSessions(maxIdleMs: number, now = Date.now()): RecorderSession[] {
+    return [...this.sessions.values()].filter(
+      (s) => (s.status === 'active' || s.status === 'paused') && now - s.updatedAt > maxIdleMs,
+    );
+  }
+
   /** Browser closed/crashed: keep draft, mark interrupted (stays retrievable). */
   markInterrupted(sessionId: string, reason = 'browser-closed'): RecorderSession {
     const s = this.require(sessionId);

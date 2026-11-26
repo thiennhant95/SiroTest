@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";import { Link, useParams } from "react-router-dom";
 import { Badge, Button, CopyId, Field, Input, useToast } from "../components/ui";
 import { ApiError, api } from "../lib/api";
 import { RecorderLiveView } from "../components/RecorderLiveView";
@@ -12,6 +11,19 @@ export function RecordPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [active, setActive] = useState<Array<{ sessionId: string; testId: string; status: string; draftCount: number }>>([]);
+
+  const loadActive = async () => {
+    try {
+      setActive(await api.listRecorderSessions());
+    } catch {
+      setActive([]);
+    }
+  };
+
+  useEffect(() => {
+    void loadActive();
+  }, []);
 
   const call = async (fn: () => Promise<unknown>, ok: string) => {
     setBusy(true);
@@ -57,6 +69,40 @@ export function RecordPage() {
           </li>
         ))}
       </ol>
+
+      {active.length > 0 ? (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm">
+          <div className="mb-1 flex items-center justify-between">
+            <strong className="text-amber-900">Active recorder sessions: {active.length}</strong>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={busy}
+              onClick={() =>
+                call(async () => {
+                  const r = await api.stopAllRecorderSessions();
+                  setSessionId(null);
+                  setPaused(false);
+                  await loadActive();
+                  toast.push("info", `${r.stopped} session(s) closed — drafts kept.`);
+                }, "Sessions closed.")
+              }
+            >
+              Stop all my sessions
+            </Button>
+          </div>
+          <ul className="list-disc space-y-0.5 pl-5 text-xs text-amber-900">
+            {active.map((s) => (
+              <li key={s.sessionId}>
+                {s.status} · test <code>{s.testId.slice(0, 10)}…</code> · {s.draftCount} draft step(s)
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs text-amber-800">
+            A forgotten session keeps a real browser open on the server. Close it here, or it is closed automatically after 30 minutes idle.
+          </p>
+        </div>
+      ) : null}
 
       <Field label="Base URL">
         <Input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} disabled={!!sessionId} />

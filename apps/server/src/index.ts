@@ -28,6 +28,26 @@ async function main() {
   if (invokedAsEntry && process.env.SKIP_LISTEN !== "1" && process.env.SCHEDULER_DISABLED !== "1") {
     startScheduler({ log: app.log });
   }
+
+  // Recorder idle sweeper: a forgotten Record tab would otherwise hold a real
+  // Chromium on this host forever (the classic "why is RAM full" incident).
+  // Idle sessions are interrupted (drafts kept, browser closed) after
+  // RECORDER_IDLE_TIMEOUT_MIN minutes (default 30; 0 disables).
+  const idleMin = Number(process.env.RECORDER_IDLE_TIMEOUT_MIN ?? 30);
+  if (invokedAsEntry && Number.isFinite(idleMin) && idleMin > 0) {
+    const { recorderManager } = await import("./routes/recorder.js");
+    const timer = setInterval(() => {
+      try {
+        for (const s of recorderManager.idleSessions(idleMin * 60_000)) {
+          app.log.warn({ sessionId: s.sessionId, testId: s.testId, status: s.status }, "recorder idle timeout — closing browser, drafts kept");
+          recorderManager.markInterrupted(s.sessionId, "idle-timeout");
+        }
+      } catch (err) {
+        app.log.error({ err }, "recorder idle sweep failed");
+      }
+    }, 60_000);
+    timer.unref?.();
+  }
 }
 
 main().catch((err) => {

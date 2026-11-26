@@ -380,6 +380,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify(baseUrl ? { baseUrl } : {}),
     }),
+  listRecorderSessions: () =>
+    day6req<Array<{ sessionId: string; testId: string; status: string; updatedAt: number; draftCount: number; liveBrowser: boolean }>>(
+      `/recorder/sessions`,
+    ),
+  stopAllRecorderSessions: () =>
+    day6req<{ stopped: number }>(`/recorder/sessions/stop-all`, { method: "POST", body: "{}" }),
   recorderPause: (sessionId: string) =>
     day6req<void>(`/recorder/${sessionId}/pause`, { method: "POST", body: "{}" }),
   recorderResume: (sessionId: string) =>
