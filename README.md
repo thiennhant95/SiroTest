@@ -58,6 +58,19 @@ Server reads env (see [.env.example](./.env.example)):
 | `ALLOW_DEV_AUTH` | Dev-mode login — **must be `0` on any networked host** | `0` in production |
 | `ALLOW_PRIVATE_TARGETS` | Allow recorder/runs against private IPs (local E2E only) | unset publicly |
 
+## Starter examples (run something in 2 minutes)
+
+Three read-only tests against public sites — the fastest way to see the tool work:
+
+```powershell
+$env:STUDIO_API_URL='http://127.0.0.1:3001/api/v1'
+$env:STUDIO_TOKEN='tester-1'
+node scripts/import-examples.mjs
+```
+
+The script prints a direct link for each test (`…/tests/<id>`). Open it and press
+**Run**. Files and notes: [examples/starters](./examples/starters/README.md).
+
 ## Repo layout
 
 | Path | What lives here |

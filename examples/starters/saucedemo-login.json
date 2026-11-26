@@ -1,0 +1,11 @@
+{
+  "name": "SauceDemo — sign in",
+  "baseUrl": "https://www.saucedemo.com",
+  "steps": [
+    { "id": "s1", "type": "goto", "name": "Open SauceDemo", "enabled": true, "url": "https://www.saucedemo.com/" },
+    { "id": "s2", "type": "fill", "name": "Enter username", "enabled": true, "target": { "primary": { "strategy": "css", "value": "#user-name" } }, "value": "standard_user" },
+    { "id": "s3", "type": "fill", "name": "Enter password", "enabled": true, "target": { "primary": { "strategy": "css", "value": "#password" } }, "value": "secret_sauce" },
+    { "id": "s4", "type": "click", "name": "Click Login", "enabled": true, "target": { "primary": { "strategy": "css", "value": "#login-button" } } },
+    { "id": "s5", "type": "assertVisible", "name": "Products page", "enabled": true, "target": { "primary": { "strategy": "text", "value": "Products" } } }
+  ]
+}

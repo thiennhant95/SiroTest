@@ -1,0 +1,10 @@
+{
+  "name": "TodoMVC — add a todo",
+  "baseUrl": "https://demo.playwright.dev/todomvc",
+  "steps": [
+    { "id": "s1", "type": "goto", "name": "Open TodoMVC", "enabled": true, "url": "https://demo.playwright.dev/todomvc" },
+    { "id": "s2", "type": "fill", "name": "Type a todo", "enabled": true, "target": { "primary": { "strategy": "placeholder", "value": "What needs to be done?" } }, "value": "Review the release checklist" },
+    { "id": "s3", "type": "press", "name": "Press Enter", "enabled": true, "target": { "primary": { "strategy": "placeholder", "value": "What needs to be done?" } }, "key": "Enter" },
+    { "id": "s4", "type": "assertVisible", "name": "Todo appears", "enabled": true, "target": { "primary": { "strategy": "text", "value": "Review the release checklist" } } }
+  ]
+}

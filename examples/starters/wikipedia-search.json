@@ -1,0 +1,11 @@
+{
+  "name": "Wikipedia — search and open an article",
+  "baseUrl": "https://en.wikipedia.org",
+  "steps": [
+    { "id": "s1", "type": "goto", "name": "Open Wikipedia", "enabled": true, "url": "https://en.wikipedia.org/wiki/Main_Page" },
+    { "id": "s2", "type": "fill", "name": "Search for a topic", "enabled": true, "target": { "primary": { "strategy": "role", "role": "searchbox", "name": "Search Wikipedia" } }, "value": "Software testing" },
+    { "id": "s3", "type": "press", "name": "Submit the search", "enabled": true, "target": { "primary": { "strategy": "role", "role": "searchbox", "name": "Search Wikipedia" } }, "key": "Enter" },
+    { "id": "s4", "type": "assertURL", "name": "Article opened", "enabled": true, "pattern": "**/wiki/Software_testing*" },
+    { "id": "s5", "type": "assertVisible", "name": "Article heading", "enabled": true, "target": { "primary": { "strategy": "role", "role": "heading", "name": "Software testing", "exact": false } } }
+  ]
+}
